@@ -20,7 +20,7 @@ export function Preview() {
           alt="Logo mAI"
           className="size-5"
           height={20}
-          src="/icon.svg"
+          src="/mai-logo.svg"
           width={20}
         />
         <span className="text-[13px] text-muted-foreground">mAI</span>

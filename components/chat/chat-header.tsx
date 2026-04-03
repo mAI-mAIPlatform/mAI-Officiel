@@ -38,7 +38,7 @@ function PureChatHeader({
           alt="Logo mAI"
           className="size-5"
           height={20}
-          src="/icon.svg"
+          src="/mai-logo.svg"
           width={20}
         />
         <span className="font-semibold text-sm">mAI</span>

@@ -92,6 +92,7 @@ export function useProfileSettings({
   isGuest: boolean;
   user: User;
 }) {
+  // État local complet de personnalisation, persisté côté navigateur.
   const [displayName, setDisplayName] = useState(() =>
     getDefaultDisplayName(user, isGuest)
   );
@@ -108,6 +109,7 @@ export function useProfileSettings({
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    // Hydratation initiale: on restaure les préférences utilisateur enregistrées.
     const savedProfileSettings = window.localStorage.getItem(
       PROFILE_SETTINGS_STORAGE_KEY
     );
@@ -159,6 +161,7 @@ export function useProfileSettings({
       return;
     }
 
+    // Persistance continue pour conserver l'environnement collaboratif et IA.
     const nextProfileSettings: ProfileSettings = {
       aiMemory,
       aiName: aiName.trim() || "mAI",
@@ -382,6 +385,7 @@ export function UserSettingsDialog({
                 accept="image/*"
                 className="mt-3"
                 onChange={(event) => {
+                  // Upload d'avatar custom: conversion en DataURL (stockage local).
                   const file = event.target.files?.[0];
 
                   if (!file) {
