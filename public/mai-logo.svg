@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Logo mAI">
+  <defs>
+    <linearGradient id="mai-rainbow" x1="0.14" y1="0.18" x2="0.86" y2="0.86">
+      <stop offset="0%" stop-color="#2f6dff" />
+      <stop offset="22%" stop-color="#25c4ff" />
+      <stop offset="43%" stop-color="#65ea3f" />
+      <stop offset="61%" stop-color="#ffe100" />
+      <stop offset="78%" stop-color="#ff9f1a" />
+      <stop offset="100%" stop-color="#bb60ff" />
+    </linearGradient>
+  </defs>
+  <!-- Logo étoile creuse multicolore basé sur le visuel fourni. -->
+  <path
+    d="M512 132 624 358 874 394 694 570 738 820 512 704 286 820 330 570 150 394 400 358Z"
+    fill="none"
+    stroke="url(#mai-rainbow)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="96"
+  />
+</svg>

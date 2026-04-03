@@ -12,9 +12,16 @@ export const guestRegex = /^guest-\d+$/;
 
 export const DUMMY_PASSWORD = generateDummyPassword();
 
+export const greetingPrompts = [
+  "Comment puis-je vous aider aujourd'hui ?",
+  "Que voulez-vous construire avec mAI ?",
+  "Par quoi commençons-nous aujourd'hui ?",
+  "Quelle idée voulez-vous explorer maintenant ?",
+] as const;
+
 export const suggestions = [
-  "What are the advantages of using Next.js?",
-  "Write code to demonstrate Dijkstra's algorithm",
-  "Help me write an essay about Silicon Valley",
-  "What is the weather in San Francisco?",
+  "Rédige un plan projet pour lancer une nouvelle fonctionnalité IA.",
+  "Crée un résumé des actions à faire cette semaine avec priorités.",
+  "Aide-moi à structurer une base de connaissances pour mon équipe.",
+  "Propose 5 idées de contenu pour présenter mon produit en français.",
 ];

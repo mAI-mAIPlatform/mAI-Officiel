@@ -30,8 +30,31 @@ export function SidebarUserNav({ user }: { user: User }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isGuest = guestRegex.test(data?.user?.email ?? "");
-  const { avatarId, displayName, selectedAvatar, setAvatarId, setDisplayName } =
-    useProfileSettings({ isGuest, user });
+  const {
+    aiMemory,
+    aiName,
+    avatarDataUrl,
+    avatarId,
+    currentAvatarBackground,
+    displayName,
+    personalContext,
+    profession,
+    projectDescription,
+    projectIconColor,
+    projectTitle,
+    setAiMemory,
+    setAiName,
+    setAvatarDataUrl,
+    setAvatarId,
+    setDisplayName,
+    setPersonalContext,
+    setProfession,
+    setProjectDescription,
+    setProjectIconColor,
+    setProjectTitle,
+    setStylisticDirectives,
+    stylisticDirectives,
+  } = useProfileSettings({ isGuest, user });
 
   return (
     <SidebarMenu>
@@ -58,7 +81,9 @@ export function SidebarUserNav({ user }: { user: User }) {
                 <div
                   className="size-5 shrink-0 rounded-full ring-1 ring-sidebar-border/50"
                   style={{
-                    background: selectedAvatar.gradient,
+                    background: currentAvatarBackground,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
                   }}
                 />
                 <span className="truncate text-[13px]" data-testid="user-email">
@@ -124,13 +149,31 @@ export function SidebarUserNav({ user }: { user: User }) {
         </DropdownMenu>
       </SidebarMenuItem>
       <UserSettingsDialog
+        aiMemory={aiMemory}
+        aiName={aiName}
+        avatarDataUrl={avatarDataUrl}
         avatarId={avatarId}
         displayName={displayName}
         isGuest={isGuest}
+        onAiMemoryChange={setAiMemory}
+        onAiNameChange={setAiName}
+        onAvatarDataUrlChange={setAvatarDataUrl}
         onAvatarIdChange={setAvatarId}
         onDisplayNameChange={setDisplayName}
         onOpenChange={setIsSettingsOpen}
+        onPersonalContextChange={setPersonalContext}
+        onProfessionChange={setProfession}
+        onProjectDescriptionChange={setProjectDescription}
+        onProjectIconColorChange={setProjectIconColor}
+        onProjectTitleChange={setProjectTitle}
+        onStylisticDirectivesChange={setStylisticDirectives}
         open={isSettingsOpen}
+        personalContext={personalContext}
+        profession={profession}
+        projectDescription={projectDescription}
+        projectIconColor={projectIconColor}
+        projectTitle={projectTitle}
+        stylisticDirectives={stylisticDirectives}
         user={user}
       />
     </SidebarMenu>
