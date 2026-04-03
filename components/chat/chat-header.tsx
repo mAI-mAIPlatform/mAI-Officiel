@@ -1,11 +1,10 @@
 "use client";
 
 import { PanelLeftIcon } from "lucide-react";
-import Link from "next/link";
+import Image from "next/image";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { VercelIcon } from "./icons";
 import { VisibilitySelector, type VisibilityType } from "./visibility-selector";
 
 function PureChatHeader({
@@ -24,7 +23,7 @@ function PureChatHeader({
   }
 
   return (
-    <header className="sticky top-0 flex h-14 items-center gap-2 bg-sidebar px-3">
+    <header className="liquid-glass sticky top-0 flex h-14 items-center gap-2 px-3">
       <Button
         className="md:hidden"
         onClick={toggleSidebar}
@@ -34,14 +33,16 @@ function PureChatHeader({
         <PanelLeftIcon className="size-4" />
       </Button>
 
-      <Link
-        className="flex size-8 items-center justify-center rounded-lg md:hidden"
-        href="https://vercel.com/templates/next.js/chatbot"
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        <VercelIcon size={14} />
-      </Link>
+      <div className="ml-1 flex items-center gap-2">
+        <Image
+          alt="Logo mAI"
+          className="size-5"
+          height={20}
+          src="/icon.svg"
+          width={20}
+        />
+        <span className="font-semibold text-sm">mAI</span>
+      </div>
 
       {!isReadonly && (
         <VisibilitySelector
@@ -50,19 +51,9 @@ function PureChatHeader({
         />
       )}
 
-      <Button
-        asChild
-        className="hidden rounded-lg bg-foreground px-4 text-background hover:bg-foreground/90 md:ml-auto md:flex"
-      >
-        <Link
-          href="https://vercel.com/templates/next.js/chatbot"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <VercelIcon size={16} />
-          Deploy with Vercel
-        </Link>
-      </Button>
+      <span className="ml-auto rounded-full border border-blue-500/25 bg-blue-500/10 px-2 py-0.5 font-medium text-[10px] text-blue-600 dark:text-blue-300">
+        Bêta
+      </span>
     </header>
   );
 }
