@@ -284,6 +284,41 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => {
   );
 };
 
+export const BrandStarLogoIcon = ({ size = 28 }: { size?: number }) => {
+  return (
+    <svg
+      aria-label="Logo MAI"
+      fill="none"
+      height={size}
+      role="img"
+      viewBox="0 0 64 64"
+      width={size}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="mai-star-gradient" x1="8" x2="56" y1="8" y2="56">
+          <stop offset="0" stopColor="#3b82f6" />
+          <stop offset="0.35" stopColor="#22d3ee" />
+          <stop offset="0.58" stopColor="#84cc16" />
+          <stop offset="0.78" stopColor="#facc15" />
+          <stop offset="1" stopColor="#ec4899" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M32 5.5L39.2 18.8L54.4 20.8L43.6 31.2L46.3 46.3L32 39.4L17.7 46.3L20.4 31.2L9.6 20.8L24.8 18.8L32 5.5Z"
+        stroke="url(#mai-star-gradient)"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="6"
+      />
+      <path
+        d="M32 16.8L36.2 24.6L45.1 25.7L38.8 31.8L40.4 40.6L32 36.5L23.6 40.6L25.2 31.8L18.9 25.7L27.8 24.6L32 16.8Z"
+        fill="oklch(0 0 0 / 0.28)"
+      />
+    </svg>
+  );
+};
+
 export const LoaderIcon = ({ size = 16 }: { size?: number }) => {
   return (
     <svg
