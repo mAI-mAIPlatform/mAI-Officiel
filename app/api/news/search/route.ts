@@ -16,8 +16,7 @@ export async function POST(request: Request) {
     if (!apiKey) {
       return NextResponse.json(
         {
-          error:
-            "SERPAPI_KEY non configurée. Ajoutez la clé dans les variables d'environnement.",
+          error: "mSearch non configuré. Contactez l'administrateur.",
         },
         { status: 500 }
       );

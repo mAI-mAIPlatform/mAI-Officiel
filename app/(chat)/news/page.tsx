@@ -87,7 +87,7 @@ export default function NewsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
-          <h2 className="mb-2 font-semibold">Résultats Web (SerpAPI)</h2>
+          <h2 className="mb-2 font-semibold">Résultats Web (mSearch)</h2>
           <div className="space-y-3 text-sm">
             {results.map((item) => (
               <a

@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { chatModels } from "@/lib/ai/models";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,7 +36,7 @@ export default function MaisPage() {
   const [description, setDescription] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [memory, setMemory] = useState("");
-  const [baseModel, setBaseModel] = useState("gpt-4o");
+  const [baseModel, setBaseModel] = useState(chatModels[0]?.id ?? "");
 
   // Agent Behavior Configuration
   const [tone, setTone] = useState("50");
@@ -73,7 +74,7 @@ export default function MaisPage() {
       setDescription("");
       setSystemPrompt("");
       setMemory("");
-      setBaseModel("gpt-4o");
+      setBaseModel(chatModels[0]?.id ?? "");
       setTone("50");
       setConciseness("50");
       setLanguageRegister("50");
@@ -86,20 +87,23 @@ export default function MaisPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer ce mAI ?")) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/agents/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        throw new Error("Erreur");
-      }
-      toast.success("mAI supprimé");
-      mutate();
-    } catch (_err) {
-      toast.error("Impossible de supprimer le mAI");
-    }
+    toast("Confirmer la suppression de ce mAI ?", {
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          try {
+            const res = await fetch(`/api/agents/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+              throw new Error("Erreur");
+            }
+            toast.success("mAI supprimé");
+            mutate();
+          } catch (_err) {
+            toast.error("Impossible de supprimer le mAI");
+          }
+        },
+      },
+    });
   };
 
   return (
@@ -154,16 +158,16 @@ export default function MaisPage() {
                   <div className="space-y-2">
                     <Label htmlFor="baseModel">Modèle de base</Label>
                     <select
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="liquid-glass flex h-10 w-full rounded-xl border border-border/60 bg-background/60 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       id="baseModel"
                       onChange={(e) => setBaseModel(e.target.value)}
                       value={baseModel}
                     >
-                      <option value="gpt-4o">GPT-4o (OpenAI)</option>
-                      <option value="gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
-                      <option value="claude-3-5-sonnet-latest">
-                        Claude 3.5 Sonnet (Anthropic)
-                      </option>
+                      {chatModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} ({model.provider})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -296,10 +300,9 @@ export default function MaisPage() {
                 <div>
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     {agent.image ? (
-                      <img
-                        alt=""
-                        className="h-8 w-8 rounded-md object-cover"
-                        src={agent.image}
+                      <div
+                        className="h-8 w-8 rounded-md bg-cover bg-center"
+                        style={{ backgroundImage: `url(${agent.image})` }}
                       />
                     ) : (
                       <BotIcon className="size-6" />

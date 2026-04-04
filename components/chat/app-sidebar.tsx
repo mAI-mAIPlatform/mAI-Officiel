@@ -4,7 +4,6 @@ import {
   BotIcon,
   Code2,
   FolderKanbanIcon,
-  Info,
   Languages,
   Newspaper,
   PanelLeftIcon,
@@ -137,7 +136,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     icon: Languages,
                     label: "Traduction",
                   },
-                  { href: "/about", icon: Info, label: "À Propos" },
                 ].map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

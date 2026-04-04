@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,40 +20,14 @@ import {
 import { guestRegex } from "@/lib/constants";
 import { LoaderIcon } from "./icons";
 import { toast } from "./toast";
-import { UserSettingsDialog, useProfileSettings } from "./user-settings-dialog";
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const isGuest = guestRegex.test(data?.user?.email ?? "");
-  const {
-    aiMemory,
-    aiName,
-    avatarDataUrl,
-    avatarId,
-    currentAvatarBackground,
-    displayName,
-    personalContext,
-    profession,
-    projectDescription,
-    projectIconColor,
-    projectTitle,
-    setAiMemory,
-    setAiName,
-    setAvatarDataUrl,
-    setAvatarId,
-    setDisplayName,
-    setPersonalContext,
-    setProfession,
-    setProjectDescription,
-    setProjectIconColor,
-    setProjectTitle,
-    setStylisticDirectives,
-    stylisticDirectives,
-  } = useProfileSettings({ isGuest, user });
+  const isGuest = guestRegex.test(data?.user?.email ?? user.email ?? "");
+  const displayName = user.email?.split("@")[0] || "Utilisateur";
 
   return (
     <SidebarMenu>
@@ -65,7 +38,7 @@ export function SidebarUserNav({ user }: { user: User }) {
               <SidebarMenuButton className="h-10 justify-between rounded-lg bg-transparent text-sidebar-foreground/50 transition-colors duration-150 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
                 <div className="flex flex-row items-center gap-2">
                   <div className="size-6 animate-pulse rounded-full bg-sidebar-foreground/10" />
-                  <span className="animate-pulse rounded-md bg-sidebar-foreground/10 text-transparent text-[13px]">
+                  <span className="animate-pulse rounded-md bg-sidebar-foreground/10 text-[13px] text-transparent">
                     Chargement...
                   </span>
                 </div>
@@ -75,17 +48,10 @@ export function SidebarUserNav({ user }: { user: User }) {
               </SidebarMenuButton>
             ) : (
               <SidebarMenuButton
-                className="h-8 px-2 rounded-lg bg-transparent text-sidebar-foreground/70 transition-colors duration-150 hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                className="h-8 rounded-lg bg-transparent px-2 text-sidebar-foreground/70 transition-colors duration-150 hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 data-testid="user-nav-button"
               >
-                <div
-                  className="size-5 shrink-0 rounded-full ring-1 ring-sidebar-border/50"
-                  style={{
-                    background: currentAvatarBackground,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
+                <div className="size-5 shrink-0 rounded-full bg-sidebar-accent ring-1 ring-sidebar-border/50" />
                 <span className="truncate text-[13px]" data-testid="user-email">
                   {displayName}
                 </span>
@@ -94,7 +60,7 @@ export function SidebarUserNav({ user }: { user: User }) {
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-popper-anchor-width) rounded-lg border border-border/60 bg-card/95 backdrop-blur-xl shadow-[var(--shadow-float)]"
+            className="w-(--radix-popper-anchor-width) rounded-lg border border-border/60 bg-card/95 shadow-[var(--shadow-float)] backdrop-blur-xl"
             data-testid="user-nav-menu"
             side="top"
           >
@@ -110,12 +76,9 @@ export function SidebarUserNav({ user }: { user: User }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer text-[13px]"
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsSettingsOpen(true);
-              }}
+              onSelect={() => router.push("/settings")}
             >
-              Paramètres du profil
+              Paramètres
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a
@@ -127,7 +90,6 @@ export function SidebarUserNav({ user }: { user: User }) {
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuSeparator />
             <DropdownMenuItem asChild data-testid="user-nav-item-auth">
               <button
                 className="w-full cursor-pointer text-[13px]"
@@ -138,16 +100,13 @@ export function SidebarUserNav({ user }: { user: User }) {
                       description:
                         "Vérification de session en cours, réessayez dans un instant.",
                     });
-
                     return;
                   }
 
                   if (isGuest) {
                     router.push("/login");
                   } else {
-                    signOut({
-                      redirectTo: "/",
-                    });
+                    signOut({ redirectTo: "/" });
                   }
                 }}
                 type="button"
@@ -158,34 +117,6 @@ export function SidebarUserNav({ user }: { user: User }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-      <UserSettingsDialog
-        aiMemory={aiMemory}
-        aiName={aiName}
-        avatarDataUrl={avatarDataUrl}
-        avatarId={avatarId}
-        displayName={displayName}
-        isGuest={isGuest}
-        onAiMemoryChange={setAiMemory}
-        onAiNameChange={setAiName}
-        onAvatarDataUrlChange={setAvatarDataUrl}
-        onAvatarIdChange={setAvatarId}
-        onDisplayNameChange={setDisplayName}
-        onOpenChange={setIsSettingsOpen}
-        onPersonalContextChange={setPersonalContext}
-        onProfessionChange={setProfession}
-        onProjectDescriptionChange={setProjectDescription}
-        onProjectIconColorChange={setProjectIconColor}
-        onProjectTitleChange={setProjectTitle}
-        onStylisticDirectivesChange={setStylisticDirectives}
-        open={isSettingsOpen}
-        personalContext={personalContext}
-        profession={profession}
-        projectDescription={projectDescription}
-        projectIconColor={projectIconColor}
-        projectTitle={projectTitle}
-        stylisticDirectives={stylisticDirectives}
-        user={user}
-      />
     </SidebarMenu>
   );
 }

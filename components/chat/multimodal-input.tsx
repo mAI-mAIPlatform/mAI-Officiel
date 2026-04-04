@@ -52,13 +52,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   type ChatModel,
   chatModels,
   DEFAULT_CHAT_MODEL,
@@ -131,7 +124,6 @@ function PureMultimodalInput({
 }) {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
-  const [agentMode, setAgentMode] = useState("execution");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const hasAutoFocused = useRef(false);
@@ -565,26 +557,12 @@ function PureMultimodalInput({
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
-              onActionToggle={(_action) => {
-                // We'll just pass these via some state to parent/submit later if needed,
-                // for now we can rely on chat route fetching it or store in state
-              }}
               status={status}
             />
             <ModelSelectorCompact
               onModelChange={onModelChange}
               selectedModelId={selectedModelId}
             />
-            <Select onValueChange={setAgentMode} value={agentMode}>
-              <SelectTrigger className="h-7 w-auto min-w-[130px] rounded-lg text-[12px] text-muted-foreground border-none bg-transparent hover:text-foreground">
-                <SelectValue placeholder="Mode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="planification">Planification</SelectItem>
-                <SelectItem value="investigation">Investigation</SelectItem>
-                <SelectItem value="execution">Exécution</SelectItem>
-              </SelectContent>
-            </Select>
           </PromptInputTools>
 
           {status === "submitted" ? (
@@ -647,12 +625,10 @@ function PureContextualActionsMenu({
   fileInputRef,
   status,
   hasVision,
-  onActionToggle,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
-  onActionToggle: (action: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -915,10 +891,9 @@ function PureModelSelectorCompact({
                         value={`agent-${agent.id}`}
                       >
                         {agent.image ? (
-                          <img
-                            alt={agent.name}
-                            className="w-4 h-4 rounded-sm object-cover mr-1"
-                            src={agent.image}
+                          <div
+                            className="mr-1 h-4 w-4 rounded-sm bg-cover bg-center"
+                            style={{ backgroundImage: `url(${agent.image})` }}
                           />
                         ) : (
                           <BotIcon className="w-4 h-4 mr-1 text-primary" />
