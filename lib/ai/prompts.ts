@@ -66,17 +66,36 @@ About the origin of user's request:
 export const systemPrompt = ({
   requestHints,
   supportsTools,
+  agentPrompt,
+  agentMemory,
+  isLearningEnabled
 }: {
   requestHints: RequestHints;
   supportsTools: boolean;
+  agentPrompt?: string | null;
+  agentMemory?: string | null;
+  isLearningEnabled?: boolean;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
-  if (!supportsTools) {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+  let basePrompt = agentPrompt || regularPrompt;
+
+  if (isLearningEnabled) {
+    basePrompt += `\n\n**Dispositif Pédagogique et Maïeutique Activé:** Tu dois privilégier l'accompagnement intellectuel et l'explication des concepts fondamentaux. Ne donne pas la solution finale immédiatement. Guide l'utilisateur par des questions (méthode socratique) et explique étape par étape pour favoriser son développement cognitif et ses compétences.`;
   }
 
-  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+  if (agentMemory) {
+    basePrompt += `\n\n**Base de connaissances (Memory):**\n${agentMemory}\n`;
+  }
+
+  // Si nous n'avons pas de modèle reasoning natif mais que l'option est demandée
+  // on peut insister sur l'explication (même si la propriété 'reasoning' du modèle gère le format 'thought')
+
+  if (!supportsTools) {
+    return `${basePrompt}\n\n${requestPrompt}`;
+  }
+
+  return `${basePrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
 };
 
 export const codePrompt = `
