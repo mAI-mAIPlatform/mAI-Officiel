@@ -84,6 +84,39 @@ export const chatModels: ChatModel[] = [
     gatewayOrder: ["xai"],
   },
 
+
+  // --- COMETAPI + GEMINI (TEXTE GLOBAL) ---
+  {
+    id: "gpt-5.4-nano",
+    name: "GPT-5.4 Nano",
+    provider: "cometapi",
+    description: "CometAPI low-cost, rapide",
+  },
+  {
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    provider: "cometapi",
+    description: "CometAPI équilibré",
+  },
+  {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "google",
+    description: "Google AI Studio économique",
+  },
+  {
+    id: "gemini-2.0-flash-lite",
+    name: "Gemini 2.0 Flash Lite",
+    provider: "google",
+    description: "Flash Lite ultra cheap",
+  },
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    provider: "google",
+    description: "Flash polyvalent",
+  },
+
   // --- OPENROUTER GRATUITS & LOW-COST ---
   {
     id: "openrouter/stepfun/step-1-flash:free",
@@ -168,7 +201,12 @@ export async function getCapabilities(): Promise<
 > {
   const customModelsCapabilities = Object.fromEntries(
     chatModels
-      .filter((m) => m.provider === "openrouter" || m.provider === "ollama")
+      .filter((m) =>
+        m.provider === "openrouter" ||
+        m.provider === "ollama" ||
+        m.provider === "cometapi" ||
+        m.provider === "google"
+      )
       .map((m) => [
         m.id,
         {
@@ -177,7 +215,8 @@ export async function getCapabilities(): Promise<
             m.id.includes("vision") ||
             m.id.includes("flash") ||
             m.id.includes("4o") ||
-            m.id.includes("mistral-small"),
+            m.id.includes("mistral-small") ||
+            m.id.includes("gemini"),
           reasoning: m.id.includes("oss") || m.id.includes("reasoning"),
         },
       ])
@@ -185,7 +224,13 @@ export async function getCapabilities(): Promise<
 
   const gatewayModelsCapabilitiesArray = await Promise.all(
     chatModels
-      .filter((m) => m.provider !== "openrouter" && m.provider !== "ollama")
+      .filter(
+        (m) =>
+          m.provider !== "openrouter" &&
+          m.provider !== "ollama" &&
+          m.provider !== "cometapi" &&
+          m.provider !== "google"
+      )
       .map(async (model) => {
         try {
           const res = await fetch(

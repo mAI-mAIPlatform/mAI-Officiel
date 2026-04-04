@@ -13,6 +13,10 @@ import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import {
+  isExternalTextModel,
+  runExternalTextModel,
+} from "@/lib/ai/external-providers";
+import {
   allowedModelIds,
   chatModels,
   DEFAULT_CHAT_MODEL,
@@ -208,6 +212,55 @@ export async function POST(request: Request) {
     const supportsTools = capabilities?.tools === true;
 
     const modelMessages = await convertToModelMessages(uiMessages);
+    const latestUserText =
+      message?.parts
+        ?.filter((part) => part.type === "text")
+        .map((part) => part.text)
+        .join("\n")
+        .trim() ?? "";
+
+    if (isExternalTextModel(chatModel)) {
+      if (!latestUserText) {
+        return new ChatbotError("bad_request:api").toResponse();
+      }
+
+      const externalResult = await runExternalTextModel(chatModel, latestUserText);
+      const assistantMessageId = generateUUID();
+      const textPartId = generateUUID();
+
+      await saveMessages({
+        messages: [
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            parts: [{ type: "text", text: externalResult.text }],
+            createdAt: new Date(),
+            attachments: [],
+            chatId: id,
+          },
+        ],
+      });
+
+      const stream = createUIMessageStream({
+        execute: async ({ writer }) => {
+          writer.write({ type: "text-start", id: textPartId });
+          writer.write({
+            type: "text-delta",
+            id: textPartId,
+            delta: externalResult.text,
+          });
+          writer.write({ type: "text-end", id: textPartId });
+
+          if (titlePromise) {
+            const title = await titlePromise;
+            writer.write({ type: "data-chat-title", data: title });
+            await updateChatTitleById({ chatId: id, title });
+          }
+        },
+      });
+
+      return createUIMessageStreamResponse({ stream });
+    }
 
     // Base tools available
     const activeTools: (
