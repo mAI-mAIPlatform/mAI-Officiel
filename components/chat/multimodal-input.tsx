@@ -821,9 +821,7 @@ function PureModelSelectorCompact({
           data-testid="model-selector"
           variant="ghost"
         >
-          {provider && (
-            <ModelSelectorLogo modelId={selectedModel.id} provider={provider} />
-          )}
+          {provider && <ModelSelectorLogo provider={provider} />}
           <ModelSelectorName>{selectedModel.name}</ModelSelectorName>
         </Button>
       </ModelSelectorTrigger>
@@ -967,10 +965,7 @@ function PureModelSelectorCompact({
                           }}
                           value={model.id}
                         >
-                          <ModelSelectorLogo
-                            modelId={model.id}
-                            provider={logoProvider}
-                          />
+                          <ModelSelectorLogo provider={logoProvider} />
                           <ModelSelectorName>{model.name}</ModelSelectorName>
                           <div className="ml-auto flex items-center gap-2 text-foreground/70">
                             {capabilities?.[model.id]?.tools && (
