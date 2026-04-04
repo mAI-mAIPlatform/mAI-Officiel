@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "next-themes";
 import {
   type ChangeEvent,
@@ -126,6 +127,7 @@ function PureMultimodalInput({
 }) {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
+  const [agentMode, setAgentMode] = useState("execution");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const hasAutoFocused = useRef(false);
@@ -560,6 +562,16 @@ function PureMultimodalInput({
               onModelChange={onModelChange}
               selectedModelId={selectedModelId}
             />
+            <Select value={agentMode} onValueChange={setAgentMode}>
+              <SelectTrigger className="h-7 w-auto min-w-[130px] rounded-lg text-[12px] text-muted-foreground border-none bg-transparent hover:text-foreground">
+                <SelectValue placeholder="Mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="planification">Planification</SelectItem>
+                <SelectItem value="investigation">Investigation</SelectItem>
+                <SelectItem value="execution">Exécution</SelectItem>
+              </SelectContent>
+            </Select>
           </PromptInputTools>
 
           {status === "submitted" ? (

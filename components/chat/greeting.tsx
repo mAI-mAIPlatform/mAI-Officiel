@@ -4,9 +4,18 @@ import { greetingPrompts } from "@/lib/constants";
 
 export const Greeting = () => {
   const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
+  const [timePrefix, setTimePrefix] = useState<string>("");
 
   useEffect(() => {
-    // Choix aléatoire uniquement après hydratation pour éviter les erreurs de prerender.
+    const hour = new Date().getHours();
+    if (hour < 12) {
+      setTimePrefix("Bonjour");
+    } else if (hour < 18) {
+      setTimePrefix("Bon après-midi");
+    } else {
+      setTimePrefix("Bonsoir");
+    }
+
     const randomIndex = Math.floor(Math.random() * greetingPrompts.length);
     setGreetingText(greetingPrompts[randomIndex] ?? greetingPrompts[0]);
   }, []);
@@ -27,7 +36,7 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        {greetingText}
+        {timePrefix ? `${timePrefix}. ` : ""}{greetingText}
       </motion.div>
       <motion.div
         animate={{ opacity: 1, y: 0 }}
