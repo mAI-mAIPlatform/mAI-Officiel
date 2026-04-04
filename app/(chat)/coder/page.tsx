@@ -62,6 +62,20 @@ export default function CoderPage() {
   const selectedFile = files.find((file) => file.path === selectedFilePath);
   const modeHint = useMemo(() => modeDescriptions[mode], [mode]);
 
+  useEffect(() => {
+    if (!selectedFilePath && files[0]?.path) {
+      setSelectedFilePath(files[0].path);
+      return;
+    }
+
+    if (
+      selectedFilePath &&
+      !files.some((file) => file.path === selectedFilePath)
+    ) {
+      setSelectedFilePath(files[0]?.path ?? "");
+    }
+  }, [files, selectedFilePath]);
+
   const applyTask = async () => {
     setIsRunning(true);
     try {
@@ -259,23 +273,11 @@ export default function CoderPage() {
           </div>
         )}
 
-        <p className="mb-3 text-xs text-muted-foreground">{modeHint}</p>
-
-        <div className="flex gap-2">
-          <textarea
-            className="h-24 flex-1 resize-none rounded-xl border border-border/50 bg-background/70 p-3 text-sm outline-none"
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Décrivez votre tâche de développement..."
-            value={prompt}
-          />
-          <Button
-            className="h-10 self-end"
-            disabled={isRunning}
-            onClick={launchTask}
-          >
-            <PlayCircle className="mr-2 size-4" /> Lancer
-          </Button>
-        </div>
+        <p className="mb-1 text-xs text-muted-foreground">{modeHint}</p>
+        <p className="text-xs text-muted-foreground">
+          Utilisez la barre de message en bas à gauche pour lancer des
+          modifications.
+        </p>
 
         {mode === "Planification" && plan && !isPlanApproved && (
           <div className="mt-3 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs">
@@ -436,6 +438,20 @@ export default function CoderPage() {
           </section>
         </div>
       )}
+
+      <div className="sticky bottom-0 left-0 mt-2 w-full max-w-xl rounded-2xl border border-border/50 bg-card/80 p-2 shadow-[var(--shadow-float)] backdrop-blur-xl">
+        <div className="flex items-end gap-2">
+          <textarea
+            className="h-16 flex-1 resize-none rounded-xl border border-border/40 bg-background/70 p-2 text-sm outline-none"
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder="Envoyer un message ou demander une modification..."
+            value={prompt}
+          />
+          <Button disabled={isRunning} onClick={launchTask} size="sm">
+            <PlayCircle className="mr-1 size-4" /> Envoyer
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
