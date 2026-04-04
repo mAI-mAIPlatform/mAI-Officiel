@@ -120,14 +120,17 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
+                    asChild
                     className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
-                    tooltip="Projets (bientôt)"
+                    tooltip="Projets (Bêta)"
                   >
-                    <FolderKanbanIcon className="size-4" />
-                    <span className="font-medium">Projets</span>
-                    <span className="ml-auto rounded-full border border-sidebar-border/60 px-1.5 py-0.5 text-[10px]">
-                      Bêta
-                    </span>
+                    <Link href="/projects" onClick={() => setOpenMobile(false)}>
+                      <FolderKanbanIcon className="size-4" />
+                      <span className="font-medium">Projets</span>
+                      <span className="ml-auto rounded-full border border-sidebar-border/60 px-1.5 py-0.5 text-[10px]">
+                        Bêta
+                      </span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {user && (

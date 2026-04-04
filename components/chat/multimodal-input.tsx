@@ -7,6 +7,9 @@ import {
   ArrowUpIcon,
   BrainIcon,
   EyeIcon,
+  GraduationCapIcon,
+  LayoutTemplateIcon,
+  ListChecksIcon,
   LockIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -68,6 +71,64 @@ function setCookie(name: string, value: string) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
 }
 
+type ContextActionId =
+  | "reflective"
+  | "web-indexing"
+  | "pedagogical"
+  | "canvas"
+  | "quiz";
+
+type ContextAction = {
+  id: ContextActionId;
+  label: string;
+  description: string;
+  prefix: string;
+  icon: typeof BrainIcon;
+};
+
+const CONTEXT_ACTIONS: ContextAction[] = [
+  {
+    id: "reflective",
+    label: "Inférence réflexive",
+    description: "Ajoute une phase de réflexion approfondie avant la réponse.",
+    prefix:
+      "Mode inférence réflexive activé : réfléchis de façon structurée avant de répondre.",
+    icon: BrainIcon,
+  },
+  {
+    id: "web-indexing",
+    label: "Indexation web",
+    description: "Priorise la recherche d'informations actualisées en ligne.",
+    prefix:
+      "Mode indexation web activé : enrichis la réponse avec des sources web récentes lorsque nécessaire.",
+    icon: EyeIcon,
+  },
+  {
+    id: "pedagogical",
+    label: "Dispositif pédagogique",
+    description: "Privilégie l'étayage progressif et la maïeutique.",
+    prefix:
+      "Mode pédagogique activé : guide par questions et étapes au lieu de donner une solution immédiate.",
+    icon: GraduationCapIcon,
+  },
+  {
+    id: "canvas",
+    label: "Canevas",
+    description: "Produit une structure de travail prête à remplir.",
+    prefix:
+      "Outil canevas activé : fournis un canevas structuré avec sections, objectifs et checklist.",
+    icon: LayoutTemplateIcon,
+  },
+  {
+    id: "quiz",
+    label: "Quiz",
+    description: "Produit un questionnaire d'évaluation adapté au sujet.",
+    prefix:
+      "Outil quiz activé : crée un quiz progressif avec corrigé synthétique.",
+    icon: ListChecksIcon,
+  },
+];
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -126,6 +187,12 @@ function PureMultimodalInput({
     "input",
     ""
   );
+  const [enabledActions, setEnabledActions] = useLocalStorage<
+    ContextActionId[]
+  >("mai.context.actions.v1", []);
+  const [atOpen, setAtOpen] = useState(false);
+  const [atQuery, setAtQuery] = useState("");
+  const [atIndex, setAtIndex] = useState(0);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -147,8 +214,15 @@ function PureMultimodalInput({
       setSlashOpen(true);
       setSlashQuery(val.slice(1));
       setSlashIndex(0);
+      setAtOpen(false);
+    } else if (val.startsWith("@") && !val.includes(" ")) {
+      setAtOpen(true);
+      setAtQuery(val.slice(1));
+      setAtIndex(0);
+      setSlashOpen(false);
     } else {
       setSlashOpen(false);
+      setAtOpen(false);
     }
   };
 
@@ -204,10 +278,47 @@ function PureMultimodalInput({
           },
         });
         break;
+      case "reflective":
+      case "web-indexing":
+      case "pedagogical":
+      case "canvas":
+      case "quiz":
+        setEnabledActions((prev) =>
+          prev.includes(cmd.action as ContextActionId)
+            ? prev
+            : [...prev, cmd.action as ContextActionId]
+        );
+        toast.success(`Action contextuelle activée : ${cmd.name}`);
+        break;
       default:
         break;
     }
   };
+
+  const atOptions = [
+    {
+      id: "mai",
+      label: "@mAI",
+      description: "Assistant personnalisé principal",
+    },
+    {
+      id: "mai-projet",
+      label: "@mAI-Projet",
+      description: "Agent orienté produit, roadmap et exécution",
+    },
+    {
+      id: "mai-cognition",
+      label: "@mAI-Cognition",
+      description: "Agent d'analyse cognitive et apprentissage guidé",
+    },
+    ...CONTEXT_ACTIONS.map((action) => ({
+      id: action.id,
+      label: `@${action.id}`,
+      description: action.label,
+    })),
+  ].filter((option) =>
+    option.label.toLowerCase().includes(atQuery.toLowerCase())
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
@@ -216,6 +327,18 @@ function PureMultimodalInput({
   const [slashIndex, setSlashIndex] = useState(0);
 
   const submitForm = useCallback(() => {
+    const contextPrefixes = enabledActions
+      .map((actionId) =>
+        CONTEXT_ACTIONS.find((candidate) => candidate.id === actionId)
+      )
+      .filter((action): action is ContextAction => Boolean(action))
+      .map((action) => `• ${action.prefix}`)
+      .join("\n");
+
+    const enrichedInput = contextPrefixes
+      ? `[Contexte d'exécution]\n${contextPrefixes}\n\n[Demande]\n${input}`
+      : input;
+
     window.history.pushState(
       {},
       "",
@@ -233,7 +356,7 @@ function PureMultimodalInput({
         })),
         {
           type: "text",
-          text: input,
+          text: enrichedInput,
         },
       ],
     });
@@ -247,6 +370,7 @@ function PureMultimodalInput({
     }
   }, [
     input,
+    enabledActions,
     setInput,
     attachments,
     sendMessage,
@@ -416,6 +540,37 @@ function PureMultimodalInput({
             selectedIndex={slashIndex}
           />
         )}
+        {atOpen && atOptions.length > 0 && (
+          <div className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-xl border border-border/50 bg-card/95 shadow-[var(--shadow-float)] backdrop-blur-xl">
+            <div className="px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
+              Mentions @ (mAIs + outils)
+            </div>
+            <div className="max-h-64 overflow-y-auto pb-1 no-scrollbar">
+              {atOptions.map((option, index) => (
+                <button
+                  className={cn(
+                    "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                    index === atIndex ? "bg-muted/70" : "hover:bg-muted/40"
+                  )}
+                  key={option.id}
+                  onClick={() => {
+                    setInput(`${option.label} `);
+                    setAtOpen(false);
+                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                  type="button"
+                >
+                  <span className="font-mono text-[13px] text-foreground">
+                    {option.label}
+                  </span>
+                  <span className="text-[12px] text-muted-foreground/50">
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <PromptInput
@@ -504,6 +659,32 @@ function PureMultimodalInput({
                 return;
               }
             }
+            if (atOpen) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setAtIndex((i) => Math.min(i + 1, atOptions.length - 1));
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setAtIndex((i) => Math.max(i - 1, 0));
+                return;
+              }
+              if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                const selectedOption = atOptions[atIndex];
+                if (selectedOption) {
+                  setInput(`${selectedOption.label} `);
+                  setAtOpen(false);
+                }
+                return;
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setAtOpen(false);
+                return;
+              }
+            }
             if (e.key === "Escape" && editingMessage && onCancelEdit) {
               e.preventDefault();
               onCancelEdit();
@@ -517,6 +698,16 @@ function PureMultimodalInput({
         />
         <PromptInputFooter className="px-3 pb-3">
           <PromptInputTools>
+            <ContextualActionsMenu
+              enabledActions={enabledActions}
+              onToggleAction={(id) =>
+                setEnabledActions((current) =>
+                  current.includes(id)
+                    ? current.filter((actionId) => actionId !== id)
+                    : [...current, id]
+                )
+              }
+            />
             <AttachmentsButton
               fileInputRef={fileInputRef}
               selectedModelId={selectedModelId}
@@ -548,6 +739,33 @@ function PureMultimodalInput({
           )}
         </PromptInputFooter>
       </PromptInput>
+
+      {enabledActions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-1">
+          {enabledActions.map((actionId) => {
+            const action = CONTEXT_ACTIONS.find((item) => item.id === actionId);
+            if (!action) {
+              return null;
+            }
+
+            return (
+              <button
+                className="liquid-glass inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-foreground/80 transition-colors hover:text-foreground"
+                key={action.id}
+                onClick={() =>
+                  setEnabledActions((current) =>
+                    current.filter((item) => item !== action.id)
+                  )
+                }
+                type="button"
+              >
+                <action.icon className="size-3" />
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -583,6 +801,44 @@ export const MultimodalInput = memo(
     return true;
   }
 );
+
+function ContextualActionsMenu({
+  enabledActions,
+  onToggleAction,
+}: {
+  enabledActions: ContextActionId[];
+  onToggleAction: (id: ContextActionId) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      {CONTEXT_ACTIONS.map((action) => {
+        const Icon = action.icon;
+        const isActive = enabledActions.includes(action.id);
+
+        return (
+          <Button
+            className={cn(
+              "h-7 rounded-lg border px-2 text-[11px] transition-all",
+              isActive
+                ? "liquid-glass border-primary/40 text-foreground"
+                : "border-border/40 text-muted-foreground hover:text-foreground"
+            )}
+            key={action.id}
+            onClick={(event) => {
+              event.preventDefault();
+              onToggleAction(action.id);
+            }}
+            title={action.description}
+            variant="ghost"
+          >
+            <Icon className="mr-1 size-3.5" />
+            {action.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
 
 function PureAttachmentsButton({
   fileInputRef,

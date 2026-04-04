@@ -2,9 +2,11 @@
 
 import {
   BadgeCheck,
+  BookText,
   Bot,
   Brain,
   FolderKanban,
+  Link2,
   Palette,
   Shield,
   UserCircle2,
@@ -291,9 +293,18 @@ export function UserSettingsDialog({
   stylisticDirectives: string;
   user: User;
 }) {
+  const sectionItems = [
+    { id: "profil", label: "Profil", icon: UserCircle2 },
+    { id: "mais", label: "mAIs", icon: Bot },
+    { id: "projets", label: "Projets", icon: FolderKanban },
+    { id: "ingestion", label: "Ingestion", icon: Brain },
+    { id: "style", label: "Style & directives", icon: Palette },
+    { id: "donnees", label: "Données", icon: Shield },
+  ] as const;
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-border/60 bg-card/70 p-0 backdrop-blur-3xl">
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-hidden border border-border/60 bg-card/70 p-0 backdrop-blur-3xl">
         <DialogHeader className="border-b border-border/50 bg-background/40 px-6 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             <BadgeCheck className="size-4 text-blue-500" />
@@ -309,28 +320,30 @@ export function UserSettingsDialog({
             <div className="rounded-xl border border-border/50 bg-background/60 p-3 text-foreground">
               <p className="font-semibold">Sections</p>
             </div>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <UserCircle2 className="size-3.5" /> Profil
-            </p>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <Bot className="size-3.5" /> Agent IA
-            </p>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <FolderKanban className="size-3.5" /> Projets
-            </p>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <Brain className="size-3.5" /> Ingestion de données
-            </p>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <Palette className="size-3.5" /> Style & directives
-            </p>
-            <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <Shield className="size-3.5" /> Données
-            </p>
+            {sectionItems.map((sectionItem) => {
+              const Icon = sectionItem.icon;
+              return (
+                <button
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-background/70 hover:text-foreground"
+                  key={sectionItem.id}
+                  onClick={() =>
+                    document
+                      .getElementById(sectionItem.id)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                  type="button"
+                >
+                  <Icon className="size-3.5" /> {sectionItem.label}
+                </button>
+              );
+            })}
           </aside>
 
           <div className="space-y-4 overflow-y-auto p-5">
-            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="profil"
+            >
               <h3 className="text-sm font-semibold">Profil</h3>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <Input
@@ -411,7 +424,10 @@ export function UserSettingsDialog({
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="mais"
+            >
               <h3 className="text-sm font-semibold">
                 Configuration de l&apos;agent
               </h3>
@@ -436,9 +452,26 @@ export function UserSettingsDialog({
                   value={aiMemory}
                 />
               </div>
+              <div className="mt-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium">
+                  <BookText className="size-3.5" /> Connaissances mAIs
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Importez et indexez vos documents dans la section Projets,
+                  puis invoquez votre agent via @nom-agent dans la barre de
+                  conversation.
+                </p>
+                <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Link2 className="size-3.5" /> Partage par lien disponible
+                  pour chaque mAIs.
+                </p>
+              </div>
             </section>
 
-            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="projets"
+            >
               <h3 className="text-sm font-semibold">Projets & identité</h3>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 <Input
@@ -471,7 +504,10 @@ export function UserSettingsDialog({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="ingestion"
+            >
               <h3 className="text-sm font-semibold">
                 Ingestion de données & directives stylistiques
               </h3>
@@ -487,6 +523,30 @@ export function UserSettingsDialog({
                 placeholder="Ex: Style professionnel, concis, orienté plan d'action"
                 value={stylisticDirectives}
               />
+            </section>
+
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="style"
+            >
+              <h3 className="text-sm font-semibold">
+                Personnalisation avancée
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Définissez ici le ton, les contraintes de sortie et les règles
+                de raisonnement de vos agents mAIs.
+              </p>
+            </section>
+
+            <section
+              className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl"
+              id="donnees"
+            >
+              <h3 className="text-sm font-semibold">Données & exports</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cette section centralise la gestion des données locales, les
+                exports et la confidentialité du compte.
+              </p>
             </section>
           </div>
         </div>
