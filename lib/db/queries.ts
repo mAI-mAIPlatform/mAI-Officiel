@@ -631,10 +631,11 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   }
 }
 
-import { agent, Agent } from "./schema";
+import { type Agent,
+  type Project, agent, project } from "./schema";
 
 export async function createAgent(
-  data: Pick<Agent, "userId" | "name" | "description" | "systemPrompt" | "memory" | "files" | "image">
+  data: Partial<Agent> & { userId: string; name: string }
 ) {
   try {
     return await db.insert(agent).values(data).returning();
@@ -674,7 +675,7 @@ export async function deleteAgent(id: string) {
 
 export async function updateAgent(
   id: string,
-  data: Partial<Pick<Agent, "name" | "description" | "systemPrompt" | "memory" | "files" | "image">>
+  data: Partial<Agent>
 ) {
   try {
     return await db
@@ -685,5 +686,60 @@ export async function updateAgent(
   } catch (error) {
     console.error("Failed to update agent:", error);
     throw new Error("Failed to update agent");
+  }
+}
+
+export async function createProject(
+  data: Partial<Project> & { userId: string; name: string }
+) {
+  try {
+    return await db.insert(project).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create project:", error);
+    throw new Error("Failed to create project");
+  }
+}
+
+export async function getProjectsByUser(userId: string): Promise<Project[]> {
+  try {
+    return await db.select().from(project).where(eq(project.userId, userId));
+  } catch (error) {
+    console.error("Failed to get projects by user:", error);
+    throw new Error("Failed to get projects");
+  }
+}
+
+export async function getProjectById(id: string): Promise<Project | undefined> {
+  try {
+    const [projectRecord] = await db
+      .select()
+      .from(project)
+      .where(eq(project.id, id));
+    return projectRecord;
+  } catch (error) {
+    console.error("Failed to get project by id:", error);
+    throw new Error("Failed to get project");
+  }
+}
+
+export async function updateProject(id: string, data: Partial<Project>) {
+  try {
+    return await db
+      .update(project)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(project.id, id))
+      .returning();
+  } catch (error) {
+    console.error("Failed to update project:", error);
+    throw new Error("Failed to update project");
+  }
+}
+
+export async function deleteProject(id: string) {
+  try {
+    return await db.delete(project).where(eq(project.id, id));
+  } catch (error) {
+    console.error("Failed to delete project:", error);
+    throw new Error("Failed to delete project");
   }
 }

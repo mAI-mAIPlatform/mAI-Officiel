@@ -68,7 +68,7 @@ export const systemPrompt = ({
   supportsTools,
   agentPrompt,
   agentMemory,
-  isLearningEnabled
+  isLearningEnabled,
 }: {
   requestHints: RequestHints;
   supportsTools: boolean;
