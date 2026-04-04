@@ -5,27 +5,16 @@ import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
   ArrowUpIcon,
+  BotIcon,
   BrainIcon,
   EyeIcon,
+  GraduationCapIcon,
   LockIcon,
-  WrenchIcon,
+  Paperclip,
   PlusIcon,
   SearchIcon,
-  GraduationCapIcon,
-  Image as ImageIcon,
-  Paperclip,
+  WrenchIcon,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -52,7 +41,16 @@ import {
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
-import { BotIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   type ChatModel,
   chatModels,
@@ -69,7 +67,7 @@ import {
   PromptInputTools,
 } from "../ai-elements/prompt-input";
 import { Button } from "../ui/button";
-import { PaperclipIcon, StopIcon } from "./icons";
+import { StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import {
   type SlashCommand,
@@ -240,9 +238,18 @@ function PureMultimodalInput({
     );
 
     // Read current contextual actions state safely (SSR-friendly)
-    const isReasoningEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-reasoning-enabled") === "true" : false;
-    const isWebSearchEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-websearch-enabled") === "true" : false;
-    const isLearningEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-learning-enabled") === "true" : false;
+    const isReasoningEnabled =
+      typeof window === "undefined"
+        ? false
+        : localStorage.getItem("mai-reasoning-enabled") === "true";
+    const isWebSearchEnabled =
+      typeof window === "undefined"
+        ? false
+        : localStorage.getItem("mai-websearch-enabled") === "true";
+    const isLearningEnabled =
+      typeof window === "undefined"
+        ? false
+        : localStorage.getItem("mai-learning-enabled") === "true";
 
     sendMessage({
       role: "user",
@@ -258,14 +265,14 @@ function PureMultimodalInput({
           text: input,
         },
       ],
-      // @ts-ignore - appending to experimental body to be picked up by useChat
+      // @ts-expect-error - appending to experimental body to be picked up by useChat
       experimental_append_body: {
         contextualActions: {
           isReasoningEnabled,
           isWebSearchEnabled,
           isLearningEnabled,
-        }
-      }
+        },
+      },
     });
 
     setAttachments([]);
@@ -549,12 +556,12 @@ function PureMultimodalInput({
           <PromptInputTools>
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
-              status={status}
               hasVision={true}
-              onActionToggle={(action) => {
+              onActionToggle={(_action) => {
                 // We'll just pass these via some state to parent/submit later if needed,
                 // for now we can rely on chat route fetching it or store in state
               }}
+              status={status}
             />
             <ModelSelectorCompact
               onModelChange={onModelChange}
@@ -622,7 +629,7 @@ function PureContextualActionsMenu({
   fileInputRef,
   status,
   hasVision,
-  onActionToggle
+  onActionToggle,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>["status"];
@@ -633,12 +640,21 @@ function PureContextualActionsMenu({
 
   // States to hold the toggled options (to pass to chat logic later)
   // For the moment, we just expose them or keep them in sync with local storage/context
-  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage("mai-reasoning-enabled", false);
-  const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage("mai-websearch-enabled", false);
-  const [isLearningEnabled, setIsLearningEnabled] = useLocalStorage("mai-learning-enabled", false);
+  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage(
+    "mai-reasoning-enabled",
+    false
+  );
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage(
+    "mai-websearch-enabled",
+    false
+  );
+  const [isLearningEnabled, setIsLearningEnabled] = useLocalStorage(
+    "mai-learning-enabled",
+    false
+  );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
         <Button
           className="h-7 w-7 rounded-full border border-border/40 p-1 transition-colors bg-secondary/50 hover:bg-secondary text-foreground flex items-center justify-center shadow-sm"
@@ -649,65 +665,104 @@ function PureContextualActionsMenu({
           <PlusIcon size={16} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-2 shadow-lg rounded-xl flex flex-col gap-1" align="start" sideOffset={8}>
-
+      <PopoverContent
+        align="start"
+        className="w-64 p-2 shadow-lg rounded-xl flex flex-col gap-1"
+        sideOffset={8}
+      >
         <Button
-          variant="ghost"
           className="w-full justify-start font-normal flex items-center gap-2 h-9"
           onClick={() => {
             setOpen(false);
-            if (hasVision) fileInputRef.current?.click();
-            else toast.error("Le modèle actuel ne supporte pas les images");
+            if (hasVision) {
+              fileInputRef.current?.click();
+            } else {
+              toast.error("Le modèle actuel ne supporte pas les images");
+            }
           }}
+          variant="ghost"
         >
-          <Paperclip size={16} className="text-muted-foreground" />
+          <Paperclip className="text-muted-foreground" size={16} />
           Ajouter photos/fichiers
         </Button>
 
         <div className="h-[1px] bg-border my-1 mx-2" />
 
         <Button
-          variant="ghost"
-          className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isReasoningEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+          className={cn(
+            "w-full justify-start font-normal flex items-center gap-2 h-9",
+            isReasoningEnabled &&
+              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          )}
           onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+          variant="ghost"
         >
-          <BrainIcon size={16} className={isReasoningEnabled ? "text-primary" : "text-muted-foreground"} />
+          <BrainIcon
+            className={
+              isReasoningEnabled ? "text-primary" : "text-muted-foreground"
+            }
+            size={16}
+          />
           Réflexion
         </Button>
 
         <Button
-          variant="ghost"
-          className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isWebSearchEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+          className={cn(
+            "w-full justify-start font-normal flex items-center gap-2 h-9",
+            isWebSearchEnabled &&
+              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          )}
           onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+          variant="ghost"
         >
-          <SearchIcon size={16} className={isWebSearchEnabled ? "text-primary" : "text-muted-foreground"} />
+          <SearchIcon
+            className={
+              isWebSearchEnabled ? "text-primary" : "text-muted-foreground"
+            }
+            size={16}
+          />
           Recherche approfondie
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="ghost"
               className="w-full justify-between font-normal flex items-center gap-2 h-9 text-muted-foreground"
+              variant="ghost"
             >
               <div className="flex items-center gap-2">
-                <span className="font-bold tracking-widest text-lg leading-none mt-[-8px]">...</span> Plus
+                <span className="font-bold tracking-widest text-lg leading-none mt-[-8px]">
+                  ...
+                </span>{" "}
+                Plus
               </div>
               <span className="text-xs">&gt;</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" className="w-56 p-2 shadow-lg rounded-xl">
-             <Button
-              variant="ghost"
-              className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isLearningEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+          <DropdownMenuContent
+            align="start"
+            className="w-56 p-2 shadow-lg rounded-xl"
+            side="right"
+          >
+            <Button
+              className={cn(
+                "w-full justify-start font-normal flex items-center gap-2 h-9",
+                isLearningEnabled &&
+                  "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+              )}
               onClick={() => setIsLearningEnabled(!isLearningEnabled)}
+              variant="ghost"
             >
-              <GraduationCapIcon size={16} className={isLearningEnabled ? "text-primary" : "text-muted-foreground"} />
+              <GraduationCapIcon
+                className={
+                  isLearningEnabled ? "text-primary" : "text-muted-foreground"
+                }
+                size={16}
+              />
               Apprendre & Etudier
             </Button>
           </DropdownMenuContent>
         </DropdownMenu>
-
       </PopoverContent>
     </Popover>
   );
@@ -842,7 +897,11 @@ function PureModelSelectorCompact({
                         value={`agent-${agent.id}`}
                       >
                         {agent.image ? (
-                          <img src={agent.image} alt={agent.name} className="w-4 h-4 rounded-sm object-cover mr-1" />
+                          <img
+                            alt={agent.name}
+                            className="w-4 h-4 rounded-sm object-cover mr-1"
+                            src={agent.image}
+                          />
                         ) : (
                           <BotIcon className="w-4 h-4 mr-1 text-primary" />
                         )}
@@ -851,65 +910,65 @@ function PureModelSelectorCompact({
                     ))}
                   </ModelSelectorGroup>
                 )}
-              {sortedKeys.map((key) => (
-              <ModelSelectorGroup
-                heading={
-                  key === "_available"
-                    ? "Available"
-                    : (providerNames[key] ?? key)
-                }
-                key={key}
-              >
-                {grouped[key].map(({ model, curated }) => {
-                  const logoProvider = model.id.split("/")[0];
-                  return (
-                    <ModelSelectorItem
-                      className={cn(
-                        "flex w-full",
-                        model.id === selectedModel.id &&
-                          "border-b border-dashed border-foreground/50",
-                        !curated && "opacity-40 cursor-default"
-                      )}
-                      key={model.id}
-                      onSelect={() => {
-                        if (!curated) {
-                          return;
-                        }
-                        onModelChange?.(model.id);
-                        setCookie("chat-model", model.id);
-                        setOpen(false);
-                        setTimeout(() => {
-                          document
-                            .querySelector<HTMLTextAreaElement>(
-                              "[data-testid='multimodal-input']"
-                            )
-                            ?.focus();
-                        }, 50);
-                      }}
-                      value={model.id}
-                    >
-                      <ModelSelectorLogo provider={logoProvider} />
-                      <ModelSelectorName>{model.name}</ModelSelectorName>
-                      <div className="ml-auto flex items-center gap-2 text-foreground/70">
-                        {capabilities?.[model.id]?.tools && (
-                          <WrenchIcon className="size-3.5" />
-                        )}
-                        {capabilities?.[model.id]?.vision && (
-                          <EyeIcon className="size-3.5" />
-                        )}
-                        {capabilities?.[model.id]?.reasoning && (
-                          <BrainIcon className="size-3.5" />
-                        )}
-                        {!curated && (
-                          <LockIcon className="size-3 text-muted-foreground/50" />
-                        )}
-                      </div>
-                    </ModelSelectorItem>
-                  );
-                })}
-              </ModelSelectorGroup>
-            ))}
-            </>
+                {sortedKeys.map((key) => (
+                  <ModelSelectorGroup
+                    heading={
+                      key === "_available"
+                        ? "Available"
+                        : (providerNames[key] ?? key)
+                    }
+                    key={key}
+                  >
+                    {grouped[key].map(({ model, curated }) => {
+                      const logoProvider = model.id.split("/")[0];
+                      return (
+                        <ModelSelectorItem
+                          className={cn(
+                            "flex w-full",
+                            model.id === selectedModel.id &&
+                              "border-b border-dashed border-foreground/50",
+                            !curated && "opacity-40 cursor-default"
+                          )}
+                          key={model.id}
+                          onSelect={() => {
+                            if (!curated) {
+                              return;
+                            }
+                            onModelChange?.(model.id);
+                            setCookie("chat-model", model.id);
+                            setOpen(false);
+                            setTimeout(() => {
+                              document
+                                .querySelector<HTMLTextAreaElement>(
+                                  "[data-testid='multimodal-input']"
+                                )
+                                ?.focus();
+                            }, 50);
+                          }}
+                          value={model.id}
+                        >
+                          <ModelSelectorLogo provider={logoProvider} />
+                          <ModelSelectorName>{model.name}</ModelSelectorName>
+                          <div className="ml-auto flex items-center gap-2 text-foreground/70">
+                            {capabilities?.[model.id]?.tools && (
+                              <WrenchIcon className="size-3.5" />
+                            )}
+                            {capabilities?.[model.id]?.vision && (
+                              <EyeIcon className="size-3.5" />
+                            )}
+                            {capabilities?.[model.id]?.reasoning && (
+                              <BrainIcon className="size-3.5" />
+                            )}
+                            {!curated && (
+                              <LockIcon className="size-3 text-muted-foreground/50" />
+                            )}
+                          </div>
+                        </ModelSelectorItem>
+                      );
+                    })}
+                  </ModelSelectorGroup>
+                ))}
+              </>
             );
           })()}
         </ModelSelectorList>

@@ -1,6 +1,6 @@
 {
-  "id": "ccd54879-4966-4069-8dc7-9a25325ddc29",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "6e96d706-15fe-4755-bd46-75f08e7321d2",
+  "prevId": "ccd54879-4966-4069-8dc7-9a25325ddc29",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -57,6 +57,34 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "baseModel": {
+          "name": "baseModel",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'gpt-4o'"
+        },
+        "tone": {
+          "name": "tone",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 50
+        },
+        "conciseness": {
+          "name": "conciseness",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 50
+        },
+        "languageRegister": {
+          "name": "languageRegister",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 50
         },
         "createdAt": {
           "name": "createdAt",
@@ -123,6 +151,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'private'"
+        },
+        "agentId": {
+          "name": "agentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "projectId": {
+          "name": "projectId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -132,6 +172,24 @@
           "tableFrom": "Chat",
           "tableTo": "User",
           "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Chat_agentId_Agent_id_fk": {
+          "name": "Chat_agentId_Agent_id_fk",
+          "tableFrom": "Chat",
+          "tableTo": "Agent",
+          "columnsFrom": ["agentId"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Chat_projectId_Project_id_fk": {
+          "name": "Chat_projectId_Project_id_fk",
+          "tableFrom": "Chat",
+          "tableTo": "Project",
+          "columnsFrom": ["projectId"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -252,6 +310,90 @@
           "tableFrom": "Message_v2",
           "tableTo": "Chat",
           "columnsFrom": ["chatId"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.Project": {
+      "name": "Project",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instructions": {
+          "name": "instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memory": {
+          "name": "memory",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "files": {
+          "name": "files",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::json"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Project_userId_User_id_fk": {
+          "name": "Project_userId_User_id_fk",
+          "tableFrom": "Project",
+          "tableTo": "User",
+          "columnsFrom": ["userId"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

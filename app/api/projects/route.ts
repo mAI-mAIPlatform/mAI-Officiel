@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { createAgent, getAgentsByUser } from "@/lib/db/queries";
+import { createProject, getProjectsByUser } from "@/lib/db/queries";
 
 export async function GET() {
   const session = await auth();
@@ -9,11 +9,11 @@ export async function GET() {
   }
 
   try {
-    const agents = await getAgentsByUser(session.user.id);
-    return NextResponse.json(agents);
+    const projects = await getProjectsByUser(session.user.id);
+    return NextResponse.json(projects);
   } catch (_error) {
     return NextResponse.json(
-      { error: "Failed to fetch agents" },
+      { error: "Failed to fetch projects" },
       { status: 500 }
     );
   }
@@ -27,14 +27,14 @@ export async function POST(request: Request) {
 
   try {
     const data = await request.json();
-    const newAgent = await createAgent({
+    const newProject = await createProject({
       ...data,
       userId: session.user.id,
     });
-    return NextResponse.json(newAgent[0]);
+    return NextResponse.json(newProject[0]);
   } catch (_error) {
     return NextResponse.json(
-      { error: "Failed to create agent" },
+      { error: "Failed to create project" },
       { status: 500 }
     );
   }

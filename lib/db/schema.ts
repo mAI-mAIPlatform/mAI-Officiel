@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  integer,
   json,
   pgTable,
   primaryKey,
@@ -35,6 +36,8 @@ export const chat = pgTable("Chat", {
   visibility: varchar("visibility", { enum: ["public", "private"] })
     .notNull()
     .default("private"),
+  agentId: uuid("agentId").references(() => agent.id),
+  projectId: uuid("projectId").references(() => project.id),
 });
 
 export type Chat = InferSelectModel<typeof chat>;
@@ -146,8 +149,29 @@ export const agent = pgTable("Agent", {
   memory: text("memory"), // plain text knowledge
   files: json("files").default([]), // uploaded files metadata
   image: text("image"), // logo url
+  baseModel: varchar("baseModel").default("gpt-4o"),
+  tone: integer("tone").default(50),
+  conciseness: integer("conciseness").default(50),
+  languageRegister: integer("languageRegister").default(50),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type Agent = InferSelectModel<typeof agent>;
+
+export const project = pgTable("Project", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  image: text("image"),
+  instructions: text("instructions"),
+  memory: text("memory"), // plain text knowledge/sources
+  files: json("files").default([]), // uploaded files metadata
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type Project = InferSelectModel<typeof project>;

@@ -1,5 +1,5 @@
-import { getAllGatewayModels, getCapabilities, isDemo } from "@/lib/ai/models";
 import { auth } from "@/app/(auth)/auth";
+import { getAllGatewayModels, getCapabilities, isDemo } from "@/lib/ai/models";
 import { getAgentsByUser } from "@/lib/db/queries";
 
 export async function GET() {
@@ -24,5 +24,8 @@ export async function GET() {
     return Response.json({ capabilities, models, customAgents }, { headers });
   }
 
-  return Response.json({ capabilities: curatedCapabilities, customAgents }, { headers });
+  return Response.json(
+    { capabilities: curatedCapabilities, customAgents },
+    { headers }
+  );
 }

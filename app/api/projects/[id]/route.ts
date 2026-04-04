@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { deleteAgent, getAgentById, updateAgent } from "@/lib/db/queries";
+import { deleteProject, getProjectById, updateProject } from "@/lib/db/queries";
 
 export async function GET(
   _request: Request,
@@ -13,20 +13,20 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const agent = await getAgentById(id);
+    const project = await getProjectById(id);
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    if (agent.userId !== session.user.id) {
+    if (project.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json(agent);
+    return NextResponse.json(project);
   } catch (_error) {
     return NextResponse.json(
-      { error: "Failed to fetch agent" },
+      { error: "Failed to fetch project" },
       { status: 500 }
     );
   }
@@ -43,22 +43,22 @@ export async function PUT(
 
   try {
     const { id } = await params;
-    const agent = await getAgentById(id);
+    const project = await getProjectById(id);
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    if (agent.userId !== session.user.id) {
+    if (project.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const data = await request.json();
-    const updatedAgent = await updateAgent(id, data);
-    return NextResponse.json(updatedAgent[0]);
+    const updatedProject = await updateProject(id, data);
+    return NextResponse.json(updatedProject[0]);
   } catch (_error) {
     return NextResponse.json(
-      { error: "Failed to update agent" },
+      { error: "Failed to update project" },
       { status: 500 }
     );
   }
@@ -75,21 +75,21 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const agent = await getAgentById(id);
+    const project = await getProjectById(id);
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    if (agent.userId !== session.user.id) {
+    if (project.userId !== session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await deleteAgent(id);
+    await deleteProject(id);
     return NextResponse.json({ success: true });
   } catch (_error) {
     return NextResponse.json(
-      { error: "Failed to delete agent" },
+      { error: "Failed to delete project" },
       { status: 500 }
     );
   }

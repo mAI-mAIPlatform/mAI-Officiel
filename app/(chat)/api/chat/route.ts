@@ -69,8 +69,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel, selectedVisibilityType, contextualActions } =
-      requestBody;
+    const {
+      id,
+      message,
+      messages,
+      selectedChatModel,
+      selectedVisibilityType,
+      contextualActions,
+    } = requestBody;
 
     const [, session] = await Promise.all([
       checkBotId().catch(() => null),
@@ -196,13 +202,28 @@ export async function POST(request: Request) {
     const modelCapabilities = await getCapabilities();
     const capabilities = modelCapabilities[chatModel];
     // Override reasoning based on contextual action
-    const isReasoningModel = capabilities?.reasoning === true || contextualActions?.isReasoningEnabled === true;
+    const isReasoningModel =
+      capabilities?.reasoning === true ||
+      contextualActions?.isReasoningEnabled === true;
     const supportsTools = capabilities?.tools === true;
 
     const modelMessages = await convertToModelMessages(uiMessages);
 
     // Base tools available
-    const activeTools: ("getWeather" | "createDocument" | "editDocument" | "updateDocument" | "requestSuggestions" | "webSearch")[] = ["getWeather", "createDocument", "editDocument", "updateDocument", "requestSuggestions"];
+    const activeTools: (
+      | "getWeather"
+      | "createDocument"
+      | "editDocument"
+      | "updateDocument"
+      | "requestSuggestions"
+      | "webSearch"
+    )[] = [
+      "getWeather",
+      "createDocument",
+      "editDocument",
+      "updateDocument",
+      "requestSuggestions",
+    ];
 
     // Add web search tool if contextual action is enabled
     if (contextualActions?.isWebSearchEnabled) {
@@ -224,9 +245,7 @@ export async function POST(request: Request) {
           messages: modelMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools:
-            isReasoningModel && !supportsTools
-              ? []
-              : activeTools,
+            isReasoningModel && !supportsTools ? [] : activeTools,
           providerOptions: {
             ...(modelConfig?.gatewayOrder && {
               gateway: { order: modelConfig.gatewayOrder },

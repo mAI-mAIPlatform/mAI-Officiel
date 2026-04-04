@@ -1,18 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export function AgentForm({
   open,
   onOpenChange,
   agent,
-  onSuccess
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,11 +49,13 @@ export function AgentForm({
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) throw new Error("Failed to save agent");
+      if (!res.ok) {
+        throw new Error("Failed to save agent");
+      }
 
       toast.success(agent ? "mAI mis à jour" : "mAI créé avec succès");
       onSuccess();
-    } catch (err) {
+    } catch (_err) {
       toast.error("Une erreur est survenue");
     } finally {
       setLoading(false);
@@ -56,35 +63,55 @@ export function AgentForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{agent ? "Modifier le mAI" : "Créer un nouveau mAI"}</DialogTitle>
+          <DialogTitle>
+            {agent ? "Modifier le mAI" : "Créer un nouveau mAI"}
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
+        <form className="flex flex-col gap-4 mt-4" onSubmit={handleSubmit}>
           <div className="grid gap-2">
             <Label htmlFor="name">Nom</Label>
-            <Input id="name" name="name" defaultValue={agent?.name} required placeholder="ex: Assistant Juridique" />
+            <Input
+              defaultValue={agent?.name}
+              id="name"
+              name="name"
+              placeholder="ex: Assistant Juridique"
+              required
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
-            <Input id="description" name="description" defaultValue={agent?.description} placeholder="Brève description de ce mAI..." />
+            <Input
+              defaultValue={agent?.description}
+              id="description"
+              name="description"
+              placeholder="Brève description de ce mAI..."
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="image">Logo (URL)</Label>
-            <Input id="image" name="image" defaultValue={agent?.image} placeholder="https://..." />
+            <Input
+              defaultValue={agent?.image}
+              id="image"
+              name="image"
+              placeholder="https://..."
+            />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="systemPrompt">Comportement & Instructions (System Prompt)</Label>
+            <Label htmlFor="systemPrompt">
+              Comportement & Instructions (System Prompt)
+            </Label>
             <Textarea
+              className="min-h-[100px]"
+              defaultValue={agent?.systemPrompt}
               id="systemPrompt"
               name="systemPrompt"
-              defaultValue={agent?.systemPrompt}
-              className="min-h-[100px]"
               placeholder="Tu es un expert en droit des affaires..."
             />
           </div>
@@ -92,20 +119,28 @@ export function AgentForm({
           <div className="grid gap-2">
             <Label htmlFor="memory">Base de connaissances (Texte)</Label>
             <Textarea
+              className="min-h-[100px]"
+              defaultValue={agent?.memory}
               id="memory"
               name="memory"
-              defaultValue={agent?.memory}
-              className="min-h-[100px]"
               placeholder="Collez ici les textes de référence, lois, documents internes..."
             />
           </div>
 
           <div className="flex justify-end gap-2 mt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant="outline"
+            >
               Annuler
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Enregistrement..." : (agent ? "Mettre à jour" : "Créer")}
+            <Button disabled={loading} type="submit">
+              {loading
+                ? "Enregistrement..."
+                : agent
+                  ? "Mettre à jour"
+                  : "Créer"}
             </Button>
           </div>
         </form>

@@ -1,9 +1,10 @@
 "use client";
 
+import { BotIcon, PenSquareIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
-import useSWR from "swr";
-import { PlusIcon, PenSquareIcon, TrashIcon, BotIcon } from "lucide-react";
 import { toast } from "sonner";
+import useSWR from "swr";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { AgentForm } from "./agent-form";
 
-export function AgentListDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
-  const { data: agents, mutate } = useSWR("/api/agents", (url) => fetch(url).then((res) => res.json()));
+export function AgentListDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: agents, mutate } = useSWR("/api/agents", (url) =>
+    fetch(url).then((res) => res.json())
+  );
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -24,18 +32,20 @@ export function AgentListDialog({ open, onOpenChange }: { open: boolean, onOpenC
       await fetch(`/api/agents/${id}`, { method: "DELETE" });
       mutate();
       toast.success("mAI supprimé");
-    } catch (e) {
+    } catch (_e) {
       toast.error("Erreur lors de la suppression");
     }
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog onOpenChange={onOpenChange} open={open}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Mes mAIs</DialogTitle>
-            <DialogDescription>Gérez vos modèles d'IA personnalisés.</DialogDescription>
+            <DialogDescription>
+              Gérez vos modèles d'IA personnalisés.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 mt-4">
@@ -58,11 +68,18 @@ export function AgentListDialog({ open, onOpenChange }: { open: boolean, onOpenC
                 </p>
               )}
               {agents?.map((agent: any) => (
-                <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                  key={agent.id}
+                >
                   <div className="flex items-center gap-3">
                     <div className="bg-primary/10 p-2 rounded-md text-primary">
                       {agent.image ? (
-                        <img src={agent.image} alt={agent.name} className="w-5 h-5 rounded-sm object-cover" />
+                        <img
+                          alt={agent.name}
+                          className="w-5 h-5 rounded-sm object-cover"
+                          src={agent.image}
+                        />
                       ) : (
                         <BotIcon size={20} />
                       )}
@@ -70,27 +87,29 @@ export function AgentListDialog({ open, onOpenChange }: { open: boolean, onOpenC
                     <div>
                       <h4 className="font-medium text-sm">{agent.name}</h4>
                       {agent.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{agent.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {agent.description}
+                        </p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
-                      variant="ghost"
-                      size="icon"
                       onClick={() => {
                         setEditingAgent(agent);
                         setIsFormOpen(true);
                         onOpenChange(false);
                       }}
+                      size="icon"
+                      variant="ghost"
                     >
                       <PenSquareIcon size={14} />
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(agent.id)}
+                      size="icon"
+                      variant="ghost"
                     >
                       <TrashIcon size={14} />
                     </Button>
@@ -103,17 +122,19 @@ export function AgentListDialog({ open, onOpenChange }: { open: boolean, onOpenC
       </Dialog>
 
       <AgentForm
-        open={isFormOpen}
+        agent={editingAgent}
         onOpenChange={(v) => {
           setIsFormOpen(v);
-          if (!v) onOpenChange(true); // Reopen list when form closes
+          if (!v) {
+            onOpenChange(true); // Reopen list when form closes
+          }
         }}
-        agent={editingAgent}
         onSuccess={() => {
           mutate();
           setIsFormOpen(false);
           onOpenChange(true);
         }}
+        open={isFormOpen}
       />
     </>
   );
