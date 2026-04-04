@@ -44,12 +44,15 @@ import {
 } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BrandStarLogoIcon } from "./icons";
+import { AgentListDialog } from "./agent-list";
+import { BotIcon } from "lucide-react";
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { setOpenMobile, toggleSidebar } = useSidebar();
   const { mutate } = useSWRConfig();
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [showAgentList, setShowAgentList] = useState(false);
 
   const handleDeleteAll = () => {
     setShowDeleteAllDialog(false);
@@ -130,6 +133,16 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
+                    onClick={() => setShowAgentList(true)}
+                    tooltip="Mes mAIs"
+                  >
+                    <BotIcon className="size-4" />
+                    <span className="font-medium">Mes mAIs</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 {user && (
                   <SidebarMenuItem>
                     <SidebarMenuButton
@@ -175,6 +188,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AgentListDialog open={showAgentList} onOpenChange={setShowAgentList} />
     </>
   );
 }

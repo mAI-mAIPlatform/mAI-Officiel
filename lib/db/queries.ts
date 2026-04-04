@@ -630,3 +630,60 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     );
   }
 }
+
+import { agent, Agent } from "./schema";
+
+export async function createAgent(
+  data: Pick<Agent, "userId" | "name" | "description" | "systemPrompt" | "memory" | "files" | "image">
+) {
+  try {
+    return await db.insert(agent).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create agent:", error);
+    throw new Error("Failed to create agent");
+  }
+}
+
+export async function getAgentsByUser(userId: string): Promise<Agent[]> {
+  try {
+    return await db.select().from(agent).where(eq(agent.userId, userId));
+  } catch (error) {
+    console.error("Failed to get agents by user:", error);
+    throw new Error("Failed to get agents");
+  }
+}
+
+export async function getAgentById(id: string): Promise<Agent | undefined> {
+  try {
+    const agents = await db.select().from(agent).where(eq(agent.id, id));
+    return agents[0];
+  } catch (error) {
+    console.error("Failed to get agent by id:", error);
+    throw new Error("Failed to get agent");
+  }
+}
+
+export async function deleteAgent(id: string) {
+  try {
+    return await db.delete(agent).where(eq(agent.id, id));
+  } catch (error) {
+    console.error("Failed to delete agent:", error);
+    throw new Error("Failed to delete agent");
+  }
+}
+
+export async function updateAgent(
+  id: string,
+  data: Partial<Pick<Agent, "name" | "description" | "systemPrompt" | "memory" | "files" | "image">>
+) {
+  try {
+    return await db
+      .update(agent)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agent.id, id))
+      .returning();
+  } catch (error) {
+    console.error("Failed to update agent:", error);
+    throw new Error("Failed to update agent");
+  }
+}

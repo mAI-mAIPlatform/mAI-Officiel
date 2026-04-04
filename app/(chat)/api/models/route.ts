@@ -1,4 +1,6 @@
 import { getAllGatewayModels, getCapabilities, isDemo } from "@/lib/ai/models";
+import { auth } from "@/app/(auth)/auth";
+import { getAgentsByUser } from "@/lib/db/queries";
 
 export async function GET() {
   const headers = {
@@ -7,14 +9,20 @@ export async function GET() {
 
   const curatedCapabilities = await getCapabilities();
 
+  const session = await auth();
+  let customAgents: any[] = [];
+  if (session?.user?.id) {
+    customAgents = await getAgentsByUser(session.user.id);
+  }
+
   if (isDemo) {
     const models = await getAllGatewayModels();
     const capabilities = Object.fromEntries(
       models.map((m) => [m.id, curatedCapabilities[m.id] ?? m.capabilities])
     );
 
-    return Response.json({ capabilities, models }, { headers });
+    return Response.json({ capabilities, models, customAgents }, { headers });
   }
 
-  return Response.json(curatedCapabilities, { headers });
+  return Response.json({ capabilities: curatedCapabilities, customAgents }, { headers });
 }

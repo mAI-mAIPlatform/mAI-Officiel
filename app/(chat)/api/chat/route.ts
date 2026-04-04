@@ -25,6 +25,7 @@ import { editDocument } from "@/lib/ai/tools/edit-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import { webSearch } from "@/lib/ai/tools/web-search";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel, selectedVisibilityType } =
+    const { id, message, messages, selectedChatModel, selectedVisibilityType, contextualActions } =
       requestBody;
 
     const [, session] = await Promise.all([
@@ -80,9 +81,20 @@ export async function POST(request: Request) {
       return new ChatbotError("unauthorized:chat").toResponse();
     }
 
-    const chatModel = allowedModelIds.has(selectedChatModel)
-      ? selectedChatModel
-      : DEFAULT_CHAT_MODEL;
+    let chatModel = selectedChatModel;
+    let customAgent: any = null;
+
+    if (selectedChatModel.startsWith("agent-")) {
+      const agentId = selectedChatModel.replace("agent-", "");
+      const { getAgentById } = await import("@/lib/db/queries");
+      customAgent = await getAgentById(agentId);
+      // Fallback model for agents
+      chatModel = DEFAULT_CHAT_MODEL;
+    } else {
+      chatModel = allowedModelIds.has(selectedChatModel)
+        ? selectedChatModel
+        : DEFAULT_CHAT_MODEL;
+    }
 
     await checkIpRateLimit(ipAddress(request));
 
@@ -183,29 +195,38 @@ export async function POST(request: Request) {
     const modelConfig = chatModels.find((m) => m.id === chatModel);
     const modelCapabilities = await getCapabilities();
     const capabilities = modelCapabilities[chatModel];
-    const isReasoningModel = capabilities?.reasoning === true;
+    // Override reasoning based on contextual action
+    const isReasoningModel = capabilities?.reasoning === true || contextualActions?.isReasoningEnabled === true;
     const supportsTools = capabilities?.tools === true;
 
     const modelMessages = await convertToModelMessages(uiMessages);
+
+    // Base tools available
+    const activeTools: ("getWeather" | "createDocument" | "editDocument" | "updateDocument" | "requestSuggestions" | "webSearch")[] = ["getWeather", "createDocument", "editDocument", "updateDocument", "requestSuggestions"];
+
+    // Add web search tool if contextual action is enabled
+    if (contextualActions?.isWebSearchEnabled) {
+      activeTools.push("webSearch");
+    }
 
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
         const result = streamText({
           model: getLanguageModel(chatModel),
-          system: systemPrompt({ requestHints, supportsTools }),
+          system: systemPrompt({
+            requestHints,
+            supportsTools,
+            agentPrompt: customAgent?.systemPrompt,
+            agentMemory: customAgent?.memory,
+            isLearningEnabled: contextualActions?.isLearningEnabled,
+          }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools:
             isReasoningModel && !supportsTools
               ? []
-              : [
-                  "getWeather",
-                  "createDocument",
-                  "editDocument",
-                  "updateDocument",
-                  "requestSuggestions",
-                ],
+              : activeTools,
           providerOptions: {
             ...(modelConfig?.gatewayOrder && {
               gateway: { order: modelConfig.gatewayOrder },
@@ -232,6 +253,7 @@ export async function POST(request: Request) {
               dataStream,
               modelId: chatModel,
             }),
+            webSearch,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

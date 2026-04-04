@@ -9,7 +9,23 @@ import {
   EyeIcon,
   LockIcon,
   WrenchIcon,
+  PlusIcon,
+  SearchIcon,
+  GraduationCapIcon,
+  Image as ImageIcon,
+  Paperclip,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -36,6 +52,7 @@ import {
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
+import { BotIcon } from "lucide-react";
 import {
   type ChatModel,
   chatModels,
@@ -222,6 +239,11 @@ function PureMultimodalInput({
       `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/chat/${chatId}`
     );
 
+    // Read current contextual actions state safely (SSR-friendly)
+    const isReasoningEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-reasoning-enabled") === "true" : false;
+    const isWebSearchEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-websearch-enabled") === "true" : false;
+    const isLearningEnabled = typeof window !== "undefined" ? localStorage.getItem("mai-learning-enabled") === "true" : false;
+
     sendMessage({
       role: "user",
       parts: [
@@ -236,6 +258,14 @@ function PureMultimodalInput({
           text: input,
         },
       ],
+      // @ts-ignore - appending to experimental body to be picked up by useChat
+      experimental_append_body: {
+        contextualActions: {
+          isReasoningEnabled,
+          isWebSearchEnabled,
+          isLearningEnabled,
+        }
+      }
     });
 
     setAttachments([]);
@@ -517,10 +547,14 @@ function PureMultimodalInput({
         />
         <PromptInputFooter className="px-3 pb-3">
           <PromptInputTools>
-            <AttachmentsButton
+            <ContextualActionsMenu
               fileInputRef={fileInputRef}
-              selectedModelId={selectedModelId}
               status={status}
+              hasVision={true}
+              onActionToggle={(action) => {
+                // We'll just pass these via some state to parent/submit later if needed,
+                // for now we can rely on chat route fetching it or store in state
+              }}
             />
             <ModelSelectorCompact
               onModelChange={onModelChange}
@@ -584,47 +618,102 @@ export const MultimodalInput = memo(
   }
 );
 
-function PureAttachmentsButton({
+function PureContextualActionsMenu({
   fileInputRef,
   status,
-  selectedModelId,
+  hasVision,
+  onActionToggle
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>["status"];
-  selectedModelId: string;
+  hasVision: boolean;
+  onActionToggle: (action: string) => void;
 }) {
-  const { data: modelsResponse } = useSWR(
-    `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/models`,
-    (url: string) => fetch(url).then((r) => r.json()),
-    { revalidateOnFocus: false, dedupingInterval: 3_600_000 }
-  );
+  const [open, setOpen] = useState(false);
 
-  const caps: Record<string, ModelCapabilities> | undefined =
-    modelsResponse?.capabilities ?? modelsResponse;
-  const hasVision = caps?.[selectedModelId]?.vision ?? false;
+  // States to hold the toggled options (to pass to chat logic later)
+  // For the moment, we just expose them or keep them in sync with local storage/context
+  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage("mai-reasoning-enabled", false);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage("mai-websearch-enabled", false);
+  const [isLearningEnabled, setIsLearningEnabled] = useLocalStorage("mai-learning-enabled", false);
 
   return (
-    <Button
-      className={cn(
-        "h-7 w-7 rounded-lg border border-border/40 p-1 transition-colors",
-        hasVision
-          ? "text-foreground hover:border-border hover:text-foreground"
-          : "text-muted-foreground/30 cursor-not-allowed"
-      )}
-      data-testid="attachments-button"
-      disabled={status !== "ready" || !hasVision}
-      onClick={(event) => {
-        event.preventDefault();
-        fileInputRef.current?.click();
-      }}
-      variant="ghost"
-    >
-      <PaperclipIcon size={14} style={{ width: 14, height: 14 }} />
-    </Button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          className="h-7 w-7 rounded-full border border-border/40 p-1 transition-colors bg-secondary/50 hover:bg-secondary text-foreground flex items-center justify-center shadow-sm"
+          data-testid="context-actions-button"
+          disabled={status !== "ready"}
+          variant="ghost"
+        >
+          <PlusIcon size={16} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2 shadow-lg rounded-xl flex flex-col gap-1" align="start" sideOffset={8}>
+
+        <Button
+          variant="ghost"
+          className="w-full justify-start font-normal flex items-center gap-2 h-9"
+          onClick={() => {
+            setOpen(false);
+            if (hasVision) fileInputRef.current?.click();
+            else toast.error("Le modèle actuel ne supporte pas les images");
+          }}
+        >
+          <Paperclip size={16} className="text-muted-foreground" />
+          Ajouter photos/fichiers
+        </Button>
+
+        <div className="h-[1px] bg-border my-1 mx-2" />
+
+        <Button
+          variant="ghost"
+          className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isReasoningEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+          onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+        >
+          <BrainIcon size={16} className={isReasoningEnabled ? "text-primary" : "text-muted-foreground"} />
+          Réflexion
+        </Button>
+
+        <Button
+          variant="ghost"
+          className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isWebSearchEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+          onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+        >
+          <SearchIcon size={16} className={isWebSearchEnabled ? "text-primary" : "text-muted-foreground"} />
+          Recherche approfondie
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between font-normal flex items-center gap-2 h-9 text-muted-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-bold tracking-widest text-lg leading-none mt-[-8px]">...</span> Plus
+              </div>
+              <span className="text-xs">&gt;</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-56 p-2 shadow-lg rounded-xl">
+             <Button
+              variant="ghost"
+              className={cn("w-full justify-start font-normal flex items-center gap-2 h-9", isLearningEnabled && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary")}
+              onClick={() => setIsLearningEnabled(!isLearningEnabled)}
+            >
+              <GraduationCapIcon size={16} className={isLearningEnabled ? "text-primary" : "text-muted-foreground"} />
+              Apprendre & Etudier
+            </Button>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+      </PopoverContent>
+    </Popover>
   );
 }
 
-const AttachmentsButton = memo(PureAttachmentsButton);
+const ContextualActionsMenu = memo(PureContextualActionsMenu);
 
 function PureModelSelectorCompact({
   selectedModelId,
@@ -689,6 +778,8 @@ function PureModelSelectorCompact({
               grouped[key].push({ model, curated: curatedIds.has(model.id) });
             }
 
+            const customAgents = modelsData?.customAgents || [];
+
             const sortedKeys = Object.keys(grouped).sort((a, b) => {
               if (a === "_available") {
                 return -1;
@@ -724,7 +815,43 @@ function PureModelSelectorCompact({
               zai: "Zai",
             };
 
-            return sortedKeys.map((key) => (
+            return (
+              <>
+                {customAgents.length > 0 && (
+                  <ModelSelectorGroup heading="Mes mAIs">
+                    {customAgents.map((agent: any) => (
+                      <ModelSelectorItem
+                        className={cn(
+                          "flex w-full",
+                          selectedModelId === `agent-${agent.id}` &&
+                            "border-b border-dashed border-foreground/50"
+                        )}
+                        key={`agent-${agent.id}`}
+                        onSelect={() => {
+                          onModelChange?.(`agent-${agent.id}`);
+                          setCookie("chat-model", `agent-${agent.id}`);
+                          setOpen(false);
+                          setTimeout(() => {
+                            document
+                              .querySelector<HTMLTextAreaElement>(
+                                "[data-testid='multimodal-input']"
+                              )
+                              ?.focus();
+                          }, 50);
+                        }}
+                        value={`agent-${agent.id}`}
+                      >
+                        {agent.image ? (
+                          <img src={agent.image} alt={agent.name} className="w-4 h-4 rounded-sm object-cover mr-1" />
+                        ) : (
+                          <BotIcon className="w-4 h-4 mr-1 text-primary" />
+                        )}
+                        <ModelSelectorName>{agent.name}</ModelSelectorName>
+                      </ModelSelectorItem>
+                    ))}
+                  </ModelSelectorGroup>
+                )}
+              {sortedKeys.map((key) => (
               <ModelSelectorGroup
                 heading={
                   key === "_available"
@@ -781,7 +908,9 @@ function PureModelSelectorCompact({
                   );
                 })}
               </ModelSelectorGroup>
-            ));
+            ))}
+            </>
+            );
           })()}
         </ModelSelectorList>
       </ModelSelectorContent>

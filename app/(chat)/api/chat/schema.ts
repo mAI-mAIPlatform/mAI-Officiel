@@ -32,6 +32,11 @@ export const postRequestBodySchema = z.object({
   messages: z.array(toolApprovalMessageSchema).optional(),
   selectedChatModel: z.string(),
   selectedVisibilityType: z.enum(["public", "private"]),
+  contextualActions: z.object({
+    isReasoningEnabled: z.boolean().optional(),
+    isWebSearchEnabled: z.boolean().optional(),
+    isLearningEnabled: z.boolean().optional(),
+  }).optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;
