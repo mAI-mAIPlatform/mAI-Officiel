@@ -83,6 +83,43 @@ function setCookie(name: string, value: string) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
 }
 
+function getModelLogoProvider(
+  model: Pick<ChatModel, "id" | "name" | "provider">
+) {
+  const id = model.id.toLowerCase();
+  const name = model.name.toLowerCase();
+
+  if (id.includes("deepseek") || name.includes("deepseek")) {
+    return "deepseek";
+  }
+  if (id.includes("openai/") || id.includes("/gpt") || name.includes("gpt")) {
+    return "openai";
+  }
+  if (id.includes("stepfun") || name.includes("step 1")) {
+    return "stepfun";
+  }
+  if (id.includes("liquid/") || name.includes("lfm")) {
+    return "liquid";
+  }
+  if (id.includes("gemini") || id.includes("/google/")) {
+    return "google";
+  }
+  if (id.includes("claude") || id.includes("/anthropic/")) {
+    return "anthropic";
+  }
+  if (id.includes("nemotron")) {
+    return "nvidia";
+  }
+  if (id.includes("llama")) {
+    return "llama";
+  }
+
+  if (model.provider === "ollama") {
+    return "llama";
+  }
+  return model.provider;
+}
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -786,8 +823,8 @@ function PureModelSelectorCompact({
   const selectedModel =
     activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
     activeModels.find((m: ChatModel) => m.id === DEFAULT_CHAT_MODEL) ??
-    activeModels[0];
-  const [provider] = selectedModel.id.split("/");
+    activeModels[0] ??
+    chatModels[0];
 
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
@@ -797,7 +834,7 @@ function PureModelSelectorCompact({
           data-testid="model-selector"
           variant="ghost"
         >
-          {provider && <ModelSelectorLogo provider={provider} />}
+          <ModelSelectorLogo provider={getModelLogoProvider(selectedModel)} />
           <ModelSelectorName>{selectedModel.name}</ModelSelectorName>
         </Button>
       </ModelSelectorTrigger>
@@ -819,7 +856,7 @@ function PureModelSelectorCompact({
             > = {};
             for (const model of allModels) {
               const key = curatedIds.has(model.id)
-                ? "_available"
+                ? "_curated"
                 : model.provider;
               if (!grouped[key]) {
                 grouped[key] = [];
@@ -830,10 +867,10 @@ function PureModelSelectorCompact({
             const customAgents = modelsData?.customAgents || [];
 
             const sortedKeys = Object.keys(grouped).sort((a, b) => {
-              if (a === "_available") {
+              if (a === "_curated") {
                 return -1;
               }
-              if (b === "_available") {
+              if (b === "_curated") {
                 return 1;
               }
               return a.localeCompare(b);
@@ -873,7 +910,7 @@ function PureModelSelectorCompact({
                         className={cn(
                           "flex w-full",
                           selectedModelId === `agent-${agent.id}` &&
-                            "border-b border-dashed border-foreground/50"
+                            "bg-muted/50"
                         )}
                         key={`agent-${agent.id}`}
                         onSelect={() => {
@@ -906,20 +943,19 @@ function PureModelSelectorCompact({
                 {sortedKeys.map((key) => (
                   <ModelSelectorGroup
                     heading={
-                      key === "_available"
-                        ? "Available"
+                      key === "_curated"
+                        ? undefined
                         : (providerNames[key] ?? key)
                     }
                     key={key}
                   >
                     {grouped[key].map(({ model, curated }) => {
-                      const logoProvider = model.id.split("/")[0];
+                      const logoProvider = getModelLogoProvider(model);
                       return (
                         <ModelSelectorItem
                           className={cn(
                             "flex w-full",
-                            model.id === selectedModel.id &&
-                              "border-b border-dashed border-foreground/50",
+                            model.id === selectedModel.id && "bg-muted/50",
                             !curated && "opacity-40 cursor-default"
                           )}
                           key={model.id}
