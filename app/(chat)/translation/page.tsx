@@ -15,6 +15,13 @@ const languageOptions = [
   { code: "pt", label: "Portugais" },
 ];
 
+const synonymsMap: Record<string, string[]> = {
+  bug: ["anomalie", "défaut", "erreur"],
+  rapide: ["vite", "prompt", "expéditif"],
+  code: ["script", "source", "implémentation"],
+  sécurité: ["protection", "fiabilité", "robustesse"],
+};
+
 export default function TranslationPage() {
   const [sourceText, setSourceText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState("auto");
@@ -47,15 +54,41 @@ export default function TranslationPage() {
     return () => clearTimeout(timer);
   }, [sourceLanguage, sourceText, targetLanguage]);
 
-  const lexicalHint = useMemo(() => {
-    const clean = sourceText.trim();
+  const lexicalAnalysis = useMemo(() => {
+    const clean = sourceText
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .trim();
+
     if (!clean) {
-      return "En attente de sélection...";
+      return {
+        keyWord: "En attente de sélection...",
+        totalWords: 0,
+        uniqueWords: 0,
+      };
     }
-    const words = clean.split(/\s+/);
-    const longest = words.sort((a, b) => b.length - a.length)[0];
-    return `Mot-clé détecté: ${longest}`;
+
+    const words = clean.split(/\s+/).filter(Boolean);
+    const frequency = new Map<string, number>();
+    for (const word of words) {
+      frequency.set(word, (frequency.get(word) ?? 0) + 1);
+    }
+
+    const keyWord = [...frequency.entries()].sort(
+      (a, b) => b[1] - a[1]
+    )[0]?.[0];
+
+    return {
+      keyWord: keyWord ?? words[0],
+      totalWords: words.length,
+      uniqueWords: frequency.size,
+    };
   }, [sourceText]);
+
+  const synonyms = useMemo(() => {
+    const list = synonymsMap[lexicalAnalysis.keyWord] ?? [];
+    return list.length > 0 ? list : ["Aucun synonyme suggéré pour ce terme."];
+  }, [lexicalAnalysis.keyWord]);
 
   return (
     <div className="liquid-glass flex h-full w-full max-w-6xl flex-col gap-6 overflow-y-auto p-4 md:p-8">
@@ -73,7 +106,7 @@ export default function TranslationPage() {
         <div className="liquid-glass flex flex-col space-y-3 rounded-xl border border-border p-4">
           <div className="border-b border-border pb-3">
             <select
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium"
+              className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-xs text-muted-foreground"
               onChange={(e) => setSourceLanguage(e.target.value)}
               value={sourceLanguage}
             >
@@ -95,7 +128,7 @@ export default function TranslationPage() {
         <div className="liquid-glass flex flex-col space-y-3 rounded-xl border border-border bg-muted/20 p-4">
           <div className="border-b border-border pb-3">
             <select
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium"
+              className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-xs text-muted-foreground"
               onChange={(e) => setTargetLanguage(e.target.value)}
               value={targetLanguage}
             >
@@ -130,19 +163,24 @@ export default function TranslationPage() {
             <BookOpen className="size-5 text-primary/70" />
             <h3 className="text-lg font-semibold">Analyse Lexicale</h3>
           </div>
-          <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-            <span className="text-sm text-muted-foreground">{lexicalHint}</span>
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm text-muted-foreground">
+            <p>Mot-clé détecté : {lexicalAnalysis.keyWord}</p>
+            <p>Total mots : {lexicalAnalysis.totalWords}</p>
+            <p>Mots uniques : {lexicalAnalysis.uniqueWords}</p>
           </div>
         </div>
+
         <div className="liquid-glass rounded-xl border border-border p-5">
           <div className="mb-3 flex items-center space-x-2">
             <RefreshCcw className="size-5 text-primary/70" />
             <h3 className="text-lg font-semibold">Synonymes & Alternatives</h3>
           </div>
           <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm text-muted-foreground">
-            {translatedText
-              ? "Essayez des variantes en ajustant la langue cible."
-              : "En attente de traduction..."}
+            <ul className="list-disc pl-5">
+              {synonyms.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

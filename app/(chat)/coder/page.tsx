@@ -5,10 +5,12 @@ import {
   ChevronDown,
   Code2,
   FileCode2,
+  FilePlus2,
   FolderOpen,
-  Monitor,
+  Pencil,
   PlayCircle,
   TerminalSquare,
+  Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 type CoderMode = "Planification" | "Investigation" | "Exécution";
 type WorkspaceTab = "preview" | "files" | "terminal" | "messages";
+type FileEntry = { content: string; path: string };
 
 const modeDescriptions: Record<CoderMode, string> = {
   Planification: "Créer un plan avant les modifications.",
@@ -34,11 +37,46 @@ export default function CoderPage() {
   const [plan, setPlan] = useState("");
   const [isPlanApproved, setIsPlanApproved] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [files, setFiles] = useState<FileEntry[]>([
+    {
+      path: "src/app/page.tsx",
+      content: "export default function Page(){ return <div>Hello</div>; }",
+    },
+  ]);
+  const [selectedFilePath, setSelectedFilePath] = useState("src/app/page.tsx");
+  const [newFilePath, setNewFilePath] = useState("");
 
   const selectedModelLabel =
     chatModels.find((model) => model.id === selectedModel)?.name ?? "Modèle";
 
+  const selectedFile = files.find((file) => file.path === selectedFilePath);
   const modeHint = useMemo(() => modeDescriptions[mode], [mode]);
+
+  const applyTask = async () => {
+    setIsRunning(true);
+    try {
+      const response = await fetch("/api/coder/task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files, mode, modelId: selectedModel, prompt }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setLogs([payload?.error ?? "Échec de la tâche."]);
+        return;
+      }
+
+      setLogs(payload.history ?? []);
+      setFiles(payload.updatedFiles ?? files);
+      setIsWorkspaceOpen(true);
+      setActiveTab("terminal");
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   const launchTask = async () => {
     if (!prompt.trim()) {
@@ -60,16 +98,51 @@ export default function CoderPage() {
       return;
     }
 
-    // Exécution simulée (UI) + garde anti-bug pour toujours afficher un résultat.
-    setLogs([
-      `Mode: ${mode}`,
-      `Modèle: ${selectedModelLabel}`,
-      "Analyse du contexte...",
-      "Application des changements...",
-      "Tâche terminée avec succès.",
-    ]);
-    setIsWorkspaceOpen(true);
-    setActiveTab("terminal");
+    await applyTask();
+  };
+
+  const createFile = () => {
+    if (!newFilePath.trim()) {
+      return;
+    }
+    if (files.some((file) => file.path === newFilePath.trim())) {
+      return;
+    }
+    const nextFile = { path: newFilePath.trim(), content: "" };
+    setFiles((currentFiles) => [...currentFiles, nextFile]);
+    setSelectedFilePath(nextFile.path);
+    setNewFilePath("");
+  };
+
+  const renameFile = (path: string) => {
+    const renamed = `${path}.new`;
+    if (files.some((file) => file.path === renamed)) {
+      return;
+    }
+    setFiles((currentFiles) =>
+      currentFiles.map((file) =>
+        file.path === path ? { ...file, path: renamed } : file
+      )
+    );
+    if (selectedFilePath === path) {
+      setSelectedFilePath(renamed);
+    }
+  };
+
+  const deleteFile = (path: string) => {
+    const nextFiles = files.filter((file) => file.path !== path);
+    setFiles(nextFiles);
+    if (selectedFilePath === path) {
+      setSelectedFilePath(nextFiles[0]?.path ?? "");
+    }
+  };
+
+  const updateFileContent = (content: string) => {
+    setFiles((currentFiles) =>
+      currentFiles.map((file) =>
+        file.path === selectedFilePath ? { ...file, content } : file
+      )
+    );
   };
 
   return (
@@ -82,16 +155,16 @@ export default function CoderPage() {
       <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <button
-            className="flex h-8 items-center gap-2 rounded-full border border-border/50 bg-background/50 px-3 text-xs text-muted-foreground"
+            className="flex h-7 items-center gap-2 rounded-full border border-border/40 bg-background/50 px-2.5 text-[11px] text-muted-foreground"
             onClick={() => setIsDropdownOpen((value) => !value)}
             type="button"
           >
             {mode}
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className="size-3" />
           </button>
 
           <select
-            className="h-8 rounded-full border border-border/50 bg-background/50 px-3 text-xs text-muted-foreground outline-none"
+            className="h-7 rounded-full border border-border/40 bg-background/50 px-2.5 text-[11px] text-muted-foreground outline-none"
             onChange={(event) => setSelectedModel(event.target.value)}
             value={selectedModel}
           >
@@ -138,7 +211,11 @@ export default function CoderPage() {
             placeholder="Décrivez votre tâche de développement..."
             value={prompt}
           />
-          <Button className="h-10 self-end" onClick={launchTask}>
+          <Button
+            className="h-10 self-end"
+            disabled={isRunning}
+            onClick={launchTask}
+          >
             <PlayCircle className="mr-2 size-4" /> Lancer
           </Button>
         </div>
@@ -182,16 +259,18 @@ export default function CoderPage() {
             <textarea
               className="mt-3 h-[260px] w-full resize-none rounded-xl border border-border/40 bg-background/60 p-3 text-sm outline-none"
               placeholder="Suivi des messages..."
+              readOnly
+              value={logs.join("\n")}
             />
           </section>
 
           <section className="rounded-2xl border border-border/50 bg-card/70 p-3">
             <div className="mb-3 flex items-center gap-2">
               {[
-                { id: "preview", icon: Monitor, label: "Preview" },
-                { id: "files", icon: FolderOpen, label: "Fichiers" },
+                { id: "preview", icon: FolderOpen, label: "Preview" },
+                { id: "files", icon: FileCode2, label: "Fichiers" },
                 { id: "terminal", icon: TerminalSquare, label: "Terminal" },
-                { id: "messages", icon: FileCode2, label: "Messages" },
+                { id: "messages", icon: Pencil, label: "Messages" },
               ].map((tab) => (
                 <button
                   className={cn(
@@ -211,24 +290,67 @@ export default function CoderPage() {
 
             <div className="h-[440px] rounded-xl border border-border/40 bg-background/70 p-3 text-xs text-muted-foreground">
               {activeTab === "preview" && (
-                <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/40">
-                  Prévisualisation du résultat de code
+                <pre className="h-full overflow-auto whitespace-pre-wrap">
+                  {selectedFile?.content || "Aucun fichier sélectionné."}
+                </pre>
+              )}
+
+              {activeTab === "files" && (
+                <div>
+                  <div className="mb-2 flex gap-2">
+                    <input
+                      className="h-8 flex-1 rounded-lg border border-border/40 bg-background/70 px-2"
+                      onChange={(event) => setNewFilePath(event.target.value)}
+                      placeholder="Nouveau fichier (ex: src/new.tsx)"
+                      value={newFilePath}
+                    />
+                    <Button onClick={createFile} size="sm" variant="outline">
+                      <FilePlus2 className="mr-1 size-3.5" /> Ajouter
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {files.map((file) => (
+                      <div
+                        className="flex items-center justify-between rounded-lg border border-border/40 p-2"
+                        key={file.path}
+                      >
+                        <button
+                          className="text-left"
+                          onClick={() => setSelectedFilePath(file.path)}
+                          type="button"
+                        >
+                          {file.path}
+                        </button>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => renameFile(file.path)}
+                            type="button"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteFile(file.path)}
+                            type="button"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              {activeTab === "files" && (
-                <ul className="space-y-2">
-                  <li>src/app/page.tsx</li>
-                  <li>src/components/Feature.tsx</li>
-                  <li>src/styles/globals.css</li>
-                </ul>
-              )}
+
               {activeTab === "terminal" && (
                 <pre className="whitespace-pre-wrap">{logs.join("\n")}</pre>
               )}
+
               {activeTab === "messages" && (
-                <pre className="whitespace-pre-wrap">
-                  {plan || "Aucun message technique."}
-                </pre>
+                <textarea
+                  className="h-full w-full resize-none rounded-lg border border-border/40 bg-background/70 p-2"
+                  onChange={(event) => updateFileContent(event.target.value)}
+                  value={selectedFile?.content ?? ""}
+                />
               )}
             </div>
           </section>

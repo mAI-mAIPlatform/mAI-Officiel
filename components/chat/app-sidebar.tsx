@@ -6,7 +6,6 @@ import {
   FolderKanbanIcon,
   Languages,
   Newspaper,
-  PanelLeftIcon,
   PenSquareIcon,
   TrashIcon,
 } from "lucide-react";
@@ -46,12 +45,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BrandStarLogoIcon } from "./icons";
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
-  const { setOpenMobile, toggleSidebar } = useSidebar();
+  const { setOpenMobile } = useSidebar();
   const { mutate } = useSWRConfig();
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
 
@@ -75,30 +73,15 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         <SidebarHeader className="pb-0 pt-3">
           <SidebarMenu>
             <SidebarMenuItem className="flex flex-row items-center justify-between">
-              <div className="group/logo relative flex items-center justify-center">
-                <SidebarMenuButton
-                  asChild
-                  className="size-8 !px-0 items-center justify-center group-data-[collapsible=icon]:group-hover/logo:opacity-0"
-                  tooltip="MAI"
-                >
-                  <Link href="/" onClick={() => setOpenMobile(false)}>
-                    <BrandStarLogoIcon size={20} />
-                  </Link>
-                </SidebarMenuButton>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <SidebarMenuButton
-                      className="pointer-events-none absolute inset-0 size-8 opacity-0 group-data-[collapsible=icon]:pointer-events-auto group-data-[collapsible=icon]:group-hover/logo:opacity-100"
-                      onClick={() => toggleSidebar()}
-                    >
-                      <PanelLeftIcon className="size-4" />
-                    </SidebarMenuButton>
-                  </TooltipTrigger>
-                  <TooltipContent className="hidden md:block" side="right">
-                    Ouvrir la barre latérale
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+              <SidebarMenuButton
+                asChild
+                className="size-8 !px-0 items-center justify-center"
+                tooltip="MAI"
+              >
+                <Link href="/" onClick={() => setOpenMobile(false)}>
+                  <BrandStarLogoIcon size={20} />
+                </Link>
+              </SidebarMenuButton>
               <div className="group-data-[collapsible=icon]:hidden">
                 <SidebarTrigger className="text-sidebar-foreground/60 transition-colors duration-150 hover:text-sidebar-foreground" />
               </div>
