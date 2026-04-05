@@ -3,12 +3,19 @@
 import { Download, Newspaper, SendHorizonal, UploadCloud } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import {
+  canConsumeUsage,
+  consumeUsage,
+  getUsageCount,
+} from "@/lib/usage-limits";
 
 type Result = { link: string; snippet: string; source: string; title: string };
 
 type ReportHistory = { createdAt: string; query: string; report: string };
 
 export default function NewsPage() {
+  const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [report, setReport] = useState("");
@@ -17,12 +24,25 @@ export default function NewsPage() {
   const [history, setHistory] = useState<ReportHistory[]>([]);
   const [accessCode, setAccessCode] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [searchesToday, setSearchesToday] = useState(0);
+  const [quotaMessage, setQuotaMessage] = useState<string | null>(null);
+
+  const dailyLimit = currentPlanDefinition.limits.newsSearchesPerDay;
+  const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
 
   useEffect(() => {
     fetch("/api/restricted-access?area=news")
       .then((res) => res.json())
       .then((payload) => setIsUnlocked(payload.unlocked === true));
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    setSearchesToday(getUsageCount("news", "day"));
+  }, [isHydrated]);
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -37,6 +57,15 @@ export default function NewsPage() {
     if (!query.trim()) {
       return;
     }
+
+    if (!canConsumeUsage("news", "day", dailyLimit)) {
+      setQuotaMessage(
+        `Quota mAINews atteint (${dailyLimit}/jour). Passez au forfait supérieur ou réessayez demain.`
+      );
+      return;
+    }
+
+    setQuotaMessage(null);
     setIsLoading(true);
     try {
       const response = await fetch("/api/news/search", {
@@ -45,9 +74,15 @@ export default function NewsPage() {
         body: JSON.stringify({ fileContext: externalContext, query }),
       });
       const payload = await response.json();
+      if (!response.ok) {
+        setReport(payload.error ?? "Erreur lors de la recherche.");
+        return;
+      }
 
       setResults(payload.organicResults ?? []);
       setReport(payload.report ?? payload.error ?? "Aucun rapport généré");
+      const usage = consumeUsage("news", "day");
+      setSearchesToday(usage.count);
       if (payload.report) {
         setHistory((prev) => [
           {
@@ -110,6 +145,11 @@ export default function NewsPage() {
       </div>
 
       <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Quota mAINews : {searchesToday}/{dailyLimit} recherches
+          aujourd&apos;hui ({remainingSearches} restante
+          {remainingSearches > 1 ? "s" : ""}).
+        </p>
         <div className="flex flex-col gap-3 md:flex-row">
           <input
             className="h-11 flex-1 rounded-xl border border-border bg-background/60 px-3"
@@ -117,7 +157,10 @@ export default function NewsPage() {
             placeholder="Rechercher une actualité avec assistance IA..."
             value={query}
           />
-          <Button disabled={isLoading} onClick={handleSearch}>
+          <Button
+            disabled={isLoading || !isHydrated || remainingSearches <= 0}
+            onClick={handleSearch}
+          >
             {isLoading ? "Recherche..." : "Rechercher"}
           </Button>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3">
@@ -125,6 +168,11 @@ export default function NewsPage() {
             <input className="hidden" onChange={handleImportFile} type="file" />
           </label>
         </div>
+        {quotaMessage && (
+          <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
+            {quotaMessage}
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
