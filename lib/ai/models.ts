@@ -210,10 +210,22 @@ export const chatModels: ChatModel[] = [
     description: "Local et sécurisé",
   },
   {
+    id: "ollama/gemma2:9b",
+    name: "Gemma 2 9B (Ollama)",
+    provider: "ollama",
+    description: "Modèle Gemma local équilibré",
+  },
+  {
     id: "ollama/mistral-nemo",
     name: "Mistral Nemo (Ollama)",
     provider: "ollama",
     description: "12B de puissance locale",
+  },
+  {
+    id: "ollama/phi3.5",
+    name: "Phi 3.5 (Ollama)",
+    provider: "ollama",
+    description: "Petit modèle local efficace",
   },
   {
     id: "ollama/deepseek-coder-v2",
