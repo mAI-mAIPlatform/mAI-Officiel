@@ -1,13 +1,52 @@
 "use client";
 
 import { ImagePlus, Upload, WandSparkles } from "lucide-react";
-import { type ChangeEvent, useState } from "react";
-import { affordableImageModels } from "@/lib/ai/affordable-models";
+import Image from "next/image";
+import { type ChangeEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { affordableImageModels } from "@/lib/ai/affordable-models";
 
 const imageModels = affordableImageModels;
 
 type StudioMode = "generate-image" | "edit-image";
+
+type StylePreset = {
+  id: string;
+  label: string;
+  promptSuffix: string;
+};
+
+const editStylePresets: StylePreset[] = [
+  {
+    id: "none",
+    label: "Neutre",
+    promptSuffix: "",
+  },
+  {
+    id: "gothic",
+    label: "Gothique",
+    promptSuffix:
+      "Style gothique cinématique, architecture sombre, contrastes dramatiques, ambiance nocturne détaillée.",
+  },
+  {
+    id: "sunset",
+    label: "Sunset",
+    promptSuffix:
+      "Lumière golden hour, tons chauds orange et magenta, reflets doux, ambiance coucher de soleil.",
+  },
+  {
+    id: "anime",
+    label: "Anime",
+    promptSuffix:
+      "Style anime moderne, lignes nettes, palettes vibrantes, ombrage cel-shading propre.",
+  },
+  {
+    id: "cyberpunk",
+    label: "Cyberpunk",
+    promptSuffix:
+      "Esthétique cyberpunk néon, pluie fine, lumières holographiques, profondeur de champ urbaine.",
+  },
+];
 
 export default function StudioPage() {
   const [mode, setMode] = useState<StudioMode>("generate-image");
@@ -18,17 +57,46 @@ export default function StudioPage() {
   const [resultImage, setResultImage] = useState("");
   const [resultProvider, setResultProvider] = useState("");
   const [error, setError] = useState("");
+  const [selectedStyle, setSelectedStyle] = useState<string>("none");
 
   const currentModel = imageModel;
 
+  const activeStyleSuffix = useMemo(
+    () =>
+      editStylePresets.find((style) => style.id === selectedStyle)
+        ?.promptSuffix ?? "",
+    [selectedStyle]
+  );
+
+  const resolvedPrompt = useMemo(() => {
+    if (mode !== "edit-image" || !activeStyleSuffix.trim()) {
+      return prompt.trim();
+    }
+
+    if (!prompt.trim()) {
+      return activeStyleSuffix;
+    }
+
+    return `${prompt.trim()}\n\nStyle artistique à appliquer: ${activeStyleSuffix}`;
+  }, [activeStyleSuffix, mode, prompt]);
+
   const onImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Format non supporté. Veuillez importer une image.");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
-      const base64Value = typeof reader.result === "string" ? reader.result : "";
+      const base64Value =
+        typeof reader.result === "string" ? reader.result : "";
       setImageInput(base64Value);
+      setError("");
     };
     reader.onerror = () => {
       setError("Import impossible. Veuillez réessayer avec une autre image.");
@@ -37,8 +105,13 @@ export default function StudioPage() {
   };
 
   const runStudio = async () => {
-    if (!prompt.trim()) {
+    if (!resolvedPrompt.trim()) {
       setError("Veuillez saisir un prompt.");
+      return;
+    }
+
+    if (mode === "edit-image" && !imageInput.trim()) {
+      setError("Veuillez importer une image source pour l'édition.");
       return;
     }
 
@@ -53,7 +126,7 @@ export default function StudioPage() {
         body: JSON.stringify({
           action: mode,
           model: currentModel,
-          prompt,
+          prompt: resolvedPrompt,
           image: mode === "edit-image" ? imageInput : undefined,
         }),
       });
@@ -73,7 +146,9 @@ export default function StudioPage() {
         }
       }
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : "Erreur inconnue");
+      setError(
+        runError instanceof Error ? runError.message : "Erreur inconnue"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +170,9 @@ export default function StudioPage() {
           ].map((item) => (
             <button
               className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs transition ${
-                mode === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                mode === item.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
               }`}
               key={item.id}
               onClick={() => setMode(item.id as StudioMode)}
@@ -110,9 +187,9 @@ export default function StudioPage() {
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="liquid-glass rounded-2xl border border-border/60 bg-card/70 p-4">
-          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+          <p className="mb-2 block text-xs font-medium text-muted-foreground">
             Modèle
-          </label>
+          </p>
           <select
             className="mb-4 h-10 w-full rounded-xl border border-border/40 bg-background/70 px-3 text-sm"
             onChange={(event) => setImageModel(event.target.value)}
@@ -125,9 +202,9 @@ export default function StudioPage() {
             ))}
           </select>
 
-          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+          <p className="mb-2 block text-xs font-medium text-muted-foreground">
             Prompt
-          </label>
+          </p>
           <textarea
             className="min-h-44 w-full rounded-2xl border border-border/40 bg-background/70 p-3 text-sm"
             onChange={(event) => setPrompt(event.target.value)}
@@ -137,9 +214,34 @@ export default function StudioPage() {
 
           {mode === "edit-image" ? (
             <>
-              <label className="mt-4 mb-2 block text-xs font-medium text-muted-foreground">
+              <p className="mt-4 mb-2 block text-xs font-medium text-muted-foreground">
+                Style d'image (Édition)
+              </p>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {editStylePresets.map((style) => (
+                  <button
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      selectedStyle === style.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 bg-background/60 text-muted-foreground"
+                    }`}
+                    key={style.id}
+                    onClick={() => setSelectedStyle(style.id)}
+                    type="button"
+                  >
+                    {style.label}
+                  </button>
+                ))}
+              </div>
+              {activeStyleSuffix ? (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Prompt style appliqué automatiquement lors de l'édition.
+                </p>
+              ) : null}
+
+              <p className="mb-2 block text-xs font-medium text-muted-foreground">
                 Image source (import conseillé)
-              </label>
+              </p>
               <label className="mb-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 bg-background/50 px-3 py-2 text-xs text-muted-foreground transition hover:bg-background/70">
                 <Upload className="size-3.5" />
                 Importer une image pour l'édition
@@ -159,7 +261,11 @@ export default function StudioPage() {
             </>
           ) : null}
 
-          <Button className="mt-4 w-full" disabled={isLoading} onClick={runStudio}>
+          <Button
+            className="mt-4 w-full"
+            disabled={isLoading}
+            onClick={runStudio}
+          >
             {isLoading ? "Traitement..." : "Lancer dans Studio"}
           </Button>
           {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
@@ -172,18 +278,21 @@ export default function StudioPage() {
           </p>
 
           {resultImage ? (
-            <img
+            <Image
               alt="Résultat Studio"
               className="mt-3 w-full rounded-2xl border border-border/40 object-cover"
+              height={1024}
               src={resultImage}
+              unoptimized
+              width={1024}
             />
           ) : null}
 
-          {!resultImage ? (
+          {resultImage ? null : (
             <p className="mt-6 text-sm text-muted-foreground">
               Le résultat s'affichera ici après exécution.
             </p>
-          ) : null}
+          )}
         </div>
       </section>
     </div>
