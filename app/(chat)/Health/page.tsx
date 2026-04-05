@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { formatQuotaReachedMessage } from "@/lib/subscription";
 import {
   canConsumeUsage,
   consumeUsage,
@@ -76,7 +77,7 @@ export default function HealthPage() {
 
     if (!canConsumeUsage("health", "month", monthlyLimit)) {
       setQuotaMessage(
-        `Quota mAIHealth atteint (${monthlyLimit}/mois). Passez au forfait supérieur pour continuer.`
+        formatQuotaReachedMessage("mAIHealth", `${monthlyLimit}/mois`)
       );
       return;
     }

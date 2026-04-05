@@ -2,6 +2,7 @@ export type PlanKey = "free" | "plus" | "pro" | "max";
 
 export type PlanLimits = {
   filesPerDay: number;
+  libraryMaxFiles: number;
   maxFileSizeMb: number;
   quizPerDay: number | "illimites";
   memoryUnits: number;
@@ -21,6 +22,11 @@ export type PlanDefinition = {
 };
 
 export const PLAN_STORAGE_KEY = "mai.subscription.plan.v013";
+export const LEGACY_PLAN_STORAGE_KEYS = [
+  "mai.subscription.plan.v012",
+  "mai.subscription.plan",
+  "mai.plan",
+] as const;
 
 export const planDefinitions: Record<PlanKey, PlanDefinition> = {
   free: {
@@ -28,6 +34,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     label: "mAI Free",
     limits: {
       filesPerDay: 3,
+      libraryMaxFiles: 20,
       maxFileSizeMb: 10,
       quizPerDay: 2,
       memoryUnits: 50,
@@ -44,6 +51,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     label: "mAI +",
     limits: {
       filesPerDay: 10,
+      libraryMaxFiles: 30,
       maxFileSizeMb: 50,
       quizPerDay: 10,
       memoryUnits: 75,
@@ -61,6 +69,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     recommended: true,
     limits: {
       filesPerDay: 20,
+      libraryMaxFiles: 50,
       maxFileSizeMb: 100,
       quizPerDay: 20,
       memoryUnits: 100,
@@ -77,6 +86,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     label: "mAI Max",
     limits: {
       filesPerDay: 50,
+      libraryMaxFiles: 100,
       maxFileSizeMb: 200,
       quizPerDay: "illimites",
       memoryUnits: 200,
@@ -102,14 +112,30 @@ export function parsePlanKey(value: string | null | undefined): PlanKey {
     return "free";
   }
 
-  if (
-    value === "free" ||
-    value === "plus" ||
-    value === "pro" ||
-    value === "max"
-  ) {
-    return value;
+  const normalizedValue = value.trim().toLowerCase();
+  const aliases: Record<string, PlanKey> = {
+    free: "free",
+    "mai free": "free",
+    plus: "plus",
+    "mai +": "plus",
+    "mai+": "plus",
+    "mai plus": "plus",
+    pro: "pro",
+    "mai pro": "pro",
+    max: "max",
+    "mai max": "max",
+  };
+
+  if (aliases[normalizedValue]) {
+    return aliases[normalizedValue];
   }
 
   return "free";
+}
+
+export function formatQuotaReachedMessage(
+  scope: string,
+  limitLabel: string
+): string {
+  return `Quota ${scope} atteint (${limitLabel}). Passez au forfait supérieur pour continuer.`;
 }

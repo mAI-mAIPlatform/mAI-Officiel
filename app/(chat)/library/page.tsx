@@ -24,6 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { formatQuotaReachedMessage } from "@/lib/subscription";
 
 type LibraryAssetType = "image" | "document";
 type LibraryAssetSource = "device" | "mai-library";
@@ -61,7 +63,63 @@ const initialAssets: LibraryAsset[] = [
   },
 ];
 
+function isLibraryAsset(value: unknown): value is LibraryAsset {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<LibraryAsset>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    (candidate.type === "image" || candidate.type === "document") &&
+    (candidate.source === "device" || candidate.source === "mai-library") &&
+    typeof candidate.createdAt === "string" &&
+    typeof candidate.pinned === "boolean" &&
+    typeof candidate.url === "string"
+  );
+}
+
+function migrateStoredAssets(rawValue: string): LibraryAsset[] | null {
+  const parsed = JSON.parse(rawValue);
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const migratedAssets = parsed
+    .map((item): LibraryAsset | null => {
+      if (isLibraryAsset(item)) {
+        return item;
+      }
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const legacy = item as Partial<LibraryAsset>;
+      if (typeof legacy.name !== "string") {
+        return null;
+      }
+
+      return {
+        id: typeof legacy.id === "string" ? legacy.id : crypto.randomUUID(),
+        name: legacy.name,
+        type: legacy.type === "image" ? "image" : "document",
+        source: legacy.source === "mai-library" ? "mai-library" : "device",
+        createdAt:
+          typeof legacy.createdAt === "string"
+            ? legacy.createdAt
+            : new Date().toISOString(),
+        pinned: Boolean(legacy.pinned),
+        url: typeof legacy.url === "string" ? legacy.url : "",
+      };
+    })
+    .filter((asset): asset is LibraryAsset => Boolean(asset));
+
+  return migratedAssets;
+}
+
 export default function LibraryPage() {
+  const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
   const [assets, setAssets] = useState<LibraryAsset[]>(initialAssets);
   const [searchTerm, setSearchTerm] = useState("");
   const [importSource, setImportSource] =
@@ -69,15 +127,7 @@ export default function LibraryPage() {
   const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
   const [renamingAssetId, setRenamingAssetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
-  const planLimits: Record<string, number> = {
-    Free: 20,
-    "mAI+": 30,
-    Pro: 50,
-    "mAI Max": 100,
-  };
-  const [currentPlan, setCurrentPlan] = useState<string>("Free");
-  const maxStorage = planLimits[currentPlan];
+  const maxStorage = currentPlanDefinition.limits.libraryMaxFiles;
 
   useEffect(() => {
     try {
@@ -86,12 +136,17 @@ export default function LibraryPage() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(initialAssets));
         return;
       }
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setAssets(parsed);
+      const migratedAssets = migrateStoredAssets(raw);
+      if (migratedAssets) {
+        setAssets(migratedAssets);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedAssets));
+      } else {
+        setAssets(initialAssets);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialAssets));
       }
     } catch {
       setAssets(initialAssets);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialAssets));
     }
   }, []);
 
@@ -121,7 +176,7 @@ export default function LibraryPage() {
     }
     if (assets.length >= maxStorage) {
       alert(
-        `Limite de stockage atteinte pour le forfait ${currentPlan} (${maxStorage} fichiers). Veuillez mettre à niveau votre forfait.`
+        formatQuotaReachedMessage("Bibliothèque", `${maxStorage} fichiers`)
       );
       event.target.value = "";
       return;
@@ -188,18 +243,12 @@ export default function LibraryPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-background/50 p-2 backdrop-blur-xl">
-          <select
-            className="h-9 rounded-xl border border-border/50 bg-background/70 px-3 text-xs text-amber-500 font-medium"
-            onChange={(event) => setCurrentPlan(event.target.value)}
-            value={currentPlan}
-          >
-            {Object.keys(planLimits).map((plan) => (
-              <option key={plan} value={plan}>
-                {plan} ({planLimits[plan]} fichiers)
-              </option>
-            ))}
-          </select>
-          <span className="text-xs font-medium mr-2">
+          <span className="h-9 rounded-xl border border-border/50 bg-background/70 px-3 text-xs font-medium text-amber-500 inline-flex items-center">
+            {isHydrated
+              ? `${currentPlanDefinition.label} (${maxStorage} fichiers)`
+              : "Chargement du forfait..."}
+          </span>
+          <span className="mr-2 text-xs font-medium">
             Stockage: {assets.length}/{maxStorage}
           </span>
           <select

@@ -6,6 +6,7 @@ import { Download, Newspaper, SendHorizonal, UploadCloud } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { formatQuotaReachedMessage } from "@/lib/subscription";
 import {
   canConsumeUsage,
   consumeUsage,
@@ -65,7 +66,7 @@ export default function NewsPage() {
 
     if (!canConsumeUsage("news", "day", dailyLimit)) {
       setQuotaMessage(
-        `Quota mAINews atteint (${dailyLimit}/jour). Passez au forfait supérieur ou réessayez demain.`
+        formatQuotaReachedMessage("mAINews", `${dailyLimit}/jour`)
       );
       return;
     }

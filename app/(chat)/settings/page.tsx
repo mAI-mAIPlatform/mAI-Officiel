@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
-import { planDefinitions } from "@/lib/subscription";
+import { formatQuotaReachedMessage, planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 
@@ -404,7 +404,10 @@ export default function SettingsPage() {
   const handleCreateTask = () => {
     if (tasks.length >= maxScheduledTasks) {
       setTaskError(
-        `Limite atteinte (${maxScheduledTasks} tâches) pour votre forfait ${currentPlanDefinition.label}.`
+        formatQuotaReachedMessage(
+          "Planificateur",
+          `${maxScheduledTasks} tâches`
+        )
       );
       return;
     }

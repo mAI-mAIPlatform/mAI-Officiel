@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  LEGACY_PLAN_STORAGE_KEYS,
   PLAN_STORAGE_KEY,
   type PlanDefinition,
   type PlanKey,
@@ -17,7 +18,28 @@ export function useSubscriptionPlan() {
 
   useEffect(() => {
     const savedPlan = window.localStorage.getItem(PLAN_STORAGE_KEY);
-    setPlan(parsePlanKey(savedPlan));
+    let rawPlan = savedPlan;
+    let shouldMigrateStorage = false;
+
+    if (!rawPlan) {
+      for (const legacyKey of LEGACY_PLAN_STORAGE_KEYS) {
+        const legacyValue = window.localStorage.getItem(legacyKey);
+        if (legacyValue) {
+          rawPlan = legacyValue;
+          shouldMigrateStorage = true;
+          window.localStorage.removeItem(legacyKey);
+          break;
+        }
+      }
+    }
+
+    const normalizedPlan = parsePlanKey(rawPlan);
+    setPlan(normalizedPlan);
+
+    if (shouldMigrateStorage || rawPlan !== normalizedPlan) {
+      window.localStorage.setItem(PLAN_STORAGE_KEY, normalizedPlan);
+    }
+
     setIsHydrated(true);
   }, []);
 
