@@ -1,15 +1,20 @@
 "use client";
 
 import {
+  Bell,
+  Brain,
   Camera,
   CalendarClock,
+  Database,
   FileText,
   Gauge,
   Info,
   KeyRound,
   Layers,
+  Mail,
   PlusCircle,
   Settings2,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -27,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const schedulerModels = [
   "gpt-4.1",
   "gpt-4o-mini",
@@ -55,6 +61,38 @@ type CreditMetric = {
   period: "hour" | "day" | "week" | "month";
   title: string;
   used: number;
+};
+
+type ProfileSettingsShape = {
+  aiMemory: string;
+  aiName: string;
+  aiPersonality: string;
+  avatarDataUrl?: string;
+  avatarId: string;
+  displayName: string;
+  personalContext: string;
+  profession: string;
+  responseStyle: "concis" | "normal" | "allonge";
+  projectDescription: string;
+  projectIconColor: string;
+  projectTitle: string;
+  stylisticDirectives: string;
+};
+
+const defaultProfileSettings: ProfileSettingsShape = {
+  aiMemory: "",
+  aiName: "mAI",
+  aiPersonality: "",
+  avatarDataUrl: undefined,
+  avatarId: "aurora",
+  displayName: "",
+  personalContext: "",
+  profession: "",
+  responseStyle: "normal",
+  projectDescription: "",
+  projectIconColor: "#60a5fa",
+  projectTitle: "",
+  stylisticDirectives: "",
 };
 
 const aboutChangelog = [
@@ -163,6 +201,19 @@ export default function SettingsPage() {
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
+  const [profession, setProfession] = useState("");
+  const [responseStyle, setResponseStyle] = useState<
+    "concis" | "normal" | "allonge"
+  >("normal");
+  const [aiPersonality, setAiPersonality] = useState("");
+  const [personalContext, setPersonalContext] = useState("");
+  const [aiMemory, setAiMemory] = useState("");
+  const [aiName, setAiName] = useState("mAI");
+  const [notifications, setNotifications] = useState({
+    projectUpdates: true,
+    responseReady: true,
+    scheduledTasks: true,
+  });
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
 
@@ -193,37 +244,78 @@ export default function SettingsPage() {
   useEffect(() => {
     const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
     if (!savedProfile) {
+      setProfileName(defaultProfileSettings.displayName);
+      setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
+      setProfession(defaultProfileSettings.profession);
+      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiPersonality(defaultProfileSettings.aiPersonality);
+      setPersonalContext(defaultProfileSettings.personalContext);
+      setAiMemory(defaultProfileSettings.aiMemory);
+      setAiName(defaultProfileSettings.aiName);
       return;
     }
 
     try {
-      const parsed = JSON.parse(savedProfile) as {
-        displayName?: string;
-        avatarDataUrl?: string;
-      };
+      const parsed = JSON.parse(savedProfile) as Partial<ProfileSettingsShape>;
       setProfileName(parsed.displayName?.trim() ?? "");
       setProfileLogoDataUrl(parsed.avatarDataUrl);
+      setProfession(parsed.profession ?? "");
+      setResponseStyle(parsed.responseStyle ?? "normal");
+      setAiPersonality(parsed.aiPersonality ?? "");
+      setPersonalContext(parsed.personalContext ?? "");
+      setAiMemory(parsed.aiMemory ?? "");
+      setAiName(parsed.aiName ?? "mAI");
     } catch {
       // Ignore un éventuel JSON invalide pour ne pas bloquer l'écran.
+      setProfileName(defaultProfileSettings.displayName);
+      setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
+      setProfession(defaultProfileSettings.profession);
+      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiPersonality(defaultProfileSettings.aiPersonality);
+      setPersonalContext(defaultProfileSettings.personalContext);
+      setAiMemory(defaultProfileSettings.aiMemory);
+      setAiName(defaultProfileSettings.aiName);
     }
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-
+    if (!isHydrated) return;
     const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
-    if (!savedProfile) {
-      return;
-    }
-
     try {
-      const parsed = JSON.parse(savedProfile) as Record<string, unknown>;
-      const nextSettings = {
-        ...parsed,
+      const parsed = savedProfile
+        ? (JSON.parse(savedProfile) as Record<string, unknown>)
+        : {};
+      const responseStyleDirective =
+        responseStyle === "concis"
+          ? "Répondre de façon concise."
+          : responseStyle === "allonge"
+            ? "Répondre de façon détaillée."
+            : "Répondre de façon équilibrée.";
+      const nextSettings: ProfileSettingsShape = {
+        ...(defaultProfileSettings as unknown as Record<string, unknown>),
+        ...(parsed as Record<string, unknown>),
+        aiMemory,
+        aiName: aiName.trim() || "mAI",
+        aiPersonality,
         avatarDataUrl: profileLogoDataUrl,
+        avatarId:
+          typeof parsed.avatarId === "string" && parsed.avatarId.length > 0
+            ? parsed.avatarId
+            : defaultProfileSettings.avatarId,
         displayName: profileName.trim(),
+        personalContext,
+        profession,
+        responseStyle,
+        stylisticDirectives: responseStyleDirective,
+        projectDescription:
+          typeof parsed.projectDescription === "string"
+            ? parsed.projectDescription
+            : "",
+        projectIconColor:
+          typeof parsed.projectIconColor === "string"
+            ? parsed.projectIconColor
+            : "#60a5fa",
+        projectTitle: typeof parsed.projectTitle === "string" ? parsed.projectTitle : "",
       };
       window.localStorage.setItem(
         PROFILE_SETTINGS_STORAGE_KEY,
@@ -234,21 +326,59 @@ export default function SettingsPage() {
       window.localStorage.setItem(
         PROFILE_SETTINGS_STORAGE_KEY,
         JSON.stringify({
-          aiMemory: "",
-          aiName: "mAI",
+          ...defaultProfileSettings,
+          aiMemory,
+          aiName: aiName.trim() || "mAI",
+          aiPersonality,
           avatarDataUrl: profileLogoDataUrl,
-          avatarId: "aurora",
           displayName: profileName.trim(),
-          personalContext: "",
-          profession: "",
-          projectDescription: "",
-          projectIconColor: "#60a5fa",
-          projectTitle: "",
-          stylisticDirectives: "",
+          personalContext,
+          profession,
+          responseStyle,
+          stylisticDirectives:
+            responseStyle === "concis"
+              ? "Répondre de façon concise."
+              : responseStyle === "allonge"
+                ? "Répondre de façon détaillée."
+                : "Répondre de façon équilibrée.",
         })
       );
     }
-  }, [isHydrated, profileLogoDataUrl, profileName]);
+  }, [
+    aiMemory,
+    aiName,
+    aiPersonality,
+    isHydrated,
+    personalContext,
+    profession,
+    profileLogoDataUrl,
+    profileName,
+    responseStyle,
+  ]);
+
+  useEffect(() => {
+    const rawNotificationSettings = window.localStorage.getItem(
+      NOTIFICATIONS_SETTINGS_STORAGE_KEY
+    );
+    if (!rawNotificationSettings) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(rawNotificationSettings) as Partial<
+        typeof notifications
+      >;
+      setNotifications((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      // Silence: on conserve les valeurs par défaut.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      NOTIFICATIONS_SETTINGS_STORAGE_KEY,
+      JSON.stringify(notifications)
+    );
+  }, [notifications]);
 
   useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
@@ -349,6 +479,13 @@ export default function SettingsPage() {
     fileReader.readAsDataURL(selectedFile);
   };
 
+  const handleNotificationToggle = (
+    key: keyof typeof notifications,
+    value: boolean
+  ) => {
+    setNotifications((prev) => ({ ...prev, [key]: value }));
+  };
+
   const creditMetrics = useMemo<CreditMetric[]>(() => {
     if (!isHydrated) {
       return [];
@@ -446,7 +583,62 @@ export default function SettingsPage() {
         </span>
       </div>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section className="rounded-2xl border border-border/50 bg-card/70 p-4 backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          Navigation rapide
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { href: "#modeles", label: "Modèles" },
+            { href: "#compte", label: "Compte" },
+            { href: "#notifications", label: "Notifications" },
+            { href: "#personnalisation", label: "Personnalisation" },
+            { href: "#donnees", label: "Données" },
+            { href: "#about", label: "À propos" },
+          ].map((item) => (
+            <a
+              className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              href={item.href}
+              key={item.href}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="modeles"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Brain className="size-4 text-primary" />
+          Modèles
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Les modèles sont optimisés selon vos usages : conversation, code,
+          recherche, génération de documents et workflows outils.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            "GPT / Claude : polyvalence, raisonnement et qualité rédactionnelle.",
+            "Modèles rapides : latence basse pour échanges courts.",
+            "Modèles spécialisés : code, agents et automatisation.",
+          ].map((modelHint) => (
+            <div
+              className="rounded-xl border border-border/50 bg-background/60 p-3 text-sm text-muted-foreground"
+              key={modelHint}
+            >
+              {modelHint}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="compte"
+      >
         <h2 className="text-lg font-semibold">Compte</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Connecté en tant que : {data?.user?.email ?? "Invité"}
@@ -483,23 +675,72 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button asChild variant="outline">
-            <a download href="/api/export">
-              Exporter mes données
-            </a>
-          </Button>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="notifications"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Bell className="size-4 text-primary" />
+          Notifications
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Choisissez les alertes que vous souhaitez recevoir dans l&apos;app.
+        </p>
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {[
+            {
+              description: "Être alerté quand une réponse IA est prête.",
+              key: "responseReady" as const,
+              label: "Réponses",
+            },
+            {
+              description: "Recevoir les rappels des tâches automatiques.",
+              key: "scheduledTasks" as const,
+              label: "Tâches",
+            },
+            {
+              description: "Être notifié des mises à jour projets.",
+              key: "projectUpdates" as const,
+              label: "Projets",
+            },
+          ].map((notificationItem) => (
+            <button
+              className={cn(
+                "rounded-xl border p-3 text-left text-sm transition-colors",
+                notifications[notificationItem.key]
+                  ? "border-primary/40 bg-primary/10"
+                  : "border-border/50 bg-background/50"
+              )}
+              key={notificationItem.key}
+              onClick={() =>
+                handleNotificationToggle(
+                  notificationItem.key,
+                  !notifications[notificationItem.key]
+                )
+              }
+              type="button"
+            >
+              <p className="font-medium">{notificationItem.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {notificationItem.description}
+              </p>
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="personnalisation"
+      >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <UserCircle2 className="size-4 text-primary" />
-          Profil visuel
+          Personnalisation
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Personnalisez le nom de profil et le logo affichés dans votre
-          interface.
+          Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
         </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr]">
@@ -543,6 +784,95 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-call-name">
+              Nom (comment l&apos;IA doit vous appeler)
+            </label>
+            <Input
+              id="ai-call-name"
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Alex"
+              value={profileName}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="profession">
+              Profession
+            </label>
+            <Input
+              id="profession"
+              onChange={(event) => setProfession(event.target.value)}
+              placeholder="Ex: Product Designer"
+              value={profession}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="response-style">
+              Style de réponse
+            </label>
+            <select
+              className="h-10 w-full rounded-md border border-border/50 bg-background/80 px-3 text-sm"
+              id="response-style"
+              onChange={(event) =>
+                setResponseStyle(event.target.value as typeof responseStyle)
+              }
+              value={responseStyle}
+            >
+              <option value="concis">Concis</option>
+              <option value="normal">Normal</option>
+              <option value="allonge">Allongé</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-name">
+              Nom de l&apos;assistant IA
+            </label>
+            <Input
+              id="ai-name"
+              onChange={(event) => setAiName(event.target.value)}
+              placeholder="Ex: mAI Copilot"
+              value={aiName}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="personality">
+              Personnalité (champ libre)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="personality"
+              onChange={(event) => setAiPersonality(event.target.value)}
+              placeholder="Ex: Ton rassurant, structuré, orienté solution et pédagogie."
+              value={aiPersonality}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="personal-context">
+              Informations personnelles (champ libre)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="personal-context"
+              onChange={(event) => setPersonalContext(event.target.value)}
+              placeholder="Ex: 34 ans, passionné de randonnée, préfère des plans d'action concrets."
+              value={personalContext}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-memory">
+              Mémoire (ce que l&apos;IA doit retenir)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="ai-memory"
+              onChange={(event) => setAiMemory(event.target.value)}
+              placeholder="Ex: Je préfère des réponses avec checklist, deadlines et priorités."
+              value={aiMemory}
+            />
+          </div>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
@@ -576,8 +906,35 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold">Activation Premium par code</h2>
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="donnees"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Database className="size-4 text-primary" />
+          Données
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Gérez vos données, vos identifiants de compte et vos accès premium.
+        </p>
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          <Button className="justify-start" type="button" variant="outline">
+            <Mail className="mr-2 size-4" />
+            Modifier l&apos;adresse mail
+          </Button>
+          <Button className="justify-start" type="button" variant="outline">
+            <ShieldCheck className="mr-2 size-4" />
+            Changer le mot de passe
+          </Button>
+          <Button asChild className="justify-start" variant="outline">
+            <a download href="/api/export">
+              <FileText className="mr-2 size-4" />
+              Exporter mes données
+            </a>
+          </Button>
+        </div>
+
+        <h3 className="mt-6 text-base font-semibold">Activation Premium par code</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           Aucune transaction financière directe n&apos;est traitée. Les forfaits
           premium sont débloqués uniquement via un code officiel.
