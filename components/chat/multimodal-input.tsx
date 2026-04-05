@@ -104,6 +104,12 @@ function getModelLogoProvider(
   if (id.includes("gemini") || id.includes("/google/")) {
     return "google";
   }
+  if (id.includes("gemma") || name.includes("gemma")) {
+    return "google";
+  }
+  if (id.includes("phi-3.5") || name.includes("phi 3.5")) {
+    return "microsoft";
+  }
   if (id.includes("claude") || id.includes("/anthropic/")) {
     return "anthropic";
   }

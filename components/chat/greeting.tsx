@@ -61,7 +61,7 @@ export const Greeting = () => {
           initial={{ opacity: 0, y: 10 }}
           transition={{ delay: 0.65, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PlanUpgradeCTA currentPlan={plan} />
+          <PlanUpgradeCTA compact currentPlan={plan} />
         </motion.div>
       )}
     </div>
