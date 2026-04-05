@@ -78,4 +78,20 @@ test.describe("Model Selector", () => {
       page.locator("button").filter({ hasText: "Mistral Small" }).first()
     ).toBeVisible();
   });
+
+  test("affiche un fallback visuel si le chargement du logo échoue", async ({
+    page,
+  }) => {
+    await page.route("https://models.dev/logos/*.svg", (route) => route.abort());
+
+    const modelButton = page
+      .locator("button")
+      .filter({ hasText: MODEL_BUTTON_REGEX })
+      .first();
+    await modelButton.click();
+
+    const fallbackLogo = page.locator("[aria-label$='logo fallback']").first();
+    await expect(fallbackLogo).toBeVisible();
+    await expect(fallbackLogo).toHaveScreenshot("model-logo-fallback.png");
+  });
 });

@@ -1,4 +1,7 @@
-import type { ComponentProps, ReactNode } from "react";
+"use client";
+
+import { useMemo, useState } from "react";
+import type { ComponentProps, ReactNode, SyntheticEvent } from "react";
 
 import {
   Command,
@@ -168,14 +171,63 @@ export type ModelSelectorLogoProps = Omit<
     | (string & {});
 };
 
+const PROVIDER_ALIASES: Record<string, string> = {
+  ollama: "llama",
+  openrouter: "fastrouter",
+};
+
+const CRITICAL_PROVIDER_LOGO_ASSETS: Partial<Record<string, string>> = {
+  anthropic: "/logos/providers/anthropic.svg",
+  google: "/logos/providers/google.svg",
+  mistral: "/logos/providers/mistral.svg",
+  openai: "/logos/providers/openai.svg",
+};
+
+function getProviderInitial(provider: string) {
+  const normalized = provider
+    .replace(/[-_]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (normalized.length >= 2) {
+    return `${normalized[0]?.[0] ?? ""}${normalized[1]?.[0] ?? ""}`.toUpperCase();
+  }
+  return (normalized[0]?.[0] ?? "?").toUpperCase();
+}
+
 export const ModelSelectorLogo = ({
   provider,
   className,
+  onError,
   ...props
 }: ModelSelectorLogoProps) => {
-  let logoProvider = provider;
-  if (provider === "ollama") logoProvider = "llama";
-  if (provider === "openrouter") logoProvider = "fastrouter";
+  const [showInitialFallback, setShowInitialFallback] = useState(false);
+  const logoProvider = PROVIDER_ALIASES[provider] ?? provider;
+  const logoSrc = useMemo(
+    () =>
+      CRITICAL_PROVIDER_LOGO_ASSETS[logoProvider] ??
+      `https://models.dev/logos/${logoProvider}.svg`,
+    [logoProvider]
+  );
+
+  const handleError = (event: SyntheticEvent<HTMLImageElement, Event>) => {
+    setShowInitialFallback(true);
+    onError?.(event);
+  };
+
+  if (showInitialFallback) {
+    return (
+      <span
+        aria-label={`${provider} logo fallback`}
+        className={cn(
+          "inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold uppercase text-muted-foreground ring-1 ring-border/50",
+          className
+        )}
+      >
+        {getProviderInitial(logoProvider)}
+      </span>
+    );
+  }
 
   return (
     <img
@@ -183,7 +235,9 @@ export const ModelSelectorLogo = ({
       alt={`${provider} logo`}
       className={cn("size-4 dark:invert", className)}
       height={16}
-      src={`https://models.dev/logos/${logoProvider}.svg`}
+      loading="lazy"
+      onError={handleError}
+      src={logoSrc}
       width={16}
     />
   );
