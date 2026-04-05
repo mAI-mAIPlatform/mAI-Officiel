@@ -224,7 +224,14 @@ export async function POST(request: Request) {
         return new ChatbotError("bad_request:api").toResponse();
       }
 
-      const externalResult = await runExternalTextModel(chatModel, latestUserText);
+      const externalResult = await runExternalTextModel(
+        chatModel,
+        latestUserText,
+        {
+          systemInstruction:
+            'Reply in the same language as the user\'s latest message. For health topics, include the exact disclaimer: "mAIHealth ne remplace pas un professionnel de santé".',
+        }
+      );
       const assistantMessageId = generateUUID();
       const textPartId = generateUUID();
 

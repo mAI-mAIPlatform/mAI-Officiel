@@ -11,6 +11,26 @@ import {
 } from "../ai-elements/message";
 import { CopyIcon, PencilEditIcon, ThumbDownIcon, ThumbUpIcon } from "./icons";
 
+const parseLocalStorageArray = (key: string) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const getSafetyCategory = (value: string) => {
+  const normalized = value.toLowerCase();
+  return /(violence|abus|agression|harc[eè]lement|suicide)/i.test(normalized)
+    ? "violence_abus"
+    : "autre";
+};
+
 export function PureMessageActions({
   chatId,
   message,
@@ -48,9 +68,7 @@ export function PureMessageActions({
   };
 
   const handlePinMessage = () => {
-    const pinnedMessages = JSON.parse(
-      localStorage.getItem("mai.pinned.messages") ?? "[]"
-    );
+    const pinnedMessages = parseLocalStorageArray("mai.pinned.messages");
     if (!pinnedMessages.includes(message.id)) {
       pinnedMessages.unshift(message.id);
       localStorage.setItem(
@@ -62,20 +80,25 @@ export function PureMessageActions({
   };
 
   const handleReportMessage = () => {
-    const reports = JSON.parse(
-      localStorage.getItem("mai.reports.messages") ?? "[]"
-    );
+    const reports = parseLocalStorageArray("mai.reports.messages");
+    const category = getSafetyCategory(textFromParts ?? "");
+
     reports.unshift({
       messageId: message.id,
       chatId,
       questionnaire: {
-        gravite: "moyenne",
-        categorie: "contenu IA",
+        gravite: category === "violence_abus" ? "élevée" : "moyenne",
+        categorie: category,
       },
+      preview: textFromParts?.slice(0, 240) ?? "",
       createdAt: new Date().toISOString(),
     });
     localStorage.setItem("mai.reports.messages", JSON.stringify(reports));
-    toast.success("Message signalé");
+    toast.success(
+      category === "violence_abus"
+        ? "Message signalé (priorité sécurité)"
+        : "Message signalé"
+    );
   };
 
   if (message.role === "user") {

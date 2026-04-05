@@ -8,6 +8,16 @@ import {
 
 const changelog = [
   {
+    version: "0.1.4",
+    date: "2026-04-05",
+    items: [
+      "Ajout du module de Santé Numérique mAIHealth avec zone d'analyse de documents.",
+      "Clause obligatoire de non-responsabilité médicale intégrée à l'expérience IA.",
+      "Renforcement des mécanismes de signalement pour les contenus violence/abus.",
+      "Amélioration linguistique: l'IA répond désormais dans la langue du dernier message utilisateur.",
+    ],
+  },
+  {
     version: "0.1.2",
     date: "2026-04-04",
     items: [
@@ -56,8 +66,8 @@ export default function AboutPage() {
             <Sparkles className="size-4" /> Nouveautés
           </p>
           <p className="text-sm text-muted-foreground">
-            Coder avancé, mAINews, accès restreint et outils de modération/
-            épinglage.
+            mAIHealth, sécurité renforcée, adaptation linguistique dynamique et
+            outils de modération avancés.
           </p>
         </section>
       </div>
@@ -87,7 +97,7 @@ export default function AboutPage() {
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-5 text-sm text-muted-foreground">
         <p className="flex items-center gap-2 font-medium text-foreground">
-          <FileText className="size-4" /> Version active: 0.1.2
+          <FileText className="size-4" /> Version active: 0.1.4
         </p>
       </section>
     </div>

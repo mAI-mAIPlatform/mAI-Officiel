@@ -46,6 +46,19 @@ export type ChatHistory = {
 
 const PAGE_SIZE = 20;
 
+const parseLocalStorageArray = (key: string) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const groupChatsByDate = (chats: Chat[]): GroupedChats => {
   const now = new Date();
   const oneWeekAgo = subWeeks(now, 1);
@@ -169,13 +182,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   };
 
   const handleReport = (chatId: string) => {
-    const currentReports = JSON.parse(
-      localStorage.getItem("mai.reports.chats") ?? "[]"
-    );
+    const currentReports = parseLocalStorageArray("mai.reports.chats");
     currentReports.unshift({
       chatId,
       createdAt: new Date().toISOString(),
       type: "conversation",
+      categorie: "violence_abus_ou_autre",
     });
     localStorage.setItem("mai.reports.chats", JSON.stringify(currentReports));
     toast.success("Conversation signalée");

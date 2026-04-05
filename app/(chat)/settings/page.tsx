@@ -64,7 +64,7 @@ export default function SettingsPage() {
         <Settings2 className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
-          v0.1.3
+          v0.1.4
         </span>
       </div>
 
@@ -219,8 +219,8 @@ export default function SettingsPage() {
             <Sparkles className="size-3.5" /> mAI Plateforme
           </p>
           <p className="mt-1">
-            Version 0.1.3 — Modèle économique, activation par codes officiels,
-            affichage dynamique du forfait et expérience Liquid Glass.
+            Version 0.1.4 — Module mAIHealth, sécurité renforcée, signalement
+            violence/abus et expérience Liquid Glass.
           </p>
         </div>
       </section>

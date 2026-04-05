@@ -128,8 +128,11 @@ export function isExternalTextModel(modelId: string): boolean {
 
 export function runExternalTextModel(
   modelId: string,
-  prompt: string
+  prompt: string,
+  options?: { systemInstruction?: string }
 ): Promise<{ provider: string; text: string }> {
+  const systemInstruction = options?.systemInstruction?.trim();
+
   if (cometTextModels.has(modelId)) {
     if (cometKeys.length === 0) {
       throw new Error("Aucune clé CometAPI configurée");
@@ -144,7 +147,12 @@ export function runExternalTextModel(
         },
         body: JSON.stringify({
           model: modelId,
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            ...(systemInstruction
+              ? [{ role: "system", content: systemInstruction }]
+              : []),
+            { role: "user", content: prompt },
+          ],
           temperature: 0.5,
         }),
       });
@@ -181,6 +189,9 @@ export function runExternalTextModel(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
+            ...(systemInstruction
+              ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+              : {}),
             generationConfig: {
               temperature: 0.5,
               maxOutputTokens: 1024,
@@ -226,7 +237,12 @@ export function runExternalTextModel(
           },
           body: JSON.stringify({
             model: providerModelId,
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              ...(systemInstruction
+                ? [{ role: "system", content: systemInstruction }]
+                : []),
+              { role: "user", content: prompt },
+            ],
             temperature: 0.4,
             max_completion_tokens: 1200,
           }),
@@ -268,7 +284,12 @@ export function runExternalTextModel(
         },
         body: JSON.stringify({
           model: providerModelId,
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            ...(systemInstruction
+              ? [{ role: "system", content: systemInstruction }]
+              : []),
+            { role: "user", content: prompt },
+          ],
           temperature: 0.4,
           max_tokens: 1200,
         }),

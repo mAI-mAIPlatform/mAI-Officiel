@@ -4,10 +4,11 @@ import {
   BotIcon,
   Code2,
   FolderKanbanIcon,
+  HeartPulse,
   Languages,
   Newspaper,
-  Sparkles,
   PenSquareIcon,
+  Sparkles,
   TrashIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -129,6 +130,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     href: "/translation",
                     icon: Languages,
                     label: "Traduction",
+                  },
+                  {
+                    href: "/health",
+                    icon: HeartPulse,
+                    label: "mAIHealth",
                   },
                   {
                     href: "/studio",
