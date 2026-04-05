@@ -81,6 +81,8 @@ export function ChatShell() {
           <ChatHeader
             chatId={chatId}
             isReadonly={isReadonly}
+            onModelChange={setCurrentModelId}
+            selectedModelId={currentModelId}
             selectedVisibilityType={visibilityType}
           />
 

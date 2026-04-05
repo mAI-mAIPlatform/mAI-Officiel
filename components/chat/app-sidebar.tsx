@@ -1,16 +1,12 @@
 "use client";
 
 import {
+  BlocksIcon,
   BotIcon,
-  Code2,
   FolderKanbanIcon,
-  HeartPulse,
-  Languages,
   LibraryBig,
-  Newspaper,
   PenSquareIcon,
   SearchIcon,
-  Sparkles,
   TrashIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -134,33 +130,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   },
                   { href: "/mais", icon: BotIcon, label: "Mes mAIs" },
                   {
-                    href: "/coder",
-                    icon: Code2,
-                    label: "Coder",
-                    restricted: true,
+                    href: "/extensions",
+                    icon: BlocksIcon,
+                    label: "Extensions",
                   },
-                  {
-                    href: "/news",
-                    icon: Newspaper,
-                    label: "Actualités",
-                    restricted: true,
-                  },
-                  {
-                    href: "/translation",
-                    icon: Languages,
-                    label: "Traduction",
-                  },
-                  {
-                    href: "/Health",
-                    icon: HeartPulse,
-                    label: "mAIHealth",
-                    beta: true,
-                  },
-                  {
-                    href: "/studio",
-                    icon: Sparkles,
-                    label: "Studio",
-                  },
+
                   {
                     href: "/library",
                     icon: LibraryBig,
@@ -179,11 +153,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       >
                         <item.icon className="size-4" />
                         <span className="font-medium">{item.label}</span>
-                        {item.restricted ? (
+                        {(item as any).restricted ? (
                           <span className="rounded-full bg-red-500/90 px-1.5 py-0.5 text-[9px] text-white">
                             Accès restreint
                           </span>
-                        ) : item.beta ? (
+                        ) : (item as any).beta ? (
                           <span className="rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[9px] text-white">
                             Bêta
                           </span>

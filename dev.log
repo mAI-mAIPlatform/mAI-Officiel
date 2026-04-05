@@ -1,0 +1,39 @@
+
+> chatbot@3.1.0 dev /app
+> next dev --turbo
+
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 622ms
+
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/0pn2_@auth_core_084q1gk._.js:665:16)
+    at Auth (/app/.next/dev/server/chunks/0pn2_@auth_core_084q1gk._.js:5051:264)
+    at async signIn (/app/.next/dev/server/chunks/node_modules__pnpm_0sr_axk._.js:681:17)
+    at async AppRouteRouteModule.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:40732)
+    at async AppRouteRouteModule.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:47861)
+    at async responseGenerator (/app/.next/dev/server/chunks/11vb_next_0dfaxt_._.js:18289:38)
+    at async AppRouteRouteModule.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:227216)
+    at async handleResponse (/app/.next/dev/server/chunks/11vb_next_0dfaxt_._.js:18352:32)
+    at async Module.handler (/app/.next/dev/server/chunks/11vb_next_0dfaxt_._.js:18403:13)
+    at async DevServer.renderToResponseWithComponentsImpl (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/base-server.js:1454:9)
+    at async DevServer.renderPageComponent (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/base-server.js:1506:24)
+    at async DevServer.renderToResponseImpl (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/base-server.js:1556:32)
+    at async DevServer.pipeImpl (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/base-server.js:1043:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/next-server.js:338:17)
+    at async DevServer.handleRequestImpl (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/base-server.js:934:17)
+    at async /app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/dev/next-dev-server.js:394:20
+    at async Span.traceAsyncFn (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/trace/trace.js:164:20)
+    at async DevServer.handleRequest (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/dev/next-dev-server.js:390:24)
+    at async invokeRender (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/lib/router-server.js:253:21)
+    at async handleRequest (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/lib/router-server.js:452:24)
+    at async requestHandlerImpl (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/lib/router-server.js:501:13)
+    at async Server.requestListener (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/server/lib/start-server.js:225:13)
+ GET /api/auth/guest?redirectUrl=%2Fextensions 307 in 2.3s (next.js: 2.2s, proxy.ts: 8ms, application-code: 34ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/0pn2_@auth_core_084q1gk._.js:665:16)
+    at Auth (/app/.next/dev/server/chunks/0pn2_@auth_core_084q1gk._.js:5051:264)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async AppRouteRouteModule.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.0_@playwright+test@1.51.0_babel-plugin-react-compile_278fa6c12229fd0a8188fd350e5e5f66/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:40732)
+ GET /api/auth/callback/guest? 500 in 1911ms (next.js: 1870ms, proxy.ts: 8ms, application-code: 32ms)

@@ -10,6 +10,7 @@ import {
   Gauge,
   KeyRound,
   Mail,
+  MessageSquare,
   PlusCircle,
   Settings2,
   ShieldCheck,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,6 +123,8 @@ function formatDateTimeLocalInput(now = new Date()): string {
 }
 
 export default function SettingsPage() {
+  const { data: session } = useSession();
+  const user = session?.user as any;
   const { data } = useSession();
   const {
     activateByCode,
@@ -896,11 +900,41 @@ export default function SettingsPage() {
           Gérez vos données, vos identifiants de compte et vos accès premium.
         </p>
         <div className="mt-4 grid gap-2 md:grid-cols-3">
-          <Button className="justify-start" type="button" variant="outline">
+          <Button
+            className="justify-start"
+            onClick={() => {
+              if (user?.isAnonymous) {
+                toast.error(
+                  "Veuillez vous inscrire pour modifier vos informations."
+                );
+              } else {
+                toast.info(
+                  "Fonctionnalité en cours de développement via Auth.js."
+                );
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
             <Mail className="mr-2 size-4" />
             Modifier l&apos;adresse mail
           </Button>
-          <Button className="justify-start" type="button" variant="outline">
+          <Button
+            className="justify-start"
+            onClick={() => {
+              if (user?.isAnonymous) {
+                toast.error(
+                  "Veuillez vous inscrire pour modifier votre mot de passe."
+                );
+              } else {
+                toast.info(
+                  "Fonctionnalité en cours de développement via Auth.js."
+                );
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
             <ShieldCheck className="mr-2 size-4" />
             Changer le mot de passe
           </Button>
@@ -1113,8 +1147,34 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <MessageSquare className="size-5" />
+          Support & Communauté
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Rejoignez la communauté mAI sur Discord pour obtenir de l'aide,
+          signaler des bugs ou proposer des fonctionnalités.
+        </p>
+        <div className="mt-4">
+          <Button
+            asChild
+            className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+          >
+            <a
+              href="https://discord.gg/fV7zwdGPpY"
+              rel="noreferrer"
+              target="_blank"
+            >
+              <MessageSquare className="mr-2 size-4" />
+              Rejoindre le Discord
+            </a>
+          </Button>
+        </div>
+      </section>
+
       <footer className="rounded-2xl border border-border/50 bg-card/70 p-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
-        Version active : <strong>0.2.0</strong>
+        Version active : <strong>0.4.0</strong>
       </footer>
     </div>
   );

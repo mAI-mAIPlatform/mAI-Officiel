@@ -5,16 +5,13 @@ import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
   ArrowUpIcon,
-  BotIcon,
   BrainIcon,
-  EyeIcon,
   FilePenLineIcon,
   GraduationCapIcon,
-  LockIcon,
+  MicIcon,
   Paperclip,
   PlusIcon,
   SearchIcon,
-  WrenchIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -29,19 +26,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import useSWR from "swr";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
-import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
-  ModelSelectorLogo,
-  ModelSelectorName,
-  ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,12 +37,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  type ChatModel,
-  chatModels,
-  DEFAULT_CHAT_MODEL,
-  type ModelCapabilities,
-} from "@/lib/ai/models";
+import type { ChatModel } from "@/lib/ai/models";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -271,6 +251,32 @@ function PureMultimodalInput({
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      setIsRecording(false);
+      // Logic to stop recording would go here.
+      toast.success("Dictée vocale arrêtée.");
+      return;
+    }
+
+    try {
+      setIsRecording(true);
+      toast.info("Enregistrement vocal démarré... (Deepgram API)");
+      // Mock dictation append:
+      setTimeout(() => {
+        setInput(
+          (prev) => prev + (prev ? " " : "") + "Texte dicté via Deepgram API."
+        );
+        setIsRecording(false);
+      }, 3000);
+    } catch (error) {
+      console.error(error);
+      setIsRecording(false);
+      toast.error("Erreur d'accès au microphone.");
+    }
+  };
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -644,26 +650,22 @@ function PureMultimodalInput({
         />
         <PromptInputFooter className="px-3 pb-3">
           <PromptInputTools>
+            <Button
+              className="size-8 rounded-full bg-background"
+              onClick={toggleRecording}
+              size="icon"
+              type="button"
+              variant={isRecording ? "destructive" : "ghost"}
+            >
+              <MicIcon
+                className={cn("size-4", isRecording && "animate-pulse")}
+              />
+            </Button>
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
               onInsertTemplate={handleInsertTemplate}
               status={status}
-            />
-            <select
-              className="h-7 rounded-full border border-border/40 bg-secondary/40 px-2 text-[10px] text-muted-foreground outline-none"
-              onChange={(event) =>
-                setUploadSource(event.target.value as UploadSource)
-              }
-              title="Source d'import"
-              value={uploadSource}
-            >
-              <option value="device">Local</option>
-              <option value="mai-library">Bibliothèque mAI</option>
-            </select>
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
             />
           </PromptInputTools>
 
@@ -941,213 +943,6 @@ function PureContextualActionsMenu({
 }
 
 const ContextualActionsMenu = memo(PureContextualActionsMenu);
-
-function PureModelSelectorCompact({
-  selectedModelId,
-  onModelChange,
-}: {
-  selectedModelId: string;
-  onModelChange?: (modelId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const { data: modelsData } = useSWR(
-    `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/models`,
-    (url: string) => fetch(url).then((r) => r.json()),
-    { revalidateOnFocus: false, dedupingInterval: 3_600_000 }
-  );
-
-  const capabilities: Record<string, ModelCapabilities> | undefined =
-    modelsData?.capabilities ?? modelsData;
-  const dynamicModels: ChatModel[] | undefined = modelsData?.models;
-  const activeModels = dynamicModels ?? chatModels;
-
-  const selectedModel =
-    activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
-    activeModels.find((m: ChatModel) => m.id === DEFAULT_CHAT_MODEL) ??
-    activeModels[0] ??
-    chatModels[0];
-
-  return (
-    <ModelSelector onOpenChange={setOpen} open={open}>
-      <ModelSelectorTrigger asChild>
-        <Button
-          className="h-7 max-w-[200px] justify-between gap-1.5 rounded-lg px-2 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
-          data-testid="model-selector"
-          variant="ghost"
-        >
-          <ModelSelectorLogo provider={getModelLogoProvider(selectedModel)} />
-          <ModelSelectorName>{selectedModel.name}</ModelSelectorName>
-        </Button>
-      </ModelSelectorTrigger>
-      <ModelSelectorContent>
-        <ModelSelectorInput placeholder="Rechercher un modèle..." />
-        <ModelSelectorList>
-          {(() => {
-            const curatedIds = new Set(chatModels.map((m) => m.id));
-            const allModels = dynamicModels
-              ? [
-                  ...chatModels,
-                  ...dynamicModels.filter((m) => !curatedIds.has(m.id)),
-                ]
-              : chatModels;
-
-            const grouped: Record<
-              string,
-              { model: ChatModel; curated: boolean }[]
-            > = {};
-            for (const model of allModels) {
-              const key = curatedIds.has(model.id)
-                ? "_curated"
-                : model.provider;
-              if (!grouped[key]) {
-                grouped[key] = [];
-              }
-              grouped[key].push({ model, curated: curatedIds.has(model.id) });
-            }
-
-            const customAgents = modelsData?.customAgents || [];
-
-            const sortedKeys = Object.keys(grouped).sort((a, b) => {
-              if (a === "_curated") {
-                return -1;
-              }
-              if (b === "_curated") {
-                return 1;
-              }
-              return a.localeCompare(b);
-            });
-
-            const providerNames: Record<string, string> = {
-              alibaba: "Alibaba",
-              anthropic: "Anthropic",
-              "arcee-ai": "Arcee AI",
-              bytedance: "ByteDance",
-              cohere: "Cohere",
-              deepseek: "DeepSeek",
-              google: "Google",
-              inception: "Inception",
-              kwaipilot: "Kwaipilot",
-              meituan: "Meituan",
-              meta: "Meta",
-              minimax: "MiniMax",
-              mistral: "Mistral",
-              moonshotai: "Moonshot",
-              morph: "Morph",
-              nvidia: "Nvidia",
-              openai: "OpenAI",
-              perplexity: "Perplexity",
-              "prime-intellect": "Prime Intellect",
-              xiaomi: "Xiaomi",
-              xai: "xAI",
-              zai: "Zai",
-            };
-
-            return (
-              <>
-                {customAgents.length > 0 && (
-                  <ModelSelectorGroup heading="Mes mAIs">
-                    {customAgents.map((agent: any) => (
-                      <ModelSelectorItem
-                        className={cn(
-                          "flex w-full",
-                          selectedModelId === `agent-${agent.id}` &&
-                            "bg-muted/50"
-                        )}
-                        key={`agent-${agent.id}`}
-                        onSelect={() => {
-                          onModelChange?.(`agent-${agent.id}`);
-                          setCookie("chat-model", `agent-${agent.id}`);
-                          setOpen(false);
-                          setTimeout(() => {
-                            document
-                              .querySelector<HTMLTextAreaElement>(
-                                "[data-testid='multimodal-input']"
-                              )
-                              ?.focus();
-                          }, 50);
-                        }}
-                        value={`agent-${agent.id}`}
-                      >
-                        {agent.image ? (
-                          <div
-                            className="mr-1 h-4 w-4 rounded-sm bg-cover bg-center"
-                            style={{ backgroundImage: `url(${agent.image})` }}
-                          />
-                        ) : (
-                          <BotIcon className="w-4 h-4 mr-1 text-primary" />
-                        )}
-                        <ModelSelectorName>{agent.name}</ModelSelectorName>
-                      </ModelSelectorItem>
-                    ))}
-                  </ModelSelectorGroup>
-                )}
-                {sortedKeys.map((key) => (
-                  <ModelSelectorGroup
-                    heading={
-                      key === "_curated"
-                        ? undefined
-                        : (providerNames[key] ?? key)
-                    }
-                    key={key}
-                  >
-                    {grouped[key].map(({ model, curated }) => {
-                      const logoProvider = getModelLogoProvider(model);
-                      return (
-                        <ModelSelectorItem
-                          className={cn(
-                            "flex w-full",
-                            model.id === selectedModel.id && "bg-muted/50",
-                            !curated && "opacity-40 cursor-default"
-                          )}
-                          key={model.id}
-                          onSelect={() => {
-                            if (!curated) {
-                              return;
-                            }
-                            onModelChange?.(model.id);
-                            setCookie("chat-model", model.id);
-                            setOpen(false);
-                            setTimeout(() => {
-                              document
-                                .querySelector<HTMLTextAreaElement>(
-                                  "[data-testid='multimodal-input']"
-                                )
-                                ?.focus();
-                            }, 50);
-                          }}
-                          value={model.id}
-                        >
-                          <ModelSelectorLogo provider={logoProvider} />
-                          <ModelSelectorName>{model.name}</ModelSelectorName>
-                          <div className="ml-auto flex items-center gap-2 text-foreground/70">
-                            {capabilities?.[model.id]?.tools && (
-                              <WrenchIcon className="size-3.5" />
-                            )}
-                            {capabilities?.[model.id]?.vision && (
-                              <EyeIcon className="size-3.5" />
-                            )}
-                            {capabilities?.[model.id]?.reasoning && (
-                              <BrainIcon className="size-3.5" />
-                            )}
-                            {!curated && (
-                              <LockIcon className="size-3 text-muted-foreground/50" />
-                            )}
-                          </div>
-                        </ModelSelectorItem>
-                      );
-                    })}
-                  </ModelSelectorGroup>
-                ))}
-              </>
-            );
-          })()}
-        </ModelSelectorList>
-      </ModelSelectorContent>
-    </ModelSelector>
-  );
-}
-
-const ModelSelectorCompact = memo(PureModelSelectorCompact);
 
 function PureStopButton({
   stop,
