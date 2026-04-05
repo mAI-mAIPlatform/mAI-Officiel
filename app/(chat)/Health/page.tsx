@@ -35,6 +35,18 @@ export default function HealthPage() {
   const [hasRequestedAnalysis, setHasRequestedAnalysis] = useState(false);
   const [requestsThisMonth, setRequestsThisMonth] = useState(0);
   const [quotaMessage, setQuotaMessage] = useState<string | null>(null);
+  const healthBubbles = useMemo(
+    () =>
+      [
+        "Analyse d'une ordonnance",
+        "Résumé d'un compte-rendu",
+        "Vérification dose et fréquence",
+        "Checklist pré-consultation",
+      ]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3),
+    []
+  );
 
   const monthlyLimit = currentPlanDefinition.limits.healthRequestsPerMonth;
   const remainingRequests = Math.max(monthlyLimit - requestsThisMonth, 0);
@@ -114,6 +126,23 @@ export default function HealthPage() {
           </p>
         </div>
       </header>
+      <div className="flex flex-wrap gap-2">
+        {healthBubbles.map((bubble) => (
+          <button
+            className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary"
+            key={bubble}
+            onClick={() => {
+              setDocumentText((current) =>
+                current ? `${current}\n${bubble}` : bubble
+              );
+              setHasRequestedAnalysis(false);
+            }}
+            type="button"
+          >
+            ✨ {bubble}
+          </button>
+        ))}
+      </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">

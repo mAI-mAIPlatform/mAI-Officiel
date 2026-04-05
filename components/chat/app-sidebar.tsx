@@ -9,6 +9,7 @@ import {
   LibraryBig,
   Newspaper,
   PenSquareIcon,
+  PuzzleIcon,
   SearchIcon,
   Sparkles,
   TrashIcon,
@@ -193,12 +194,34 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   </SidebarMenuItem>
                 ))}
 
+                <div className="mt-2 border-sidebar-border/60 border-t pt-2 group-data-[collapsible=icon]:hidden">
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/60">
+                    Extensions
+                  </p>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
+                      tooltip="Catalogue d'extensions"
+                    >
+                      <Link
+                        href="/extensions"
+                        onClick={() => setOpenMobile(false)}
+                      >
+                        <PuzzleIcon className="size-4" />
+                        <span className="font-medium">Catalogue mAI</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </div>
+
                 {normalizedGlobalQuery.length > 0 &&
                   [
                     { href: "/library", label: "Bibliothèque" },
                     { href: "/studio", label: "Studio" },
                     { href: "/news", label: "Actualités" },
                     { href: "/translation", label: "Traduction" },
+                    { href: "/extensions", label: "Extensions" },
                   ]
                     .filter((item) =>
                       item.label.toLowerCase().includes(normalizedGlobalQuery)

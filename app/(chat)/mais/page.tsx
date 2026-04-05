@@ -25,6 +25,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { chatModels } from "@/lib/ai/models";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const expertPresets = [
+  "Enseignant",
+  "Développeur",
+  "Écrivain",
+  "Coach",
+  "Juridique",
+  "Chef",
+  "Voyageur",
+  "Designer",
+  "Analyste",
+  "Santé",
+  "Cyber",
+  "Cinéphile",
+  "Musicien",
+  "Stratège",
+] as const;
 
 export default function MaisPage() {
   const { data: agents, error, mutate } = useSWR("/api/agents", fetcher);
@@ -273,6 +289,31 @@ export default function MaisPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <section className="mb-6 rounded-2xl border border-border/50 bg-card/65 p-4">
+        <h2 className="mb-3 text-sm font-semibold">
+          mAIs Presets (14 experts)
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {expertPresets.map((preset) => (
+            <button
+              className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs transition-colors hover:border-primary/40 hover:text-primary"
+              key={preset}
+              onClick={() => {
+                setIsOpen(true);
+                setName(`mAI ${preset}`);
+                setDescription(`Assistant expert : ${preset}.`);
+                setSystemPrompt(
+                  `Tu es un expert ${preset}. Réponds avec précision, pédagogie et structure.`
+                );
+              }}
+              type="button"
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {error ? (
         <div className="rounded-lg bg-destructive/10 p-4 text-destructive">

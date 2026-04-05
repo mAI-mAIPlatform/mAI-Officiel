@@ -32,6 +32,17 @@ export default function NewsPage() {
 
   const dailyLimit = currentPlanDefinition.limits.newsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
+  const inspirationBubbles = [
+    "Startup IA européennes",
+    "Cybersécurité entreprises 2026",
+    "Nouveaux modèles open source",
+    "Robots et santé",
+    "Marché GPU cloud",
+  ];
+  const randomBubbles = useMemo(
+    () => [...inspirationBubbles].sort(() => Math.random() - 0.5).slice(0, 3),
+    []
+  );
 
   useEffect(() => {
     fetch("/api/restricted-access?area=news")
@@ -145,6 +156,18 @@ export default function NewsPage() {
       <div className="flex items-center gap-3">
         <Newspaper className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Actualités (mAINews)</h1>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {randomBubbles.map((bubble) => (
+          <button
+            className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary"
+            key={bubble}
+            onClick={() => setQuery(bubble)}
+            type="button"
+          >
+            ✨ {bubble}
+          </button>
+        ))}
       </div>
 
       <div className="rounded-2xl border border-border/50 bg-card/70 p-4">

@@ -49,6 +49,19 @@ export default function CoderPage() {
   const [renameValue, setRenameValue] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const coderBubbles = useMemo(
+    () =>
+      [
+        "Refactoriser pour TypeScript strict",
+        "Ajouter tests e2e Playwright",
+        "Optimiser bundle Next.js",
+        "Audit sécurité API",
+        "Créer composant Liquid Glass",
+      ]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3),
+    []
+  );
 
   useEffect(() => {
     fetch("/api/restricted-access?area=coder")
@@ -215,6 +228,18 @@ export default function CoderPage() {
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-3 overflow-y-auto p-4 md:p-6">
+      <div className="flex flex-wrap gap-2">
+        {coderBubbles.map((bubble) => (
+          <button
+            className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary"
+            key={bubble}
+            onClick={() => setPrompt(bubble)}
+            type="button"
+          >
+            ✨ {bubble}
+          </button>
+        ))}
+      </div>
       <div className="grid min-h-[560px] grid-cols-1 gap-3 lg:grid-cols-[300px_1fr_360px]">
         <aside className="rounded-2xl border border-border/50 bg-card/70 p-3">
           <p className="mb-2 text-xs font-semibold text-muted-foreground">

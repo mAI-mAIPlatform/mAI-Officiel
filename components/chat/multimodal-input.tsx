@@ -279,9 +279,9 @@ function PureMultimodalInput({
     "mai.chatbar.size",
     "compact"
   );
-  const [uploadSource, setUploadSource] = useLocalStorage<UploadSource>(
+  const [uploadSource] = useLocalStorage<UploadSource>(
     "mai.upload-source",
-    "device"
+    "mai-library"
   );
 
   const handleInsertTemplate = useCallback(
@@ -650,17 +650,9 @@ function PureMultimodalInput({
               onInsertTemplate={handleInsertTemplate}
               status={status}
             />
-            <select
-              className="h-7 rounded-full border border-border/40 bg-secondary/40 px-2 text-[10px] text-muted-foreground outline-none"
-              onChange={(event) =>
-                setUploadSource(event.target.value as UploadSource)
-              }
-              title="Source d'import"
-              value={uploadSource}
-            >
-              <option value="device">Local</option>
-              <option value="mai-library">Bibliothèque mAI</option>
-            </select>
+            <span className="h-7 rounded-full border border-border/40 bg-secondary/40 px-2 text-[10px] leading-7 text-muted-foreground">
+              Source : Bibliothèque mAI
+            </span>
             <ModelSelectorCompact
               onModelChange={onModelChange}
               selectedModelId={selectedModelId}

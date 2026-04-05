@@ -80,7 +80,9 @@ export function ChatShell() {
         >
           <ChatHeader
             chatId={chatId}
+            currentModelId={currentModelId}
             isReadonly={isReadonly}
+            onModelChange={setCurrentModelId}
             selectedVisibilityType={visibilityType}
           />
 
@@ -177,15 +179,14 @@ export function ChatShell() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Activate AI Gateway</AlertDialogTitle>
+            <AlertDialogTitle>Activation requise</AlertDialogTitle>
             <AlertDialogDescription>
-              This application requires{" "}
-              {process.env.NODE_ENV === "production" ? "the owner" : "you"} to
-              activate Vercel AI Gateway.
+              Le service IA n&apos;est pas encore activé sur cet environnement.
+              Ajoutez un moyen de paiement pour débloquer l&apos;accès.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 window.open(
@@ -195,7 +196,7 @@ export function ChatShell() {
                 window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/`;
               }}
             >
-              Activate
+              Activer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
