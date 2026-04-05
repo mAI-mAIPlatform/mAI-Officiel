@@ -5,6 +5,7 @@ import type {
 import { type ClassValue, clsx } from 'clsx';
 import { formatISO } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
+import { reportClientError } from '@/lib/client-error-reporter';
 import type { DBMessage, Document } from '@/lib/db/schema';
 import { ChatbotError, type ErrorCode } from './errors';
 import type { ChatMessage, ChatTools, CustomUIDataTypes } from './types';
@@ -32,14 +33,41 @@ export async function fetchWithErrorHandlers(
     const response = await fetch(input, init);
 
     if (!response.ok) {
-      const { code, cause } = await response.json();
-      throw new ChatbotError(code as ErrorCode, cause);
+      let parsedError: { code?: ErrorCode; cause?: string; message?: string } =
+        {};
+
+      try {
+        parsedError = await response.json();
+      } catch {
+        // API can return non-JSON responses (e.g. framework 404 HTML page).
+        parsedError = {};
+      }
+
+      if (parsedError.code) {
+        throw new ChatbotError(parsedError.code, parsedError.cause);
+      }
+
+      if (response.status === 404) {
+        throw new ChatbotError(
+          'not_found:api',
+          parsedError.message ?? `Missing endpoint: ${String(input)}`,
+        );
+      }
+
+      throw new ChatbotError(
+        'bad_request:api',
+        parsedError.message ?? `HTTP ${response.status}`,
+      );
     }
 
     return response;
   } catch (error: unknown) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       throw new ChatbotError('offline:chat');
+    }
+
+    if (!(error instanceof ChatbotError)) {
+      reportClientError(error, 'network');
     }
 
     throw error;
