@@ -31,16 +31,20 @@ import { LoaderIcon } from "./icons";
 import { ChatItem } from "./sidebar-history-item";
 
 type GroupedChats = {
-  today: Chat[];
-  yesterday: Chat[];
-  lastWeek: Chat[];
-  lastMonth: Chat[];
-  older: Chat[];
+  today: ChatWithTags[];
+  yesterday: ChatWithTags[];
+  lastWeek: ChatWithTags[];
+  lastMonth: ChatWithTags[];
+  older: ChatWithTags[];
 };
 
 export type ChatHistory = {
-  chats: Chat[];
+  chats: ChatWithTags[];
   hasMore: boolean;
+};
+
+export type ChatWithTags = Chat & {
+  tags?: Array<{ color: string; id: string; name: string }>;
 };
 
 const PAGE_SIZE = 20;
@@ -58,7 +62,7 @@ const parseLocalStorageArray = (key: string) => {
   }
 };
 
-const groupChatsByDate = (chats: Chat[]): GroupedChats => {
+const groupChatsByDate = (chats: ChatWithTags[]): GroupedChats => {
   const now = new Date();
   const oneWeekAgo = subWeeks(now, 1);
   const oneMonthAgo = subMonths(now, 1);
@@ -146,6 +150,9 @@ export function SidebarHistory({
     () => globalSearchQuery.trim().toLowerCase(),
     [globalSearchQuery]
   );
+  const tagSearchPrefix = searchQuery.startsWith("#")
+    ? searchQuery.slice(1).trim()
+    : null;
 
   const hasReachedEnd = paginatedChatHistories
     ? paginatedChatHistories.some((page) => page.hasMore === false)
@@ -305,6 +312,13 @@ export function SidebarHistory({
                 const indexedChats =
                   searchQuery.length > 0
                     ? chatsFromHistory.filter((chat) => {
+                        if (tagSearchPrefix && tagSearchPrefix.length > 0) {
+                          return (
+                            chat.tags?.some((tag) =>
+                              tag.name.toLowerCase().startsWith(tagSearchPrefix)
+                            ) ?? false
+                          );
+                        }
                         const searchableText =
                           `${chat.title} ${chat.id}`.toLowerCase();
                         return searchableText.includes(searchQuery);
@@ -341,6 +355,7 @@ export function SidebarHistory({
                             onRename={handleRename}
                             onReport={handleReport}
                             setOpenMobile={setOpenMobile}
+                            tags={chat.tags ?? []}
                           />
                         ))}
                       </div>
@@ -364,6 +379,7 @@ export function SidebarHistory({
                             onRename={handleRename}
                             onReport={handleReport}
                             setOpenMobile={setOpenMobile}
+                            tags={chat.tags ?? []}
                           />
                         ))}
                       </div>
@@ -387,6 +403,7 @@ export function SidebarHistory({
                             onRename={handleRename}
                             onReport={handleReport}
                             setOpenMobile={setOpenMobile}
+                            tags={chat.tags ?? []}
                           />
                         ))}
                       </div>
@@ -410,6 +427,7 @@ export function SidebarHistory({
                             onRename={handleRename}
                             onReport={handleReport}
                             setOpenMobile={setOpenMobile}
+                            tags={chat.tags ?? []}
                           />
                         ))}
                       </div>
@@ -433,6 +451,7 @@ export function SidebarHistory({
                             onRename={handleRename}
                             onReport={handleReport}
                             setOpenMobile={setOpenMobile}
+                            tags={chat.tags ?? []}
                           />
                         ))}
                       </div>

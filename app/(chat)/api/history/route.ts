@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { deleteAllChatsByUserId, getChatsByUserId } from "@/lib/db/queries";
+import {
+  deleteAllChatsByUserId,
+  getChatsByUserId,
+  getTagsForChatsByUser,
+} from "@/lib/db/queries";
 import { ChatbotError } from "@/lib/errors";
 
 export async function GET(request: NextRequest) {
@@ -33,7 +37,19 @@ export async function GET(request: NextRequest) {
     endingBefore,
   });
 
-  return Response.json(chats);
+  const chatIds = chats.chats.map((chat) => chat.id);
+  const tagsByChatId = await getTagsForChatsByUser({
+    chatIds,
+    userId: session.user.id,
+  });
+
+  return Response.json({
+    ...chats,
+    chats: chats.chats.map((chat) => ({
+      ...chat,
+      tags: tagsByChatId.get(chat.id) ?? [],
+    })),
+  });
 }
 
 export async function DELETE() {

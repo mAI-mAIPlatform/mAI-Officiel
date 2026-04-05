@@ -15,6 +15,7 @@ import {
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  Tags,
   Trash2,
   UserCircle2,
 } from "lucide-react";
@@ -60,6 +61,12 @@ type CreditMetric = {
   period: "hour" | "day" | "week" | "month";
   title: string;
   used: number;
+};
+
+type UserTag = {
+  color: string;
+  id: string;
+  name: string;
 };
 
 type ProfileSettingsShape = {
@@ -173,8 +180,12 @@ export default function SettingsPage() {
     responseReady: true,
     scheduledTasks: true,
   });
+  const [tags, setTags] = useState<UserTag[]>([]);
+  const [tagName, setTagName] = useState("");
+  const [tagColor, setTagColor] = useState("#60a5fa");
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
+  const maxTagsPerPlan = { free: 5, plus: 10, pro: 20, max: 50 }[plan];
 
   useEffect(() => {
     try {
@@ -198,6 +209,13 @@ export default function SettingsPage() {
       );
       setTasksHydrated(true);
     }
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/tags")
+      .then((response) => response.json())
+      .then((payload) => setTags(payload.tags ?? []))
+      .catch(() => setTags([]));
   }, []);
 
   useEffect(() => {
@@ -240,7 +258,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
     const savedProfile = window.localStorage.getItem(
       PROFILE_SETTINGS_STORAGE_KEY
     );
@@ -520,6 +540,45 @@ export default function SettingsPage() {
     ];
   }, [currentPlanDefinition, isHydrated, tasks.length]);
 
+  const handleCreateTag = async () => {
+    if (!tagName.trim()) {
+      return;
+    }
+
+    const response = await fetch("/api/tags", {
+      body: JSON.stringify({ color: tagColor, name: tagName }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-plan-key": plan,
+      },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      toast.error("Impossible de créer le tag.");
+      return;
+    }
+
+    const payload = await response.json();
+    setTags((current) => [...current, payload.tag]);
+    setTagName("");
+  };
+
+  const handleDeleteTag = async (id: string) => {
+    const response = await fetch("/api/tags", {
+      body: JSON.stringify({ id }),
+      headers: { "Content-Type": "application/json" },
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      toast.error("Suppression du tag impossible.");
+      return;
+    }
+
+    setTags((current) => current.filter((tag) => tag.id !== id));
+  };
+
   const totalCreditsOverview = useMemo(() => {
     if (creditMetrics.length === 0) {
       return { remaining: 0, total: 0 };
@@ -558,6 +617,7 @@ export default function SettingsPage() {
             { href: "#notifications", label: "Notifications" },
             { href: "#personnalisation", label: "Personnalisation" },
             { href: "#donnees", label: "Données" },
+            { href: "#tags", label: "Tags" },
           ].map((item) => (
             <a
               className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
@@ -885,6 +945,69 @@ export default function SettingsPage() {
               {option.label}
             </Button>
           ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="tags"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Tags className="size-4 text-primary" />
+          Tags
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Classez vos conversations avec des tags. Limite plan: {maxTagsPerPlan}{" "}
+          tags et 3 tags maximum par conversation.
+        </p>
+
+        <div className="mt-4 rounded-2xl border border-border/50 bg-background/45 p-4 backdrop-blur-xl">
+          <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
+            <Input
+              maxLength={64}
+              onChange={(event) => setTagName(event.target.value)}
+              placeholder="Nom du tag (ex: Priorité)"
+              value={tagName}
+            />
+            <Input
+              className="w-full md:w-32"
+              onChange={(event) => setTagColor(event.target.value)}
+              type="color"
+              value={tagColor}
+            />
+            <Button
+              className="rounded-xl"
+              disabled={tags.length >= maxTagsPerPlan}
+              onClick={handleCreateTag}
+              type="button"
+            >
+              Créer
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {tags.length}/{maxTagsPerPlan} tags utilisés.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <div
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-1 text-xs"
+                key={tag.id}
+              >
+                <span
+                  className="inline-block size-2.5 rounded-full"
+                  style={{ backgroundColor: tag.color }}
+                />
+                <span>#{tag.name}</span>
+                <button
+                  className="text-muted-foreground transition-colors hover:text-destructive"
+                  onClick={() => handleDeleteTag(tag.id)}
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

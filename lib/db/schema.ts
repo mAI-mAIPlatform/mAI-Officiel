@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -177,3 +178,41 @@ export const project = pgTable("Project", {
 });
 
 export type Project = InferSelectModel<typeof project>;
+
+export const tag = pgTable(
+  "Tag",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    userId: uuid("userId")
+      .notNull()
+      .references(() => user.id),
+    name: varchar("name", { length: 64 }).notNull(),
+    color: varchar("color", { length: 16 }).notNull().default("#60a5fa"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (table) => ({
+    userNameUnique: uniqueIndex("Tag_userId_name_unique").on(
+      table.userId,
+      table.name
+    ),
+  })
+);
+
+export type Tag = InferSelectModel<typeof tag>;
+
+export const chatTag = pgTable(
+  "ChatTag",
+  {
+    chatId: uuid("chatId")
+      .notNull()
+      .references(() => chat.id),
+    tagId: uuid("tagId")
+      .notNull()
+      .references(() => tag.id),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.chatId, table.tagId] }),
+  })
+);
+
+export type ChatTag = InferSelectModel<typeof chatTag>;

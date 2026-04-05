@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
 import type { Chat } from "@/lib/db/schema";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuPortal,
@@ -34,6 +35,7 @@ const PureChatItem = ({
   onRename,
   onReport,
   setOpenMobile,
+  tags,
 }: {
   chat: Chat;
   isActive: boolean;
@@ -42,6 +44,7 @@ const PureChatItem = ({
   onRename: (chatId: string, title: string) => void;
   onReport: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
+  tags: Array<{ color: string; id: string; name: string }>;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
@@ -49,6 +52,26 @@ const PureChatItem = ({
   });
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(chat.title);
+  const [availableTags, setAvailableTags] = useState<
+    Array<{ color: string; id: string; name: string }>
+  >([]);
+  const [chatTags, setChatTags] = useState(tags);
+
+  useEffect(() => {
+    setChatTags(tags);
+  }, [tags]);
+
+  useEffect(() => {
+    fetch("/api/tags")
+      .then((response) => response.json())
+      .then((payload) => setAvailableTags(payload.tags ?? []))
+      .catch(() => setAvailableTags([]));
+  }, []);
+
+  const selectedTagIds = useMemo(
+    () => new Set(chatTags.map((tag) => tag.id)),
+    [chatTags]
+  );
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(chat.id);
@@ -71,15 +94,48 @@ const PureChatItem = ({
     URL.revokeObjectURL(url);
   };
 
+  const toggleTag = async (tagId: string, checked: boolean) => {
+    const response = await fetch("/api/chat-tags", {
+      body: JSON.stringify({ chatId: chat.id, tagId }),
+      headers: { "Content-Type": "application/json" },
+      method: checked ? "POST" : "DELETE",
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json();
+    setChatTags(payload.tags ?? []);
+  };
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="h-8 rounded-none text-[13px] text-sidebar-foreground/50 transition-all duration-150 hover:bg-transparent hover:text-sidebar-foreground data-active:bg-transparent data-active:font-normal data-active:text-sidebar-foreground/50 data-[active=true]:text-sidebar-foreground data-[active=true]:font-medium data-[active=true]:border-b data-[active=true]:border-dashed data-[active=true]:border-sidebar-foreground/50"
+        className="h-11 rounded-none text-[13px] text-sidebar-foreground/50 transition-all duration-150 hover:bg-transparent hover:text-sidebar-foreground data-active:bg-transparent data-active:font-normal data-active:text-sidebar-foreground/50 data-[active=true]:text-sidebar-foreground data-[active=true]:font-medium data-[active=true]:border-b data-[active=true]:border-dashed data-[active=true]:border-sidebar-foreground/50"
         isActive={isActive}
       >
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span className="truncate">{chat.title}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate">{chat.title}</span>
+            {chatTags.length > 0 && (
+              <span className="mt-0.5 flex items-center gap-1 overflow-hidden">
+                {chatTags.slice(0, 3).map((tag) => (
+                  <span
+                    className="rounded-full border border-sidebar-border/50 px-1.5 py-0 text-[10px]"
+                    key={tag.id}
+                    style={{
+                      backgroundColor: `${tag.color}22`,
+                      color: tag.color,
+                    }}
+                  >
+                    #{tag.name}
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
         </Link>
       </SidebarMenuButton>
 
@@ -178,6 +234,33 @@ const PureChatItem = ({
                   </div>
                   {visibilityType === "public" ? <CheckCircleFillIcon /> : null}
                 </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              <span>Tags</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
+                {availableTags.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    Aucun tag disponible
+                  </DropdownMenuItem>
+                ) : (
+                  availableTags.map((tag) => (
+                    <DropdownMenuCheckboxItem
+                      checked={selectedTagIds.has(tag.id)}
+                      key={tag.id}
+                      onCheckedChange={(checked) =>
+                        toggleTag(tag.id, Boolean(checked))
+                      }
+                    >
+                      <span style={{ color: tag.color }}>#{tag.name}</span>
+                    </DropdownMenuCheckboxItem>
+                  ))
+                )}
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>

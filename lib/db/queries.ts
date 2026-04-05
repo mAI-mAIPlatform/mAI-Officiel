@@ -21,12 +21,14 @@ import { generateUUID } from "../utils";
 import {
   type Chat,
   chat,
+  chatTag,
   type DBMessage,
   document,
   message,
   type Suggestion,
   stream,
   suggestion,
+  tag,
   type User,
   user,
   vote,
@@ -100,6 +102,7 @@ export async function saveChat({
 
 export async function deleteChatById({ id }: { id: string }) {
   try {
+    await db.delete(chatTag).where(eq(chatTag.chatId, id));
     await db.delete(vote).where(eq(vote.chatId, id));
     await db.delete(message).where(eq(message.chatId, id));
     await db.delete(stream).where(eq(stream.chatId, id));
@@ -130,6 +133,7 @@ export async function deleteAllChatsByUserId({ userId }: { userId: string }) {
 
     const chatIds = userChats.map((c) => c.id);
 
+    await db.delete(chatTag).where(inArray(chatTag.chatId, chatIds));
     await db.delete(vote).where(inArray(vote.chatId, chatIds));
     await db.delete(message).where(inArray(message.chatId, chatIds));
     await db.delete(stream).where(inArray(stream.chatId, chatIds));
@@ -737,5 +741,230 @@ export async function deleteProject(id: string) {
   } catch (error) {
     console.error("Failed to delete project:", error);
     throw new Error("Failed to delete project");
+  }
+}
+
+export type UserTag = {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+};
+
+export async function getTagsByUserId(userId: string): Promise<UserTag[]> {
+  try {
+    return await db
+      .select({
+        color: tag.color,
+        createdAt: tag.createdAt,
+        id: tag.id,
+        name: tag.name,
+      })
+      .from(tag)
+      .where(eq(tag.userId, userId))
+      .orderBy(asc(tag.name));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get tags");
+  }
+}
+
+export async function createTagForUser({
+  userId,
+  name,
+  color,
+}: {
+  userId: string;
+  name: string;
+  color: string;
+}) {
+  try {
+    const [createdTag] = await db
+      .insert(tag)
+      .values({ userId, name, color })
+      .returning();
+    return createdTag;
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to create tag");
+  }
+}
+
+export async function updateTagForUser({
+  id,
+  userId,
+  name,
+  color,
+}: {
+  id: string;
+  userId: string;
+  name?: string;
+  color?: string;
+}) {
+  try {
+    const [updatedTag] = await db
+      .update(tag)
+      .set({
+        ...(name ? { name } : {}),
+        ...(color ? { color } : {}),
+      })
+      .where(and(eq(tag.id, id), eq(tag.userId, userId)))
+      .returning();
+    return updatedTag ?? null;
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to update tag");
+  }
+}
+
+export async function deleteTagForUser({
+  id,
+  userId,
+}: {
+  id: string;
+  userId: string;
+}) {
+  try {
+    const [deletedTag] = await db
+      .delete(tag)
+      .where(and(eq(tag.id, id), eq(tag.userId, userId)))
+      .returning({ id: tag.id });
+    return deletedTag ?? null;
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to delete tag");
+  }
+}
+
+export async function getTagCountByUserId(userId: string): Promise<number> {
+  try {
+    const [result] = await db
+      .select({ value: count(tag.id) })
+      .from(tag)
+      .where(eq(tag.userId, userId));
+    return Number(result?.value ?? 0);
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to count tags for user"
+    );
+  }
+}
+
+export async function getTagsByChatId({
+  chatId,
+  userId,
+}: {
+  chatId: string;
+  userId: string;
+}) {
+  try {
+    return await db
+      .select({ id: tag.id, name: tag.name, color: tag.color })
+      .from(chatTag)
+      .innerJoin(tag, eq(chatTag.tagId, tag.id))
+      .where(and(eq(chatTag.chatId, chatId), eq(tag.userId, userId)))
+      .orderBy(asc(tag.name));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get chat tags");
+  }
+}
+
+export async function getTagByIdForUser({
+  id,
+  userId,
+}: {
+  id: string;
+  userId: string;
+}) {
+  try {
+    const [result] = await db
+      .select({ id: tag.id })
+      .from(tag)
+      .where(and(eq(tag.id, id), eq(tag.userId, userId)))
+      .limit(1);
+    return result ?? null;
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get tag");
+  }
+}
+
+export async function getTagsForChatsByUser({
+  chatIds,
+  userId,
+}: {
+  chatIds: string[];
+  userId: string;
+}) {
+  if (chatIds.length === 0) {
+    return new Map<string, { id: string; name: string; color: string }[]>();
+  }
+
+  try {
+    const rows = await db
+      .select({
+        chatId: chatTag.chatId,
+        color: tag.color,
+        id: tag.id,
+        name: tag.name,
+      })
+      .from(chatTag)
+      .innerJoin(tag, eq(chatTag.tagId, tag.id))
+      .where(and(inArray(chatTag.chatId, chatIds), eq(tag.userId, userId)))
+      .orderBy(asc(tag.name));
+
+    const map = new Map<
+      string,
+      { id: string; name: string; color: string }[]
+    >();
+    for (const row of rows) {
+      const existing = map.get(row.chatId) ?? [];
+      existing.push({ id: row.id, name: row.name, color: row.color });
+      map.set(row.chatId, existing);
+    }
+    return map;
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get tags map");
+  }
+}
+
+export async function getTagAssignmentCountForChat(chatId: string) {
+  try {
+    const [result] = await db
+      .select({ value: count(chatTag.tagId) })
+      .from(chatTag)
+      .where(eq(chatTag.chatId, chatId));
+    return Number(result?.value ?? 0);
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to count tag assignments for chat"
+    );
+  }
+}
+
+export async function assignTagToChat({
+  chatId,
+  tagId,
+}: {
+  chatId: string;
+  tagId: string;
+}) {
+  try {
+    await db.insert(chatTag).values({ chatId, tagId }).onConflictDoNothing();
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to assign tag");
+  }
+}
+
+export async function unassignTagFromChat({
+  chatId,
+  tagId,
+}: {
+  chatId: string;
+  tagId: string;
+}) {
+  try {
+    await db
+      .delete(chatTag)
+      .where(and(eq(chatTag.chatId, chatId), eq(chatTag.tagId, tagId)));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to unassign tag");
   }
 }
