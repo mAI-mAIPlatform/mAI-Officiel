@@ -22,6 +22,19 @@ export async function proxy(request: NextRequest) {
   const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
   if (!token) {
+    // Important: API routes must return HTTP errors instead of redirects.
+    // Redirecting `fetch("/api/...")` causes 307 -> HTML/login responses,
+    // which breaks chat streaming and appears as 404/parse errors client-side.
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        {
+          code: "unauthorized:auth",
+          message: "You need to sign in before continuing.",
+        },
+        { status: 401 }
+      );
+    }
+
     const redirectUrl = encodeURIComponent(new URL(request.url).pathname);
 
     return NextResponse.redirect(
