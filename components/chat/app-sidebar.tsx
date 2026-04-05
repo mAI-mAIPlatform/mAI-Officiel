@@ -10,6 +10,7 @@ import {
   Newspaper,
   PenSquareIcon,
   PuzzleIcon,
+  Store,
   SearchIcon,
   Sparkles,
   TrashIcon,
@@ -208,8 +209,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                         href="/extensions"
                         onClick={() => setOpenMobile(false)}
                       >
-                        <PuzzleIcon className="size-4" />
-                        <span className="font-medium">Catalogue mAI</span>
+                        <Store className="size-4" />
+                        <span className="font-medium">Store</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

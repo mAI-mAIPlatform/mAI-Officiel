@@ -58,6 +58,33 @@ const extensionCatalog = [
     route: "/translation",
     premium: false,
   },
+  {
+    id: "manalyse",
+    title: "mAnalyse",
+    description:
+      "Analysez des URL, fichiers et images pour extraire des rapports structurés (résumé, points clés, etc.).",
+    icon: "🔍",
+    route: "/manalyse",
+    premium: true,
+  },
+  {
+    id: "ecri20",
+    title: "Ecri20",
+    description:
+      "IA de rédaction augmentée avec sélection de tons et de formats, exportable vers plusieurs formats.",
+    icon: "✍️",
+    route: "/ecri20",
+    premium: true,
+  },
+  {
+    id: "brainstorming",
+    title: "Brainstorming",
+    description:
+      "Votre partenaire de réflexion interactif en mode Socrate pour approfondir vos idées avec des listes claires.",
+    icon: "💡",
+    route: "/brainstorming",
+    premium: false,
+  },
 ];
 
 export default function ExtensionsPage() {
