@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/chat/app-sidebar";
 import { DataStreamProvider } from "@/components/chat/data-stream-provider";
+import { GlobalErrorListener } from "@/components/chat/global-error-listener";
 import {
   SidebarInset,
   SidebarProvider,
@@ -36,9 +37,10 @@ async function SidebarShell({ children }: { children: React.ReactNode }) {
           theme="system"
           toastOptions={{
             className:
-              "!bg-card !text-foreground !border-border/50 !shadow-[var(--shadow-float)]",
+              "!bg-white/20 !text-foreground !border-white/25 !shadow-[var(--shadow-float)] !backdrop-blur-xl",
           }}
         />
+        <GlobalErrorListener />
         {children}
       </SidebarInset>
     </SidebarProvider>

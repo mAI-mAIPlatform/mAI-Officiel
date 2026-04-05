@@ -83,6 +83,8 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
   switch (errorCode) {
     case "bad_request:api":
       return "The request couldn't be processed. Please check your input and try again.";
+    case "not_found:api":
+      return "The requested API endpoint was not found (404). Please verify the request URL and try again.";
 
     case "bad_request:activate_gateway":
       return "AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.";
@@ -102,6 +104,10 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
       return "You need to sign in to view this chat. Please sign in and try again.";
     case "offline:chat":
       return "We're having trouble sending your message. Please check your internet connection and try again.";
+    case "not_found:stream":
+      return "No resumable stream was found for this conversation.";
+    case "offline:stream":
+      return "The resumable stream service is currently unavailable.";
 
     case "not_found:document":
       return "The requested document was not found. Please check the document ID and try again.";

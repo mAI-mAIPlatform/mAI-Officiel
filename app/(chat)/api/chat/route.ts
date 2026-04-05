@@ -399,6 +399,13 @@ export async function POST(request: Request) {
       onError: (error) => {
         if (
           error instanceof Error &&
+          (error.message?.includes("404") ||
+            error.message?.toLowerCase().includes("not found"))
+        ) {
+          return "Le service IA n'a pas trouvé la ressource demandée (404). Vérifiez la configuration du modèle et réessayez.";
+        }
+        if (
+          error instanceof Error &&
           error.message?.includes(
             "AI Gateway requires a valid credit card on file to service requests"
           )
@@ -435,6 +442,14 @@ export async function POST(request: Request) {
 
     if (error instanceof ChatbotError) {
       return error.toResponse();
+    }
+
+    if (
+      error instanceof Error &&
+      (error.message?.includes("404") ||
+        error.message?.toLowerCase().includes("not found"))
+    ) {
+      return new ChatbotError("not_found:api").toResponse();
     }
 
     if (

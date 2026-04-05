@@ -32,8 +32,31 @@ export async function fetchWithErrorHandlers(
     const response = await fetch(input, init);
 
     if (!response.ok) {
-      const { code, cause } = await response.json();
-      throw new ChatbotError(code as ErrorCode, cause);
+      let parsedError: { code?: ErrorCode; cause?: string; message?: string } =
+        {};
+
+      try {
+        parsedError = await response.json();
+      } catch {
+        // API can return non-JSON responses (e.g. framework 404 HTML page).
+        parsedError = {};
+      }
+
+      if (parsedError.code) {
+        throw new ChatbotError(parsedError.code, parsedError.cause);
+      }
+
+      if (response.status === 404) {
+        throw new ChatbotError(
+          'not_found:api',
+          parsedError.message ?? `Missing endpoint: ${String(input)}`,
+        );
+      }
+
+      throw new ChatbotError(
+        'bad_request:api',
+        parsedError.message ?? `HTTP ${response.status}`,
+      );
     }
 
     return response;
