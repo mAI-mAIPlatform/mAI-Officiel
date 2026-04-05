@@ -8,6 +8,24 @@ import {
 
 const changelog = [
   {
+    version: "0.1.8",
+    date: "2026-04-05",
+    items: [
+      "Régulation des ressources mAINews par quota journalier selon le forfait.",
+      "Régulation des ressources mAIHealth par quota mensuel selon le forfait.",
+      "Affichage des compteurs de consommation directement dans chaque module.",
+    ],
+  },
+  {
+    version: "0.1.7",
+    date: "2026-04-05",
+    items: [
+      "Ajout du programmateur de prompts automatiques dans Paramètres > Tâches.",
+      "Planification récurrente avec fréquence, date du prochain lancement, titre et modèle IA.",
+      "Mise en place des quotas de tâches: Free (2), Plus (5), Pro (10), Max (20).",
+    ],
+  },
+  {
     version: "0.1.4",
     date: "2026-04-05",
     items: [
@@ -66,8 +84,8 @@ export default function AboutPage() {
             <Sparkles className="size-4" /> Nouveautés
           </p>
           <p className="text-sm text-muted-foreground">
-            mAIHealth, sécurité renforcée, adaptation linguistique dynamique et
-            outils de modération avancés.
+            Automatisation récurrente des tâches, quotas intelligents mAINews /
+            mAIHealth, sécurité renforcée et expérience Liquid Glass homogène.
           </p>
         </section>
       </div>
@@ -97,7 +115,7 @@ export default function AboutPage() {
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-5 text-sm text-muted-foreground">
         <p className="flex items-center gap-2 font-medium text-foreground">
-          <FileText className="size-4" /> Version active: 0.1.4
+          <FileText className="size-4" /> Version active: 0.1.8
         </p>
       </section>
     </div>
