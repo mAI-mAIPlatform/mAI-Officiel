@@ -21,24 +21,50 @@ export default function Ecri20Page() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleExport = (type: "txt" | "json" | "docx" | "pdf") => {
+  const handleExport = async (type: "txt" | "json" | "docx" | "pdf") => {
     if (!completion) return;
 
-    let content = completion;
-    let mimeType = "text/plain;charset=utf-8";
+    if (type === "txt" || type === "json") {
+      let content = completion;
+      let mimeType = "text/plain;charset=utf-8";
 
-    if (type === "json") {
-      content = JSON.stringify({ content: completion, format, tone, date: new Date().toISOString() }, null, 2);
-      mimeType = "application/json";
+      if (type === "json") {
+        content = JSON.stringify({ content: completion, format, tone, date: new Date().toISOString() }, null, 2);
+        mimeType = "application/json";
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `redaction-ecri20.${type}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // Pour PDF et DOCX, appelons l'API server-side
+      try {
+        const response = await fetch("/api/export/document", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: completion, format: type, type: format, tone }),
+        });
+
+        if (!response.ok) throw new Error("Export failed");
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `redaction-ecri20.${type}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Export error", error);
+        alert("Une erreur est survenue lors de l'exportation du document.");
+      }
     }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `redaction-ecri20.${type}`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -125,6 +151,8 @@ export default function Ecri20Page() {
                     <option value="">Exporter...</option>
                     <option value="txt">.txt (Texte)</option>
                     <option value="json">.json (Données)</option>
+                    <option value="docx">.docx (Simulé)</option>
+                    <option value="pdf">.pdf (Simulé)</option>
                   </select>
                 </>
               )}
