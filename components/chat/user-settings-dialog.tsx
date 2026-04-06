@@ -36,6 +36,7 @@ type ProfileSettings = {
 };
 
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const APP_VERSION = "0.5.0";
 
 const AVATAR_PRESETS = [
   {
@@ -291,6 +292,21 @@ export function UserSettingsDialog({
   stylisticDirectives: string;
   user: User;
 }) {
+  const handleResetLocalData = () => {
+    window.localStorage.removeItem(PROFILE_SETTINGS_STORAGE_KEY);
+    onDisplayNameChange(getDefaultDisplayName(user, isGuest));
+    onAvatarIdChange(DEFAULT_AVATAR_PRESET.id);
+    onAvatarDataUrlChange(undefined);
+    onAiNameChange("mAI");
+    onProfessionChange("");
+    onPersonalContextChange("");
+    onAiMemoryChange("");
+    onProjectTitleChange("");
+    onProjectDescriptionChange("");
+    onProjectIconColorChange("#60a5fa");
+    onStylisticDirectivesChange("");
+  };
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-border/60 bg-card/70 p-0 backdrop-blur-3xl">
@@ -299,7 +315,7 @@ export function UserSettingsDialog({
             <BadgeCheck className="size-4 text-blue-500" />
             Paramètres complets
             <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              v0.1.2
+              v{APP_VERSION}
             </span>
           </DialogTitle>
           <DialogDescription>
@@ -491,7 +507,42 @@ export function UserSettingsDialog({
                 value={stylisticDirectives}
               />
             </section>
+
+            <section className="rounded-2xl border border-border/60 bg-background/35 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+              <h3 className="text-sm font-semibold">Sécurité et données</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Vos paramètres sont stockés localement dans le navigateur
+                (localStorage). Aucun avatar personnalisé n&apos;est envoyé par
+                défaut à un service externe.
+              </p>
+              <div className="mt-3 rounded-xl border border-border/50 bg-background/60 p-3 text-xs text-muted-foreground">
+                <p>
+                  • Clé locale :{" "}
+                  <code className="font-mono text-[11px] text-foreground">
+                    {PROFILE_SETTINGS_STORAGE_KEY}
+                  </code>
+                </p>
+                <p className="mt-1">
+                  • Avatar : preset local ou image convertie en DataURL.
+                </p>
+                <p className="mt-1">
+                  • Réinitialisation : supprime les préférences locales et
+                  restaure les valeurs par défaut.
+                </p>
+              </div>
+              <button
+                className="mt-3 inline-flex h-9 items-center justify-center rounded-xl border border-red-500/35 bg-red-500/10 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-300"
+                onClick={handleResetLocalData}
+                type="button"
+              >
+                Réinitialiser mes données locales
+              </button>
+            </section>
           </div>
+        </div>
+        <div className="border-t border-border/50 bg-background/35 px-6 py-3 text-right text-xs text-muted-foreground">
+          Version de l&apos;application :{" "}
+          <span className="font-medium">v{APP_VERSION}</span>
         </div>
       </DialogContent>
     </Dialog>
