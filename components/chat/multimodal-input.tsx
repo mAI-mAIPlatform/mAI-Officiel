@@ -123,6 +123,10 @@ function getModelLogoProvider(
     return "llama";
   }
 
+  if (name.includes("m-5.")) {
+    return "mai-star";
+  }
+
   if (model.provider === "ollama") {
     return "llama";
   }

@@ -76,7 +76,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "openai/gpt-oss-120b",
-    name: "GPT OSS 120B",
+    name: "m-5.8",
     provider: "openai",
     description:
       "Grand modèle open-source pour tâches avancées et raisonnement structuré.",
@@ -85,7 +85,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "xai/grok-4.1-fast-non-reasoning",
-    name: "Grok 4.1 Fast",
+    name: "m-5.8-mini",
     provider: "xai",
     description:
       "Version rapide de Grok pour réponses instantanées en contexte conversationnel.",
@@ -109,7 +109,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
+    name: "m-5.7-mini",
     provider: "google",
     description:
       "Version Google optimisée pour un excellent rapport qualité/prix en production.",
@@ -123,7 +123,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "gemini-2.0-flash-lite",
-    name: "Gemini 2.0 Flash Lite",
+    name: "m-5.7-nano",
     provider: "google",
     description:
       "Version très abordable pour automatisations fréquentes et prototypage rapide.",
@@ -139,7 +139,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "cerebras/qwen-3-32b",
-    name: "Cerebras Qwen 3 32B",
+    name: "m-5.7",
     provider: "cerebras",
     description:
       "Bon niveau de raisonnement tout en conservant un coût de fonctionnement maîtrisé.",
@@ -185,7 +185,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "openrouter/meta-llama/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
+    name: "m-5.8-nano",
     provider: "openrouter",
     description:
       "Bon niveau de performance générale à prix compétitif via OpenRouter.",
@@ -210,8 +210,7 @@ export const chatModels: ChatModel[] = [
     id: "openrouter/anthropic/claude-3.5-haiku",
     name: "Claude 3.5 Haiku",
     provider: "openrouter",
-    description:
-      "Modèle Claude compact avec bonne cohérence et coût réduit.",
+    description: "Modèle Claude compact avec bonne cohérence et coût réduit.",
   },
   {
     id: "openrouter/openai/gpt-4o-mini",

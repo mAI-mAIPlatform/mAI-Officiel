@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 
 const extensionCatalog = [
   {
+    id: "authentic",
+    title: "Authentic",
+    description:
+      "Détectez le contenu généré par IA et analysez l'origine de vos textes.",
+    icon: "🛡️",
+    route: "/authentic",
+    premium: true,
+  },
+  {
     id: "news",
     title: "Actualités",
     description:

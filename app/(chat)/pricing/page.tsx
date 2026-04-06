@@ -110,9 +110,8 @@ export default function PricingPage() {
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
           Comparez les forfaits, puis cliquez sur{" "}
-          <strong>Passer à mAI Plus</strong>,{" "}
-          <strong>Passer à mAI Pro</strong> ou{" "}
-          <strong>Passer à mAI Max</strong> pour entrer votre code officiel.
+          <strong>Passer à mAI Plus</strong>, <strong>Passer à mAI Pro</strong>{" "}
+          ou <strong>Passer à mAI Max</strong> pour entrer votre code officiel.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           Forfait actuel :{" "}

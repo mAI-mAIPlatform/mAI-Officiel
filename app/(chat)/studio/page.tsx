@@ -2,8 +2,8 @@
 
 import { ImagePlus, Upload, WandSparkles } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
-import { affordableImageModels } from "@/lib/ai/affordable-models";
 import { Button } from "@/components/ui/button";
+import { affordableImageModels } from "@/lib/ai/affordable-models";
 
 const imageModels = affordableImageModels;
 
@@ -205,11 +205,11 @@ export default function StudioPage() {
             />
           ) : null}
 
-          {!resultImage ? (
+          {resultImage ? null : (
             <p className="mt-6 text-sm text-muted-foreground">
               Le résultat s'affichera ici après exécution.
             </p>
-          ) : null}
+          )}
         </div>
       </section>
     </div>
