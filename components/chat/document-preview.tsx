@@ -78,6 +78,10 @@ export function DocumentPreview({
   if (isDocumentsFetching) {
     const kind = result?.kind ?? args?.kind ?? artifact.kind;
     const title = result?.title ?? args?.title ?? artifact.title;
+    const loadingBodyClassName = cn(
+      "h-[257px] overflow-hidden rounded-b-2xl border border-t-0 border-border/50 bg-muted",
+      kind === "code" ? "p-0" : "p-6"
+    );
 
     return (
       <div className="w-full max-w-[450px]">
@@ -92,7 +96,7 @@ export function DocumentPreview({
             <div className="w-8" />
           </div>
         )}
-        <div className="h-[257px] overflow-hidden rounded-b-2xl border border-t-0 border-border/50 bg-muted p-6">
+        <div className={loadingBodyClassName}>
           <InlineDocumentSkeleton />
         </div>
       </div>
@@ -147,7 +151,12 @@ const LoadingSkeleton = ({ artifactKind }: { artifactKind: ArtifactKind }) => (
         <div className="h-[257px] w-full animate-pulse bg-muted-foreground/10" />
       </div>
     ) : (
-      <div className="h-[257px] overflow-hidden rounded-b-2xl border border-t-0 border-border/50 bg-muted p-6">
+      <div
+        className={cn(
+          "h-[257px] overflow-hidden rounded-b-2xl border border-t-0 border-border/50 bg-muted",
+          artifactKind === "code" ? "p-0" : "p-6"
+        )}
+      >
         <InlineDocumentSkeleton />
       </div>
     )}

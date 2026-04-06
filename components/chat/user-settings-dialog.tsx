@@ -36,6 +36,7 @@ type ProfileSettings = {
 };
 
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const APP_VERSION = "0.5.0";
 
 const AVATAR_PRESETS = [
   {
@@ -299,7 +300,7 @@ export function UserSettingsDialog({
             <BadgeCheck className="size-4 text-blue-500" />
             Paramètres complets
             <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              v0.1.2
+              v{APP_VERSION}
             </span>
           </DialogTitle>
           <DialogDescription>
@@ -328,7 +329,7 @@ export function UserSettingsDialog({
               <Palette className="size-3.5" /> Style & directives
             </p>
             <p className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <Shield className="size-3.5" /> Données
+              <Shield className="size-3.5" /> Sécurité & données
             </p>
           </aside>
 
@@ -491,7 +492,39 @@ export function UserSettingsDialog({
                 value={stylisticDirectives}
               />
             </section>
+
+            <section className="liquid-glass rounded-2xl border border-border/60 bg-background/45 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+              <h3 className="text-sm font-semibold">Sécurité et données</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Vos préférences (profil, mémoire IA, style) sont sauvegardées
+                localement dans votre navigateur pour personnaliser
+                l&apos;expérience.
+              </p>
+              <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                <li>
+                  Les paramètres de cette boîte de dialogue sont stockés via
+                  <code className="mx-1 rounded bg-background/70 px-1 py-0.5 text-[11px]">
+                    localStorage
+                  </code>
+                  sur cet appareil.
+                </li>
+                <li>
+                  Vos avatars personnalisés sont convertis en Data URL puis
+                  conservés localement.
+                </li>
+                <li>
+                  Vous pouvez réinitialiser ces données en vidant le stockage du
+                  site dans votre navigateur.
+                </li>
+              </ul>
+            </section>
           </div>
+        </div>
+        <div className="liquid-glass flex items-center justify-between border-t border-border/50 bg-background/30 px-6 py-3 text-[11px] text-muted-foreground">
+          <span>Politique de gestion des données intégrée aux paramètres.</span>
+          <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 font-medium">
+            Version {APP_VERSION}
+          </span>
         </div>
       </DialogContent>
     </Dialog>
