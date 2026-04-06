@@ -1,12 +1,12 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, Send } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 
 export default function BrainstormingPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, append, isLoading } = useChat({
     api: "/api/brainstorming",
     initialMessages: [
       {
@@ -16,11 +16,20 @@ export default function BrainstormingPage() {
       }
     ]
   });
+
+  const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    append({ role: "user", content: input });
+    setInput("");
+  };
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col p-6 md:p-10">
@@ -59,10 +68,10 @@ export default function BrainstormingPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 border-t border-border/50 bg-background/50 flex gap-3">
+        <form onSubmit={onSubmit} className="p-4 border-t border-border/50 bg-background/50 flex gap-3">
           <input
             value={input}
-            onChange={handleInputChange}
+            onChange={(e) => setInput(e.target.value)}
             placeholder="Partagez votre idée ici..."
             className="flex-1 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50"
             disabled={isLoading}

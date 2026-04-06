@@ -9,8 +9,9 @@ export default function Ecri20Page() {
   const [tone, setTone] = useState("Professionnel");
   const [format, setFormat] = useState("Email");
   const [copied, setCopied] = useState(false);
+  const [input, setInput] = useState("");
 
-  const { completion, input, handleInputChange, handleSubmit, isLoading } = useCompletion({
+  const { completion, complete, isLoading } = useCompletion({
     api: "/api/ecri20",
     body: { tone, format },
   });
@@ -19,6 +20,12 @@ export default function Ecri20Page() {
     navigator.clipboard.writeText(completion);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    complete(input);
   };
 
   const handleExport = async (type: "txt" | "json" | "docx" | "pdf") => {
@@ -41,7 +48,6 @@ export default function Ecri20Page() {
       a.click();
       URL.revokeObjectURL(url);
     } else {
-      // Pour PDF et DOCX, appelons l'API server-side
       try {
         const response = await fetch("/api/export/document", {
           method: "POST",
@@ -113,14 +119,14 @@ export default function Ecri20Page() {
             </select>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 flex-1 flex flex-col mt-4">
+          <form onSubmit={onSubmit} className="space-y-4 flex-1 flex flex-col mt-4">
             <div className="space-y-2 flex-1 flex flex-col">
               <label className="text-sm font-medium">Instructions ou idées de base</label>
               <textarea
                 className="w-full flex-1 min-h-[150px] rounded-xl border border-border bg-background/60 p-3 resize-none"
                 placeholder="Ex: Rédige une invitation pour un webinaire sur l'intelligence artificielle..."
                 value={input}
-                onChange={handleInputChange}
+                onChange={(e) => setInput(e.target.value)}
                 required
               />
             </div>
