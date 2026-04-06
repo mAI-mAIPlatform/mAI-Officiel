@@ -542,7 +542,7 @@ export default function SettingsPage() {
         <Settings2 className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
-          v0.2.0
+          v0.5.5
         </span>
       </div>
 
@@ -567,6 +567,25 @@ export default function SettingsPage() {
             </a>
           ))}
         </div>
+      </section>
+
+      <section className="liquid-glass rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-card/70 p-5">
+        <h2 className="text-lg font-semibold">v0.5.5 · Lancement LearnUp & Shopper</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+          <li>
+            <strong>LearnUp:</strong> générateur de quiz IA, exercices ciblés,
+            fiches de révision et cours structurés (prompt, classe, difficulté,
+            matière, nombre de questions).
+          </li>
+          <li>
+            <strong>Shopper:</strong> recherche multi-plateformes, synthèse du
+            meilleur rapport qualité/prix, visual proof et scan budget.
+          </li>
+          <li>
+            <strong>Maintenance:</strong> corrections de bugs mineurs et
+            optimisations générales des modules.
+          </li>
+        </ul>
       </section>
 
       <section

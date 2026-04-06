@@ -105,7 +105,7 @@ export default function PricingPage() {
           <BadgeCheck className="size-7 text-primary" />
           <h1 className="text-3xl font-bold">Comparer les forfaits mAI</h1>
           <Badge className="rounded-full bg-primary/90 text-white hover:bg-primary/90">
-            v0.2.0
+            v0.5.5
           </Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">

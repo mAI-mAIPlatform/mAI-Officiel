@@ -5,11 +5,13 @@ import {
   FileSearch,
   Globe,
   HeartPulse,
+  GraduationCap,
   LibraryBig,
   Newspaper,
   PenLine,
   Salad,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
   Store,
 } from "lucide-react";
@@ -111,6 +113,24 @@ export const extensionCatalog: StoreExtension[] = [
     icon: Salad,
     route: "/meals",
     beta: true,
+  },
+  {
+    id: "learnup",
+    title: "LearnUp",
+    description:
+      "Révision intelligente: quiz IA, exercices ciblés, fiches de révision et cours structurés en quelques secondes.",
+    icon: GraduationCap,
+    route: "/extensions/learnup",
+    featured: true,
+  },
+  {
+    id: "shopper",
+    title: "Shopper",
+    description:
+      "Assistant shopping IA avec recherche multi-plateformes, preuves visuelles et optimisation du budget selon vos critères.",
+    icon: ShoppingBag,
+    route: "/extensions/shopper",
+    featured: true,
   },
   {
     id: "studio",
