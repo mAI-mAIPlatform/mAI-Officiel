@@ -2,18 +2,11 @@
 
 import {
   BotIcon,
-  Code2,
   FolderKanbanIcon,
-  HeartPulse,
-  Languages,
-  LibraryBig,
-  Newspaper,
   PenSquareIcon,
   PuzzleIcon,
   SearchIcon,
-  Sparkles,
   TrashIcon,
-  Utensils,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -135,46 +128,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     label: "Projets",
                   },
                   { href: "/mais", icon: BotIcon, label: "Mes mAIs" },
-                  {
-                    href: "/coder",
-                    icon: Code2,
-                    label: "Coder",
-                    restricted: true,
-                    beta: true,
-                  },
-                  {
-                    href: "/news",
-                    icon: Newspaper,
-                    label: "Actualités",
-                    restricted: true,
-                    beta: true,
-                  },
-                  {
-                    href: "/meals",
-                    icon: Utensils,
-                    label: "mAIRepas",
-                  },
-                  {
-                    href: "/translation",
-                    icon: Languages,
-                    label: "Traduction",
-                  },
-                  {
-                    href: "/Health",
-                    icon: HeartPulse,
-                    label: "mAIHealth",
-                    beta: true,
-                  },
-                  {
-                    href: "/studio",
-                    icon: Sparkles,
-                    label: "Studio",
-                  },
-                  {
-                    href: "/library",
-                    icon: LibraryBig,
-                    label: "Bibliothèque",
-                  },
                 ].map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
@@ -188,16 +141,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       >
                         <item.icon className="size-4" />
                         <span className="font-medium">{item.label}</span>
-                        {item.beta && (
-                          <span className="rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[9px] text-white mr-1">
-                            Bêta
-                          </span>
-                        )}
-                        {item.restricted && (
-                          <span className="rounded-full bg-red-500/90 px-1.5 py-0.5 text-[9px] text-white">
-                            Accès restreint
-                          </span>
-                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -211,14 +154,14 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <SidebarMenuButton
                       asChild
                       className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
-                      tooltip="Catalogue d'extensions"
+                      tooltip="Store d'extensions"
                     >
                       <Link
                         href="/extensions"
                         onClick={() => setOpenMobile(false)}
                       >
                         <PuzzleIcon className="size-4" />
-                        <span className="font-medium">Catalogue mAI</span>
+                        <span className="font-medium">Store</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -226,11 +169,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
 
                 {normalizedGlobalQuery.length > 0 &&
                   [
-                    { href: "/library", label: "Bibliothèque" },
-                    { href: "/studio", label: "Studio" },
-                    { href: "/news", label: "Actualités" },
-                    { href: "/translation", label: "Traduction" },
-                    { href: "/extensions", label: "Extensions" },
+                    { href: "/projects", label: "Projets" },
+                    { href: "/mais", label: "Mes mAIs" },
+                    { href: "/extensions", label: "Store" },
                   ]
                     .filter((item) =>
                       item.label.toLowerCase().includes(normalizedGlobalQuery)
