@@ -3,18 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PenTool, Download, Copy, Check } from "lucide-react";
-import { useCompletion } from "@ai-sdk/react";
 
 export default function Ecri20Page() {
   const [tone, setTone] = useState("Professionnel");
   const [format, setFormat] = useState("Email");
   const [copied, setCopied] = useState(false);
   const [input, setInput] = useState("");
-
-  const { completion, complete, isLoading } = useCompletion({
-    api: "/api/ecri20",
-    body: { tone, format },
-  });
+  const [completion, setCompletion] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(completion);
@@ -22,10 +18,49 @@ export default function Ecri20Page() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    complete(input);
+    if (!input.trim() || isLoading) return;
+    setIsLoading(true);
+    setCompletion("");
+
+    try {
+      const response = await fetch("/api/ecri20", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: input, tone, format }),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              try {
+                const text = JSON.parse(line.slice(2));
+                assistantContent += text;
+                setCompletion(assistantContent);
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExport = async (type: "txt" | "json" | "docx" | "pdf") => {

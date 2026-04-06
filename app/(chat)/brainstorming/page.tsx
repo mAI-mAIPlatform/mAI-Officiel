@@ -3,32 +3,78 @@
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, Send } from "lucide-react";
-import { useChat } from "@ai-sdk/react";
+
+type Message = { id: string; role: "user" | "assistant"; content: string };
 
 export default function BrainstormingPage() {
-  const { messages, append, isLoading } = useChat({
-    api: "/api/brainstorming",
-    initialMessages: [
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Bonjour ! Je suis là pour vous aider à réfléchir. Sur quel sujet aimeriez-vous brainstormer aujourd'hui ?",
-      }
-    ]
-  });
-
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content: "Bonjour ! Je suis là pour vous aider à réfléchir. Sur quel sujet aimeriez-vous brainstormer aujourd'hui ?",
+    }
+  ]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    append({ role: "user", content: input });
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = { id: Date.now().toString(), role: "user", content: input };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/brainstorming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+      const assistantMessageId = (Date.now() + 1).toString();
+
+      setMessages([...newMessages, { id: assistantMessageId, role: "assistant", content: "" }]);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+
+          // Basic parsing for Vercel AI SDK Data Stream protocol
+          // Usually texts are prefixed with '0:'
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              try {
+                const text = JSON.parse(line.slice(2));
+                assistantContent += text;
+                setMessages(prev => prev.map(m => m.id === assistantMessageId ? { ...m, content: assistantContent } : m));
+              } catch (e) {
+                // Ignore parse errors on chunks
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
