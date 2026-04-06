@@ -55,6 +55,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
   type ChatModel,
   chatModels,
@@ -82,6 +83,13 @@ import { SuggestedActions } from "./suggested-actions";
 import type { VisibilityType } from "./visibility-selector";
 
 type UploadSource = "device" | "mai-library";
+type ReflectionLevel = "light" | "moderate" | "deep" | "very-deep";
+const reflectionLevels: ReflectionLevel[] = [
+  "light",
+  "moderate",
+  "deep",
+  "very-deep",
+];
 
 function setCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 365;
@@ -410,6 +418,16 @@ function PureMultimodalInput({
       typeof window === "undefined"
         ? false
         : localStorage.getItem("mai-reasoning-enabled") === "true";
+    const reasoningLevel = (() => {
+      if (typeof window === "undefined") {
+        return "moderate" as ReflectionLevel;
+      }
+      const storedLevel = localStorage.getItem("mai-reasoning-level");
+      return storedLevel &&
+        reflectionLevels.includes(storedLevel as ReflectionLevel)
+        ? (storedLevel as ReflectionLevel)
+        : "moderate";
+    })();
     const isWebSearchEnabled =
       typeof window === "undefined"
         ? false
@@ -441,6 +459,7 @@ function PureMultimodalInput({
       experimental_append_body: {
         contextualActions: {
           isReasoningEnabled,
+          reasoningLevel,
           isWebSearchEnabled,
           isLearningEnabled,
         },
@@ -859,12 +878,23 @@ function PureContextualActionsMenu({
     "mai-learning-enabled",
     false
   );
+  const [reasoningLevel, setReasoningLevel] = useLocalStorage<ReflectionLevel>(
+    "mai-reasoning-level",
+    "moderate"
+  );
+  const { plan } = useSubscriptionPlan();
   const [quizTopic, setQuizTopic] = useState("culture générale");
   const [quizQuestionCount, setQuizQuestionCount] = useState(5);
   const selectedActions: string[] = [];
 
   if (isReasoningEnabled) {
-    selectedActions.push("Réflexion");
+    const reflectionLabel: Record<ReflectionLevel, string> = {
+      light: "Léger",
+      moderate: "Modéré",
+      deep: "Approfondi",
+      "very-deep": "Très approfondi",
+    };
+    selectedActions.push(`Réflexion: ${reflectionLabel[reasoningLevel]}`);
   }
   if (isWebSearchEnabled) {
     selectedActions.push("Recherche");
@@ -872,6 +902,26 @@ function PureContextualActionsMenu({
   if (isLearningEnabled) {
     selectedActions.push("Apprentissage");
   }
+
+  const canUseDeepReflection = plan === "pro" || plan === "max";
+  const canUseVeryDeepReflection = plan === "max";
+
+  useEffect(() => {
+    // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
+    if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
+      setReasoningLevel(canUseDeepReflection ? "deep" : "moderate");
+      return;
+    }
+
+    if (reasoningLevel === "deep" && !canUseDeepReflection) {
+      setReasoningLevel("moderate");
+    }
+  }, [
+    canUseDeepReflection,
+    canUseVeryDeepReflection,
+    reasoningLevel,
+    setReasoningLevel,
+  ]);
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -932,6 +982,61 @@ function PureContextualActionsMenu({
           />
           Réflexion
         </Button>
+
+        {isReasoningEnabled && (
+          <div className="rounded-lg border border-border/50 bg-background/60 p-2">
+            <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+              Intensité de réflexion
+            </p>
+            <div className="grid gap-1">
+              {[
+                { id: "light", label: "Léger" },
+                { id: "moderate", label: "Modéré" },
+                {
+                  id: "deep",
+                  label: "Approfondi",
+                  helper: "Inclus avec le forfait Pro",
+                  disabled: !canUseDeepReflection,
+                },
+                {
+                  id: "very-deep",
+                  label: "Très approfondi",
+                  helper: "Inclus avec le forfait Max",
+                  disabled: !canUseVeryDeepReflection,
+                },
+              ].map((option) => {
+                const isActive = reasoningLevel === option.id;
+                const isDisabled = option.disabled === true;
+
+                return (
+                  <button
+                    className={cn(
+                      "flex items-center justify-between rounded-md border px-2 py-1.5 text-left text-[11px] transition",
+                      isActive
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border/60 text-foreground/90 hover:border-foreground/25",
+                      isDisabled &&
+                        "cursor-not-allowed border-dashed opacity-60 hover:border-border/60"
+                    )}
+                    disabled={isDisabled}
+                    key={option.id}
+                    onClick={() =>
+                      setReasoningLevel(option.id as ReflectionLevel)
+                    }
+                    type="button"
+                  >
+                    <span>{option.label}</span>
+                    {option.helper ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        {option.helper}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <Button
           className={cn(
