@@ -1,11 +1,11 @@
-export const DEFAULT_CHAT_MODEL = "moonshotai/kimi-k2-0905";
+export const DEFAULT_CHAT_MODEL = "openai/gpt-5-mini";
 
 export const titleModel = {
-  id: "mistral/mistral-small",
-  name: "Mistral Small",
-  provider: "mistral",
-  description: "Modèle rapide pour les titres",
-  gatewayOrder: ["mistral"],
+  id: "openai/gpt-5-nano",
+  name: "GPT-5 Nano",
+  provider: "openai",
+  description: "Modèle rapide et économique pour les titres",
+  gatewayOrder: ["openai"],
 };
 
 export type ModelCapabilities = {
@@ -23,328 +23,245 @@ export type ChatModel = {
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
 };
 
+// Modèles texte sélectionnables via AI Gateway.
+// Note: les modèles d'embeddings (voyage-4-lite, text-embedding-3-small)
+// sont exposés séparément pour éviter une erreur runtime dans le chat.
 export const chatModels: ChatModel[] = [
-  // --- MODELES ORIGINAUX (GATEWAY) ---
+  // 🟢 Ultra pas cher
   {
-    id: "deepseek/deepseek-v3.2",
-    name: "DeepSeek V3.2",
-    provider: "deepseek",
-    description:
-      "Modèle polyvalent, rapide et fiable pour les tâches générales avec outils.",
-    gatewayOrder: ["bedrock", "deepinfra"],
-  },
-  {
-    id: "mistral/codestral",
-    name: "Mistral Codestral",
-    provider: "mistral",
-    description:
-      "Spécialisé pour le code, le débogage et l'assistance au développement.",
-    gatewayOrder: ["mistral"],
-  },
-  {
-    id: "mistral/mistral-small",
-    name: "Mistral Small",
-    provider: "mistral",
-    description:
-      "Équilibre entre rapidité, compréhension visuelle et qualité de réponse.",
-    gatewayOrder: ["mistral"],
-  },
-  {
-    id: "moonshotai/kimi-k2-0905",
-    name: "Kimi K2 0905",
-    provider: "moonshotai",
-    description:
-      "Modèle généraliste efficace pour échanges longs et demandes variées.",
-    gatewayOrder: ["baseten", "fireworks"],
-  },
-  {
-    id: "moonshotai/kimi-k2.5",
-    name: "Kimi K2.5",
-    provider: "moonshotai",
-    description:
-      "Modèle premium Moonshot AI conçu pour la performance sur cas complexes.",
-    gatewayOrder: ["fireworks", "bedrock"],
+    id: "openai/gpt-5-nano",
+    name: "GPT-5 Nano",
+    provider: "openai",
+    description: "Ultra économique pour les tâches rapides à grand volume.",
   },
   {
     id: "openai/gpt-oss-20b",
     name: "GPT OSS 20B",
     provider: "openai",
-    description:
-      "Modèle compact orienté raisonnement léger, rapide et économique.",
+    description: "Open-source compact, rapide et très abordable.",
     reasoningEffort: "low",
-    gatewayOrder: ["groq", "bedrock"],
   },
   {
-    id: "openai/gpt-oss-120b",
-    name: "m-5.8",
+    id: "openai/gpt-oss-safeguard-20b",
+    name: "GPT OSS Safeguard 20B",
     provider: "openai",
-    description:
-      "Grand modèle open-source pour tâches avancées et raisonnement structuré.",
+    description: "Version safeguard orientée sécurité et coût minimal.",
     reasoningEffort: "low",
-    gatewayOrder: ["fireworks", "bedrock"],
+  },
+  {
+    id: "kwaipilot/kat-coder-pro-v1",
+    name: "KAT Coder Pro v1",
+    provider: "kwaipilot",
+    description: "Modèle code à très bas coût d'entrée.",
+  },
+
+  // 🟡 Peu cher
+  {
+    id: "google/gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "google",
+    description: "Flash Lite économique et polyvalent.",
+  },
+  {
+    id: "alibaba/qwen3.5-flash",
+    name: "Qwen 3.5 Flash",
+    provider: "alibaba",
+    description: "Bon compromis coût/performance en usage général.",
+  },
+  {
+    id: "mistral/ministral-3b",
+    name: "Ministral 3B",
+    provider: "mistral",
+    description: "Modèle compact Mistral, rapide et peu coûteux.",
+  },
+  {
+    id: "openai/gpt-4o-mini",
+    name: "GPT-4o Mini",
+    provider: "openai",
+    description: "Petit modèle OpenAI fiable pour assistants de production.",
+  },
+  {
+    id: "google/gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    provider: "google",
+    description: "Version Flash rapide avec bon rendement coût/qualité.",
   },
   {
     id: "xai/grok-4.1-fast-non-reasoning",
-    name: "m-5.8-mini",
+    name: "Grok 4.1 Fast (Non-Reasoning)",
     provider: "xai",
-    description:
-      "Version rapide de Grok pour réponses instantanées en contexte conversationnel.",
-    gatewayOrder: ["xai"],
+    description: "Réponses très rapides en mode non raisonnement.",
   },
-
-  // --- COMETAPI + GEMINI (TEXTE GLOBAL) ---
   {
-    id: "gpt-5.4-nano",
+    id: "xai/grok-4.1-fast-reasoning",
+    name: "Grok 4.1 Fast (Reasoning)",
+    provider: "xai",
+    description: "Version Grok fast avec raisonnement activé.",
+    reasoningEffort: "medium",
+  },
+  {
+    id: "xai/grok-4-fast-non-reasoning",
+    name: "Grok 4 Fast (Non-Reasoning)",
+    provider: "xai",
+    description: "Variante Grok 4 rapide pour latence faible.",
+  },
+  {
+    id: "xai/grok-code-fast-1",
+    name: "Grok Code Fast 1",
+    provider: "xai",
+    description: "Grok optimisé pour génération et correction de code.",
+  },
+  {
+    id: "openai/gpt-5.4-nano",
     name: "GPT-5.4 Nano",
-    provider: "cometapi",
-    description:
-      "Option CometAPI très économique pour tâches simples et réponses courtes.",
+    provider: "openai",
+    description: "Très bon coût d'entrée pour automatisations fréquentes.",
   },
   {
-    id: "gpt-5.4-mini",
-    name: "GPT-5.4 Mini",
-    provider: "cometapi",
-    description:
-      "Compromis équilibré entre coût, vitesse et qualité sur la majorité des usages.",
-  },
-  {
-    id: "gemini-2.5-flash-lite",
-    name: "m-5.7-mini",
+    id: "google/gemini-3.1-flash-lite-preview",
+    name: "Gemini 3.1 Flash Lite Preview",
     provider: "google",
-    description:
-      "Version Google optimisée pour un excellent rapport qualité/prix en production.",
+    description: "Preview lite pour usages flash à coût contenu.",
   },
   {
-    id: "gemini-2.5-flash",
+    id: "openai/gpt-5-mini",
+    name: "GPT-5 Mini",
+    provider: "openai",
+    description: "Compromis qualité/prix pour conversation et agents.",
+  },
+  {
+    id: "openai/gpt-5.1-codex-mini",
+    name: "GPT-5.1 Codex Mini",
+    provider: "openai",
+    description: "Version mini spécialisée productivité développeur.",
+  },
+  {
+    id: "minimax/minimax-m2.5",
+    name: "MiniMax M2.5",
+    provider: "minimax",
+    description: "Modèle généraliste abordable avec bonne stabilité.",
+  },
+  {
+    id: "deepseek/deepseek-v3.2",
+    name: "DeepSeek V3.2",
+    provider: "deepseek",
+    description: "Excellent rapport performances/coût sur tâches variées.",
+  },
+  {
+    id: "google/gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
     provider: "google",
-    description:
-      "Variante Flash plus qualitative, toujours rapide et adaptée aux charges élevées.",
+    description: "Flash avancé pour charges plus exigeantes.",
   },
   {
-    id: "gemini-2.0-flash-lite",
-    name: "m-5.7-nano",
-    provider: "google",
-    description:
-      "Version très abordable pour automatisations fréquentes et prototypage rapide.",
-  },
-
-  // --- CEREBRAS LOW-COST ---
-  {
-    id: "cerebras/llama3.1-8b",
-    name: "Cerebras Llama 3.1 8B",
-    provider: "cerebras",
-    description:
-      "Modèle ultra-rapide à coût réduit pour traitements volumineux et répétitifs.",
+    id: "minimax/minimax-m2.7",
+    name: "MiniMax M2.7",
+    provider: "minimax",
+    description: "Version M2.7 offrant plus de capacité pour coût modéré.",
   },
   {
-    id: "cerebras/qwen-3-32b",
-    name: "m-5.7",
-    provider: "cerebras",
-    description:
-      "Bon niveau de raisonnement tout en conservant un coût de fonctionnement maîtrisé.",
-  },
-
-  // --- MISTRAL API LOW-COST ---
-  {
-    id: "mistral-api/ministral-3b-latest",
-    name: "Ministral 3B",
-    provider: "mistral",
-    description:
-      "Version Mistral minimaliste, idéale pour scénarios contraints en budget.",
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    provider: "openai",
+    description: "Grand modèle open-source pour cas avancés.",
+    reasoningEffort: "medium",
   },
   {
-    id: "mistral-api/ministral-8b-latest",
-    name: "Ministral 8B",
-    provider: "mistral",
-    description:
-      "Modèle abordable prêt pour la production avec de bonnes performances globales.",
-  },
-
-  // --- OPENROUTER GRATUITS & LOW-COST ---
-  {
-    id: "openrouter/stepfun/step-1-flash:free",
-    name: "Step 1 Flash (Free)",
-    provider: "openrouter",
-    description:
-      "Alternative gratuite orientée rapidité pour usage ponctuel et expérimentations.",
+    id: "openai/gpt-4.1-mini",
+    name: "GPT-4.1 Mini",
+    provider: "openai",
+    description: "Modèle compact robuste pour usage professionnel.",
   },
   {
-    id: "openrouter/liquid/lfm-40b:free",
-    name: "LFM 40B Trinity (Free)",
-    provider: "openrouter",
-    description:
-      "Modèle LFM gratuit utile pour tests, itérations rapides et charges légères.",
-  },
-  {
-    id: "openrouter/zhipu/glm-4-9b-chat:free",
-    name: "GLM-4 9B (Free)",
-    provider: "openrouter",
-    description:
-      "Modèle conversationnel gratuit de Zhipu pour cas standards et découverte.",
-  },
-  {
-    id: "openrouter/meta-llama/llama-3.3-70b-instruct",
-    name: "m-5.8-nano",
-    provider: "openrouter",
-    description:
-      "Bon niveau de performance générale à prix compétitif via OpenRouter.",
-  },
-  {
-    id: "openrouter/nvidia/llama-3.1-nemotron-70b-instruct",
-    name: "Nemotron 70B",
-    provider: "openrouter",
-    description:
-      "Variante optimisée NVIDIA pour workloads techniques et robustes.",
-  },
-  {
-    id: "openrouter/google/gemini-2.0-flash-exp:free",
-    name: "Gemini 2.0 Flash (Free)",
-    provider: "openrouter",
-    description:
-      "Version gratuite orientée vision et rapidité pour tâches multimodales simples.",
-  },
-
-  // --- OPENROUTER CHEAP PREMIUM ---
-  {
-    id: "openrouter/anthropic/claude-3.5-haiku",
-    name: "Claude 3.5 Haiku",
-    provider: "openrouter",
-    description: "Modèle Claude compact avec bonne cohérence et coût réduit.",
-  },
-  {
-    id: "openrouter/openai/gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "openrouter",
-    description:
-      "Petit modèle polyvalent, performant pour assistants rapides en production.",
-  },
-  {
-    id: "openrouter/deepseek/deepseek-chat",
-    name: "DeepSeek V3 (OR)",
-    provider: "openrouter",
-    description:
-      "Excellent compromis qualité/prix pour usages variés via OpenRouter.",
-  },
-
-  // --- OLLAMA (LOCAUX) ---
-  {
-    id: "ollama/llama3.1",
-    name: "Llama 3.1 (Ollama)",
-    provider: "ollama",
-    description:
-      "Exécution locale pour confidentialité renforcée et autonomie totale.",
-  },
-  {
-    id: "ollama/gemma2:9b",
-    name: "Gemma 2 9B (Ollama)",
-    provider: "ollama",
-    description:
-      "Modèle local équilibré pour usages généralistes sans dépendance cloud.",
-  },
-  {
-    id: "ollama/mistral-nemo",
-    name: "Mistral Nemo (Ollama)",
-    provider: "ollama",
-    description:
-      "Modèle local robuste offrant un bon niveau de qualité en environnement privé.",
-  },
-  {
-    id: "ollama/phi3.5",
-    name: "Phi 3.5 (Ollama)",
-    provider: "ollama",
-    description:
-      "Petit modèle local efficace pour tâches rapides et ressources limitées.",
-  },
-  {
-    id: "ollama/deepseek-coder-v2",
-    name: "DeepSeek Coder V2",
-    provider: "ollama",
-    description:
-      "Spécialisé code en local pour génération, refactorisation et corrections.",
+    id: "moonshotai/kimi-k2.5",
+    name: "Kimi K2.5",
+    provider: "moonshotai",
+    description: "Modèle premium abordable pour tâches complexes.",
   },
 ];
+
+export const embeddingModels = [
+  {
+    id: "voyage/voyage-4-lite",
+    name: "Voyage 4 Lite",
+    provider: "voyage",
+    description: "Embedding ultra économique pour recherche sémantique.",
+  },
+  {
+    id: "openai/text-embedding-3-small",
+    name: "Text Embedding 3 Small",
+    provider: "openai",
+    description: "Embedding OpenAI économique et performant.",
+  },
+] as const;
 
 export async function getCapabilities(): Promise<
   Record<string, ModelCapabilities>
 > {
   const customModelsCapabilities = Object.fromEntries(
-    chatModels
-      .filter(
-        (m) =>
-          m.provider === "openrouter" ||
-          m.provider === "ollama" ||
-          m.provider === "cometapi" ||
-          m.provider === "google" ||
-          m.provider === "cerebras" ||
-          m.id.startsWith("mistral-api/")
-      )
-      .map((m) => [
-        m.id,
-        {
-          tools: !m.id.includes(":free"),
-          vision:
-            m.id.includes("vision") ||
-            m.id.includes("flash") ||
-            m.id.includes("4o") ||
-            m.id.includes("mistral-small") ||
-            m.id.includes("gemini"),
-          reasoning: m.id.includes("oss") || m.id.includes("reasoning"),
-        },
-      ])
+    chatModels.map((m) => [
+      m.id,
+      {
+        tools: true,
+        vision:
+          m.id.includes("vision") ||
+          m.id.includes("flash") ||
+          m.id.includes("4o") ||
+          m.id.includes("gemini"),
+        reasoning: m.id.includes("oss") || m.id.includes("reasoning"),
+      },
+    ])
   );
 
   const gatewayModelsCapabilitiesArray = await Promise.all(
-    chatModels
-      .filter(
-        (m) =>
-          m.provider !== "openrouter" &&
-          m.provider !== "ollama" &&
-          m.provider !== "cometapi" &&
-          m.provider !== "google" &&
-          m.provider !== "cerebras" &&
-          !m.id.startsWith("mistral-api/")
-      )
-      .map(async (model) => {
-        try {
-          const res = await fetch(
-            `https://ai-gateway.vercel.sh/v1/models/${model.id}/endpoints`,
-            { next: { revalidate: 86_400 } }
-          );
-          if (!res.ok) {
-            return [
-              model.id,
-              { tools: false, vision: false, reasoning: false },
-            ] as const;
-          }
-
-          const json = await res.json();
-          const endpoints = json.data?.endpoints ?? [];
-          const params = new Set(
-            endpoints.flatMap(
-              (e: { supported_parameters?: string[] }) =>
-                e.supported_parameters ?? []
-            )
-          );
-          const inputModalities = new Set(
-            json.data?.architecture?.input_modalities ?? []
-          );
-
+    chatModels.map(async (model) => {
+      try {
+        const res = await fetch(
+          `https://ai-gateway.vercel.sh/v1/models/${model.id}/endpoints`,
+          { next: { revalidate: 86_400 } }
+        );
+        if (!res.ok) {
           return [
             model.id,
-            {
-              tools: params.has("tools"),
-              vision: inputModalities.has("image"),
-              reasoning: params.has("reasoning"),
+            customModelsCapabilities[model.id] ?? {
+              tools: false,
+              vision: false,
+              reasoning: false,
             },
           ] as const;
-        } catch {
-          return [
-            model.id,
-            { tools: false, vision: false, reasoning: false },
-          ] as const;
         }
-      })
+
+        const json = await res.json();
+        const endpoints = json.data?.endpoints ?? [];
+        const params = new Set(
+          endpoints.flatMap(
+            (e: { supported_parameters?: string[] }) =>
+              e.supported_parameters ?? []
+          )
+        );
+        const inputModalities = new Set(
+          json.data?.architecture?.input_modalities ?? []
+        );
+
+        return [
+          model.id,
+          {
+            tools: params.has("tools"),
+            vision: inputModalities.has("image"),
+            reasoning: params.has("reasoning"),
+          },
+        ] as const;
+      } catch {
+        return [
+          model.id,
+          customModelsCapabilities[model.id] ?? {
+            tools: false,
+            vision: false,
+            reasoning: false,
+          },
+        ] as const;
+      }
+    })
   );
 
   return {

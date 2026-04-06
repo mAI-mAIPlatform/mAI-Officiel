@@ -124,8 +124,21 @@ function getModelLogoProvider(
   if (id.includes("gemma") || name.includes("gemma")) {
     return "google";
   }
-  if (id.includes("phi-3.5") || name.includes("phi 3.5")) {
+  if (
+    id.includes("phi-3.5") ||
+    id.includes("phi3.5") ||
+    name.includes("phi 3.5")
+  ) {
     return "microsoft";
+  }
+  if (id.includes("qwen") || id.includes("alibaba/")) {
+    return "alibaba";
+  }
+  if (id.includes("minimax")) {
+    return "minimax";
+  }
+  if (id.includes("voyage")) {
+    return "voyage";
   }
   if (id.includes("claude") || id.includes("/anthropic/")) {
     return "anthropic";
@@ -1300,6 +1313,7 @@ function PureModelSelectorCompact({
               perplexity: "Perplexity",
               "prime-intellect": "Prime Intellect",
               xiaomi: "Xiaomi",
+              voyage: "Voyage",
               xai: "xAI",
               zai: "Zai",
             };
