@@ -5,18 +5,23 @@ import {
   Brain,
   CalendarClock,
   Camera,
+  Clock3,
   Database,
   FileText,
   Gauge,
   KeyRound,
+  Lock,
   ListPlus,
   Mail,
   MessageCircle,
   PencilLine,
   PlusCircle,
+  Puzzle,
   Settings2,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  TimerReset,
   Trash2,
   UserCircle2,
   X,
@@ -34,7 +39,8 @@ import { cn } from "@/lib/utils";
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
-const APP_VERSION = "0.6.3";
+const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
+const APP_VERSION = "0.6.4";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 50;
 const schedulerModels = [
@@ -91,6 +97,48 @@ type ProfileSettingsShape = {
 };
 
 type MemorySortMode = "manual" | "alpha";
+
+type ExtensionKey = "coder" | "manalyse" | "news" | "studio";
+
+type ParentalSettings = {
+  advancedSettingsLocked: boolean;
+  dailyLimitMinutes: number;
+  enabled: boolean;
+  extensions: Record<ExtensionKey, boolean>;
+  lockCodeHash: string;
+  sessionUnlockedUntil: number;
+  usageMinutes: number;
+};
+
+const defaultParentalSettings: ParentalSettings = {
+  advancedSettingsLocked: true,
+  dailyLimitMinutes: 90,
+  enabled: false,
+  extensions: {
+    coder: true,
+    manalyse: true,
+    news: true,
+    studio: true,
+  },
+  lockCodeHash: "",
+  sessionUnlockedUntil: 0,
+  usageMinutes: 0,
+};
+
+const extensionLabels: Record<ExtensionKey, string> = {
+  coder: "mAICoder",
+  manalyse: "mAnalyse",
+  news: "mAINews",
+  studio: "Studio",
+};
+
+function hashLockCode(code: string): string {
+  let hash = 5381;
+  for (let index = 0; index < code.length; index += 1) {
+    hash = (hash * 33) ^ code.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(16);
+}
 
 const defaultProfileSettings: ProfileSettingsShape = {
   aiMemory: "",
@@ -229,6 +277,16 @@ export default function SettingsPage() {
     responseReady: true,
     scheduledTasks: true,
   });
+  const [parentalSettings, setParentalSettings] = useState<ParentalSettings>(
+    defaultParentalSettings
+  );
+  const [newLockCode, setNewLockCode] = useState("");
+  const [confirmLockCode, setConfirmLockCode] = useState("");
+  const [unlockCode, setUnlockCode] = useState("");
+  const [parentalFeedback, setParentalFeedback] = useState<{
+    text: string;
+    type: "error" | "success";
+  } | null>(null);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -452,6 +510,73 @@ export default function SettingsPage() {
   }, [notifications]);
 
   useEffect(() => {
+    const rawParentalSettings = window.localStorage.getItem(
+      PARENTAL_SETTINGS_STORAGE_KEY
+    );
+    if (!rawParentalSettings) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawParentalSettings) as Partial<ParentalSettings>;
+      const parsedExtensions =
+        (parsed.extensions as Partial<Record<ExtensionKey, boolean>>) ?? {};
+      setParentalSettings({
+        advancedSettingsLocked:
+          typeof parsed.advancedSettingsLocked === "boolean"
+            ? parsed.advancedSettingsLocked
+            : defaultParentalSettings.advancedSettingsLocked,
+        dailyLimitMinutes:
+          typeof parsed.dailyLimitMinutes === "number" &&
+          Number.isFinite(parsed.dailyLimitMinutes)
+            ? Math.max(15, Math.min(720, Math.round(parsed.dailyLimitMinutes)))
+            : defaultParentalSettings.dailyLimitMinutes,
+        enabled:
+          typeof parsed.enabled === "boolean"
+            ? parsed.enabled
+            : defaultParentalSettings.enabled,
+        extensions: {
+          coder:
+            typeof parsedExtensions.coder === "boolean"
+              ? parsedExtensions.coder
+              : defaultParentalSettings.extensions.coder,
+          manalyse:
+            typeof parsedExtensions.manalyse === "boolean"
+              ? parsedExtensions.manalyse
+              : defaultParentalSettings.extensions.manalyse,
+          news:
+            typeof parsedExtensions.news === "boolean"
+              ? parsedExtensions.news
+              : defaultParentalSettings.extensions.news,
+          studio:
+            typeof parsedExtensions.studio === "boolean"
+              ? parsedExtensions.studio
+              : defaultParentalSettings.extensions.studio,
+        },
+        lockCodeHash:
+          typeof parsed.lockCodeHash === "string" ? parsed.lockCodeHash : "",
+        sessionUnlockedUntil:
+          typeof parsed.sessionUnlockedUntil === "number"
+            ? parsed.sessionUnlockedUntil
+            : 0,
+        usageMinutes:
+          typeof parsed.usageMinutes === "number"
+            ? Math.max(0, Math.round(parsed.usageMinutes))
+            : 0,
+      });
+    } catch {
+      // Fallback: on garde les paramètres parentaux par défaut en cas de JSON corrompu.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      PARENTAL_SETTINGS_STORAGE_KEY,
+      JSON.stringify(parentalSettings)
+    );
+  }, [parentalSettings]);
+
+  useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
     if (
       storedChatBarSize === "compact" ||
@@ -469,6 +594,24 @@ export default function SettingsPage() {
     }
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks, tasksHydrated]);
+
+  useEffect(() => {
+    if (!parentalSettings.enabled) {
+      return;
+    }
+
+    // Incrément local du temps d'usage pour le contrôle parental (1 minute = 60_000 ms).
+    const timerId = window.setInterval(() => {
+      setParentalSettings((prev) => ({
+        ...prev,
+        usageMinutes: prev.usageMinutes + 1,
+      }));
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [parentalSettings.enabled]);
 
   const handleActivation = async () => {
     const nextPlan = await activateByCode(activationCode);
@@ -718,9 +861,82 @@ export default function SettingsPage() {
       key: "personnalisation",
       label: "Personnalisation IA",
     },
+    { href: "#parental", key: "parental", label: "Contrôle parental" },
     { href: "#donnees", key: "donnees", label: "Données" },
   ] as const;
-  const isDataAccessRestricted = activeSettingsSection === "notifications";
+  const isParentalSessionUnlocked =
+    parentalSettings.sessionUnlockedUntil > Date.now();
+  const isAdvancedAccessRestricted =
+    parentalSettings.enabled &&
+    parentalSettings.advancedSettingsLocked &&
+    !isParentalSessionUnlocked;
+  const isUsageLimitReached =
+    parentalSettings.enabled &&
+    parentalSettings.dailyLimitMinutes > 0 &&
+    parentalSettings.usageMinutes >= parentalSettings.dailyLimitMinutes;
+  const isDataAccessRestricted = isAdvancedAccessRestricted || isUsageLimitReached;
+
+  const handleSetLockCode = () => {
+    const normalizedNewCode = newLockCode.trim();
+    const normalizedConfirmCode = confirmLockCode.trim();
+
+    if (normalizedNewCode.length < 4 || normalizedNewCode.length > 8) {
+      setParentalFeedback({
+        text: "Le code doit contenir entre 4 et 8 caractères.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (normalizedNewCode !== normalizedConfirmCode) {
+      setParentalFeedback({
+        text: "Les deux codes ne correspondent pas.",
+        type: "error",
+      });
+      return;
+    }
+
+    setParentalSettings((prev) => ({
+      ...prev,
+      enabled: true,
+      lockCodeHash: hashLockCode(normalizedNewCode),
+      sessionUnlockedUntil: 0,
+    }));
+    setNewLockCode("");
+    setConfirmLockCode("");
+    setParentalFeedback({
+      text: "Code parental enregistré. La protection est active.",
+      type: "success",
+    });
+  };
+
+  const handleUnlockParentalSection = () => {
+    if (!parentalSettings.lockCodeHash) {
+      setParentalFeedback({
+        text: "Aucun code défini. Configurez un code parental d'abord.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (hashLockCode(unlockCode.trim()) !== parentalSettings.lockCodeHash) {
+      setParentalFeedback({
+        text: "Code invalide. Déverrouillage refusé.",
+        type: "error",
+      });
+      return;
+    }
+
+    setParentalSettings((prev) => ({
+      ...prev,
+      sessionUnlockedUntil: Date.now() + 15 * 60_000,
+    }));
+    setUnlockCode("");
+    setParentalFeedback({
+      text: "Section avancée déverrouillée pour 15 minutes.",
+      type: "success",
+    });
+  };
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
@@ -762,29 +978,25 @@ export default function SettingsPage() {
 
       <section className="liquid-glass rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-card/70 p-5">
         <h2 className="text-lg font-semibold">
-          v{APP_VERSION} · Ergonomie &amp; Paramétrage IA
+          v{APP_VERSION} · Sécurité &amp; Contrôle parental
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
           <li>
-            <strong>Interface mAI :</strong> réorganisation globale orientée
-            ergonomie mobile pour une cohérence multiplateforme.
+            <strong>Module parental :</strong> nouvelle section dédiée pour
+            piloter les accès sensibles et les extensions actives.
           </li>
           <li>
-            <strong>Navigation :</strong> paramètres en barre latérale avec
-            gestion contextuelle des droits d&apos;accès.
+            <strong>Code de verrouillage :</strong> activation d&apos;un PIN
+            local pour déverrouiller temporairement les paramètres avancés.
           </li>
           <li>
-            <strong>Personnalisation IA :</strong> extension des options de
-            comportement via des réglages de ton, concision et registre.
+            <strong>Administration :</strong> gestion du temps d&apos;utilisation
+            quotidien et blocage sélectif des extensions.
           </li>
           <li>
-            <strong>Optimisation :</strong> suppression du réglage manuel de la
-            longueur de réponse au profit d&apos;un pilotage comportemental
-            global.
-          </li>
-          <li>
-            <strong>Maintenance :</strong> correctifs mineurs et amélioration de
-            la stabilité générale de la page paramètres.
+            <strong>Correctif :</strong> la restriction d&apos;accès n&apos;est
+            plus liée au changement d&apos;onglet, mais au véritable état
+            parental et au quota d&apos;usage.
           </li>
         </ul>
       </section>
@@ -1170,6 +1382,201 @@ export default function SettingsPage() {
       </section>
 
       <section
+        className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="parental"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <ShieldAlert className="size-4 text-primary" />
+          Contrôle parental
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Définissez un code de verrouillage, contrôlez le temps d&apos;utilisation
+          et limitez les options avancées.
+        </p>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Sécurisation
+            </p>
+            <div className="mt-2 space-y-2">
+              <Input
+                maxLength={8}
+                onChange={(event) => setNewLockCode(event.target.value)}
+                placeholder="Nouveau code (4 à 8 caractères)"
+                type="password"
+                value={newLockCode}
+              />
+              <Input
+                maxLength={8}
+                onChange={(event) => setConfirmLockCode(event.target.value)}
+                placeholder="Confirmer le code"
+                type="password"
+                value={confirmLockCode}
+              />
+              <Button onClick={handleSetLockCode} type="button" variant="outline">
+                <Lock className="mr-2 size-4" />
+                Enregistrer le code
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Protection active : {parentalSettings.enabled ? "Oui" : "Non"}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Déverrouillage temporaire
+            </p>
+            <div className="mt-2 space-y-2">
+              <Input
+                maxLength={8}
+                onChange={(event) => setUnlockCode(event.target.value)}
+                placeholder="Entrer le code"
+                type="password"
+                value={unlockCode}
+              />
+              <Button
+                onClick={handleUnlockParentalSection}
+                type="button"
+                variant="outline"
+              >
+                <ShieldCheck className="mr-2 size-4" />
+                Déverrouiller 15 min
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Session avancée :{" "}
+                {isParentalSessionUnlocked
+                  ? `active jusqu'à ${formatDateTime(
+                      new Date(parentalSettings.sessionUnlockedUntil)
+                    )}`
+                  : "verrouillée"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Clock3 className="size-4" />
+              Temps d&apos;utilisation
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                min={15}
+                onChange={(event) =>
+                  setParentalSettings((prev) => ({
+                    ...prev,
+                    dailyLimitMinutes: Math.max(
+                      15,
+                      Math.min(720, Number(event.target.value) || 15)
+                    ),
+                  }))
+                }
+                type="number"
+                value={parentalSettings.dailyLimitMinutes}
+              />
+              <span className="text-xs text-muted-foreground">min/jour</span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Utilisé aujourd&apos;hui : {parentalSettings.usageMinutes} min
+            </p>
+            <Button
+              className="mt-2"
+              onClick={() =>
+                setParentalSettings((prev) => ({ ...prev, usageMinutes: 0 }))
+              }
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <TimerReset className="mr-2 size-4" />
+              Réinitialiser le compteur
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Puzzle className="size-4" />
+              Extensions actives
+            </p>
+            <div className="mt-2 grid gap-2">
+              {(Object.keys(extensionLabels) as ExtensionKey[]).map(
+                (extensionKey) => (
+                  <button
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
+                      parentalSettings.extensions[extensionKey]
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border/50 bg-background/60"
+                    )}
+                    disabled={isAdvancedAccessRestricted}
+                    key={extensionKey}
+                    onClick={() =>
+                      setParentalSettings((prev) => ({
+                        ...prev,
+                        extensions: {
+                          ...prev.extensions,
+                          [extensionKey]: !prev.extensions[extensionKey],
+                        },
+                      }))
+                    }
+                    type="button"
+                  >
+                    <span>{extensionLabels[extensionKey]}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {parentalSettings.extensions[extensionKey]
+                        ? "Activée"
+                        : "Bloquée"}
+                    </span>
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
+          <button
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() =>
+              setParentalSettings((prev) => ({
+                ...prev,
+                advancedSettingsLocked: !prev.advancedSettingsLocked,
+              }))
+            }
+            type="button"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Settings2 className="size-4" />
+              Limiter les paramètres avancés
+            </span>
+            <Badge variant="secondary">
+              {parentalSettings.advancedSettingsLocked ? "Actif" : "Inactif"}
+            </Badge>
+          </button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Quand cette option est active, les actions sensibles sont bloquées
+            tant qu&apos;un déverrouillage parental n&apos;est pas validé.
+          </p>
+        </div>
+
+        {parentalFeedback && (
+          <p
+            className={cn(
+              "mt-3 text-sm",
+              parentalFeedback.type === "success"
+                ? "text-emerald-600"
+                : "text-rose-600"
+            )}
+          >
+            {parentalFeedback.text}
+          </p>
+        )}
+      </section>
+
+      <section
         className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
         id="donnees"
       >
@@ -1180,11 +1587,17 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Gérez vos données, vos identifiants de compte et vos accès premium.
         </p>
-        {isDataAccessRestricted && (
+        {isUsageLimitReached && (
           <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-            Accès restreint : certaines actions sur les données sont
-            temporairement désactivées pendant la consultation des
-            notifications.
+            Limite quotidienne atteinte ({parentalSettings.usageMinutes}/
+            {parentalSettings.dailyLimitMinutes} min). Les actions sensibles
+            restent désactivées jusqu&apos;à réinitialisation.
+          </p>
+        )}
+        {isAdvancedAccessRestricted && (
+          <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            Accès restreint : entrez le code parental dans la section
+            "Contrôle parental" pour autoriser temporairement ces actions.
           </p>
         )}
         <div className="mt-4 grid gap-2 md:grid-cols-3">
