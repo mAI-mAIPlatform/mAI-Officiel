@@ -223,6 +223,20 @@ export async function POST(request: Request) {
       capabilities?.reasoning === true ||
       contextualActions?.isReasoningEnabled === true;
     const supportsTools = capabilities?.tools === true;
+    const contextualReasoningEffortMap = {
+      light: "minimal",
+      moderate: "low",
+      deep: "medium",
+      "very-deep": "high",
+    } as const;
+    const contextualReasoningLevel =
+      contextualActions?.reasoningLevel ?? "moderate";
+    const contextualReasoningEffort =
+      contextualReasoningEffortMap[contextualReasoningLevel];
+    const openaiReasoningEffort =
+      contextualActions?.isReasoningEnabled === true
+        ? contextualReasoningEffort
+        : modelConfig?.reasoningEffort;
 
     const modelMessages = await convertToModelMessages(uiMessages);
     const latestUserText =
@@ -316,6 +330,10 @@ export async function POST(request: Request) {
             agentPrompt: customAgent?.systemPrompt,
             agentMemory: customAgent?.memory,
             isLearningEnabled: contextualActions?.isLearningEnabled,
+            reasoningLevel:
+              contextualActions?.isReasoningEnabled === true
+                ? contextualReasoningLevel
+                : undefined,
           }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
@@ -325,8 +343,8 @@ export async function POST(request: Request) {
             ...(modelConfig?.gatewayOrder && {
               gateway: { order: modelConfig.gatewayOrder },
             }),
-            ...(modelConfig?.reasoningEffort && {
-              openai: { reasoningEffort: modelConfig.reasoningEffort },
+            ...(openaiReasoningEffort && {
+              openai: { reasoningEffort: openaiReasoningEffort },
             }),
           },
           tools: {

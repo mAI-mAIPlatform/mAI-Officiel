@@ -153,10 +153,10 @@ export default function ExtensionsPage() {
         <div className="flex items-center gap-3">
           <PuzzleIcon className="size-8 text-foreground" />
           <div>
-            <h1 className="text-3xl font-bold">Catalogue centralisé des mini-apps</h1>
+            <h1 className="text-3xl font-bold">Extensions</h1>
             <p className="text-sm text-muted-foreground">
-              Retrouvez LearnUp, Shopper, Actualités, CookAI, mAIHealth,
-              Studio et vos autres extensions dans un hub unique, avec les modes
+              Retrouvez LearnUp, Shopper, Actualités, CookAI, mAIHealth, Studio
+              et vos autres extensions dans un hub unique, avec les modes
               Masquer, Favoris et Épingler, toujours en interface Liquid Glass.
             </p>
           </div>
@@ -189,15 +189,6 @@ export default function ExtensionsPage() {
           <div
             className="liquid-glass group rounded-2xl border border-border/50 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[var(--shadow-card)]"
             key={extension.id}
-            onClick={() => handleOpenExtension(extension.route)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleOpenExtension(extension.route);
-              }
-            }}
-            role="button"
-            tabIndex={0}
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xl font-semibold">
@@ -211,15 +202,9 @@ export default function ExtensionsPage() {
                   {extension.title}
                 </h2>
               </div>
-              {extension.premium ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 text-[10px] font-semibold text-foreground">
-                  <Star className="size-3" /> Premium
-                </span>
-              ) : (
-                <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  Standard
-                </span>
-              )}
+              <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                Standard
+              </span>
             </div>
 
             <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
@@ -288,10 +273,14 @@ export default function ExtensionsPage() {
               </button>
             </div>
 
-            <p className="mt-4 inline-flex items-center gap-1 text-xs text-foreground">
+            <button
+              className="mt-4 inline-flex items-center gap-1 text-xs text-foreground"
+              onClick={() => handleOpenExtension(extension.route)}
+              type="button"
+            >
               Ouvrir l&apos;extension
               <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </p>
+            </button>
           </div>
         ))}
       </section>

@@ -97,12 +97,14 @@ export const systemPrompt = ({
   agentPrompt,
   agentMemory,
   isLearningEnabled,
+  reasoningLevel,
 }: {
   requestHints: RequestHints;
   supportsTools: boolean;
   agentPrompt?: string | null;
   agentMemory?: string | null;
   isLearningEnabled?: boolean;
+  reasoningLevel?: "light" | "moderate" | "deep" | "very-deep";
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
@@ -116,8 +118,21 @@ export const systemPrompt = ({
     basePrompt += `\n\n**Base de connaissances (Memory):**\n${agentMemory}\n`;
   }
 
-  // Si nous n'avons pas de modèle reasoning natif mais que l'option est demandée
-  // on peut insister sur l'explication (même si la propriété 'reasoning' du modèle gère le format 'thought')
+  if (reasoningLevel) {
+    const reflectionStyleByLevel: Record<
+      NonNullable<typeof reasoningLevel>,
+      string
+    > = {
+      light:
+        "Réflexion légère: réponse concise, analyse rapide et aller droit au résultat.",
+      moderate:
+        "Réflexion modérée: expliquer les choix clés sans alourdir la réponse.",
+      deep: "Réflexion approfondie: détailler le raisonnement, les alternatives et les compromis.",
+      "very-deep":
+        "Réflexion très approfondie: fournir une analyse structurée, exhaustive et robuste avec vérification des hypothèses.",
+    };
+    basePrompt += `\n\n**Paramètre Réflexion activé:** ${reflectionStyleByLevel[reasoningLevel]}`;
+  }
 
   if (!supportsTools) {
     return `${basePrompt}\n\n${requestPrompt}`;

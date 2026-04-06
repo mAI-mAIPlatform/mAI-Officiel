@@ -35,6 +35,9 @@ export const postRequestBodySchema = z.object({
   contextualActions: z
     .object({
       isReasoningEnabled: z.boolean().optional(),
+      reasoningLevel: z
+        .enum(["light", "moderate", "deep", "very-deep"])
+        .optional(),
       isWebSearchEnabled: z.boolean().optional(),
       isLearningEnabled: z.boolean().optional(),
     })

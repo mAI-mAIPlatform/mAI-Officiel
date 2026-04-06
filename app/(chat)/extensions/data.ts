@@ -3,8 +3,8 @@ import {
   BrainCircuit,
   FileSearch,
   Globe,
-  HeartPulse,
   GraduationCap,
+  HeartPulse,
   LibraryBig,
   Newspaper,
   PenLine,
@@ -27,7 +27,7 @@ export type StoreExtension = {
 };
 
 /**
- * Catalogue unique du Store : centralise toutes les mini-apps accessibles
+ * Répertoire Extensions : centralise toutes les mini-apps accessibles
  * depuis la sidebar (hors Projets et Mes mAIs, gardés en accès direct).
  */
 export const extensionCatalog: StoreExtension[] = [
