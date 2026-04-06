@@ -127,7 +127,9 @@ export default function MaisPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <BotIcon className="size-8 text-primary" />
+            <span className="inline-flex size-9 items-center justify-center rounded-xl border border-black/20 bg-white text-black dark:border-white/20 dark:bg-black dark:text-white">
+              <BotIcon className="size-5" />
+            </span>
             Mes mAIs
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -335,11 +337,11 @@ export default function MaisPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {agents.map((agent: any) => (
               <div
-                className="group relative flex flex-col justify-between rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md"
+                className="liquid-glass group relative flex flex-col justify-between rounded-xl border border-border/50 bg-card/70 p-6 shadow-sm transition-all hover:shadow-md"
                 key={agent.id}
               >
                 <div>
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-black/20 bg-white text-black dark:border-white/20 dark:bg-black dark:text-white">
                     {agent.image ? (
                       <div
                         className="h-8 w-8 rounded-md bg-cover bg-center"

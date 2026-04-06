@@ -21,8 +21,6 @@ const defaultShortcuts: HomeShortcut[] = [
   { id: "settings", label: "Réglages", href: "/settings" },
 ];
 
-const shortcutById = new Map(defaultShortcuts.map((shortcut) => [shortcut.id, shortcut]));
-
 export const Greeting = () => {
   const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
   const [timePrefix, setTimePrefix] = useState<string>("");
@@ -51,11 +49,18 @@ export const Greeting = () => {
       }
       const parsed = JSON.parse(rawShortcuts) as HomeShortcut[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const sanitized = parsed
-          .map((shortcut) => shortcutById.get(shortcut.id))
-          .filter((shortcut): shortcut is HomeShortcut => Boolean(shortcut));
+        const parsedMap = new Map(parsed.map((shortcut) => [shortcut.id, shortcut]));
+        const sanitized = defaultShortcuts
+          .map((shortcut) => {
+            const storedShortcut = parsedMap.get(shortcut.id);
+            return {
+              ...shortcut,
+              hidden: Boolean(storedShortcut?.hidden),
+            };
+          });
 
-        const nextShortcuts = sanitized.length > 0 ? sanitized : defaultShortcuts;
+        const nextShortcuts =
+          sanitized.length > 0 ? sanitized : defaultShortcuts;
         setShortcuts(nextShortcuts.slice(0, 5));
       }
     } catch {
@@ -74,6 +79,33 @@ export const Greeting = () => {
       return next;
     });
   };
+
+  useEffect(() => {
+    const onShortcutHotkey = (event: KeyboardEvent) => {
+      if (!event.altKey || event.defaultPrevented) {
+        return;
+      }
+
+      // UX: Alt + 1..5 ouvre rapidement un raccourci visible.
+      const shortcutIndex = Number.parseInt(event.key, 10) - 1;
+      if (Number.isNaN(shortcutIndex) || shortcutIndex < 0 || shortcutIndex > 4) {
+        return;
+      }
+
+      const targetShortcut = shortcuts[shortcutIndex];
+      if (!targetShortcut || targetShortcut.hidden) {
+        return;
+      }
+
+      event.preventDefault();
+      window.location.assign(targetShortcut.href);
+    };
+
+    window.addEventListener("keydown", onShortcutHotkey);
+    return () => {
+      window.removeEventListener("keydown", onShortcutHotkey);
+    };
+  }, [shortcuts]);
 
   return (
     <div
@@ -112,7 +144,7 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.58, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       >
-        {shortcuts.map((shortcut) =>
+        {shortcuts.map((shortcut, index) =>
           shortcut.hidden ? (
             <button
               className="liquid-glass rounded-xl border border-dashed border-border/50 px-3 py-2 text-[11px] text-muted-foreground"
@@ -132,6 +164,9 @@ export const Greeting = () => {
                 href={shortcut.href}
               >
                 {shortcut.label}
+                <span className="ml-1 text-[10px] text-muted-foreground/80">
+                  (Alt+{index + 1})
+                </span>
               </Link>
               <button
                 className="mt-1 text-[10px] text-muted-foreground hover:text-foreground"

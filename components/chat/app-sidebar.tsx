@@ -53,18 +53,29 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     setShowDeleteAllDialog(false);
     router.replace("/");
     mutate(unstable_serialize(getChatHistoryPaginationKey), [], {
       revalidate: false,
     });
 
-    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history`, {
-      method: "DELETE",
-    });
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history`,
+        {
+          method: "DELETE",
+        }
+      );
 
-    toast.success("Toutes les discussions ont été supprimées");
+      if (!response.ok) {
+        throw new Error("Suppression globale impossible");
+      }
+
+      toast.success("Toutes les discussions ont été supprimées");
+    } catch {
+      toast.error("Échec de la suppression. Veuillez réessayer.");
+    }
   };
 
   return (
@@ -146,32 +157,24 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   </SidebarMenuItem>
                 ))}
 
-                <div className="mt-2 border-sidebar-border/60 border-t pt-2 group-data-[collapsible=icon]:hidden">
-                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/60">
-                    Extensions
-                  </p>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
-                      tooltip="Store d'extensions"
-                    >
-                      <Link
-                        href="/extensions"
-                        onClick={() => setOpenMobile(false)}
-                      >
-                        <PuzzleIcon className="size-4" />
-                        <span className="font-medium">Store</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </div>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
+                    tooltip="Extensions"
+                  >
+                    <Link href="/extensions" onClick={() => setOpenMobile(false)}>
+                      <PuzzleIcon className="size-4" />
+                      <span className="font-medium">Extensions</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
                 {normalizedGlobalQuery.length > 0 &&
                   [
                     { href: "/projects", label: "Projets" },
                     { href: "/mais", label: "Mes mAIs" },
-                    { href: "/extensions", label: "Store" },
+                    { href: "/extensions", label: "Extensions" },
                   ]
                     .filter((item) =>
                       item.label.toLowerCase().includes(normalizedGlobalQuery)

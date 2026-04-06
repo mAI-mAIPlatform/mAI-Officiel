@@ -143,6 +143,10 @@ export default function ExtensionsPage() {
     { id: "hidden", label: "Masquées" },
   ];
 
+  const handleOpenExtension = (route: string) => {
+    router.push(route);
+  };
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
       <header className="liquid-glass rounded-2xl border border-border/50 p-5">
@@ -182,16 +186,26 @@ export default function ExtensionsPage() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visibleExtensions.map((extension) => (
-          <button
+          <div
             className="liquid-glass group rounded-2xl border border-border/50 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[var(--shadow-card)]"
             key={extension.id}
-            onClick={() => router.push(extension.route)}
-            type="button"
+            onClick={() => handleOpenExtension(extension.route)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleOpenExtension(extension.route);
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xl font-semibold">
-                <span className="inline-flex size-8 items-center justify-center rounded-xl border border-border/70 bg-background/70 text-foreground">
-                  <extension.icon className="size-4" />
+                <span className="inline-flex size-8 items-center justify-center rounded-xl border border-black/20 bg-white text-black shadow-sm dark:border-white/20 dark:bg-black dark:text-white">
+                  <extension.icon
+                    className="size-4 stroke-[2.2]"
+                    stroke="currentColor"
+                  />
                 </span>
                 <h2 className="text-lg font-bold text-foreground">
                   {extension.title}
@@ -278,7 +292,7 @@ export default function ExtensionsPage() {
               Ouvrir l&apos;extension
               <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </p>
-          </button>
+          </div>
         ))}
       </section>
 
