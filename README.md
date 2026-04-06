@@ -5,6 +5,23 @@ Ce dépôt contient l’application officielle **mAI** : interface conversationn
 
 ---
 
+## 📚 Documentation détaillée
+
+Pour comprendre en profondeur l'architecture et le fonctionnement du projet, veuillez consulter les fichiers de documentation suivants :
+
+- [Architecture Générale](docs/architecture.md)
+- [Base de Données & ORM](docs/database.md)
+- [Authentification](docs/auth.md)
+- [Intégration IA & Modèles](docs/ai-integration.md)
+- [Interface Utilisateur (UI)](docs/ui.md)
+- [Agents et Projets](docs/agents-et-projets.md)
+- [Tests E2E](docs/testing.md)
+- [Formatage & Linting](docs/linting.md)
+- [Stockage de Fichiers](docs/stockage.md)
+- [Sécurité & Accès Restreints](docs/security.md)
+
+---
+
 ## ✨ Fonctionnalités principales
 
 - **Chat IA avancé**
@@ -49,4 +66,6 @@ Ce dépôt contient l’application officielle **mAI** : interface conversationn
 - **Base de données :** Neon Serverless Postgres (via Drizzle)
 - **Stockage fichiers :** Vercel Blob
 - **Auth :** Auth.js
+- **Linting & Formatage :** Biome (Ultracite)
+- **Tests :** Playwright
 - **Déploiement :** Vercel
