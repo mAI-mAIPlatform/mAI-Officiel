@@ -1,3 +1,4 @@
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { customProvider, gateway } from "ai";
 import { createOllama } from "ollama-ai-provider";
@@ -20,6 +21,13 @@ export const myProvider = isTestEnvironment
 const or1 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_1 });
 const or2 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_2 });
 const or3 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_3 });
+
+// Instance Fireworks AI (API OpenAI-compatible)
+const fireworksProvider = createOpenAI({
+  apiKey: process.env.FIREWORKS_API_KEY,
+  baseURL:
+    process.env.FIREWORKS_BASE_URL ?? "https://api.fireworks.ai/inference/v1",
+});
 
 // Instance Ollama (token optionnel pour instance locale)
 const ollamaProvider = createOllama({
@@ -64,6 +72,11 @@ export function getLanguageModel(modelId: string) {
   // --- OLLAMA ---
   if (modelId.startsWith("ollama/")) {
     return ollamaProvider(modelId.replace("ollama/", ""));
+  }
+
+  // --- FIREWORKS AI ---
+  if (modelId.startsWith("fireworks/")) {
+    return fireworksProvider(modelId.replace("fireworks/", ""));
   }
 
   return gateway.languageModel(modelId);

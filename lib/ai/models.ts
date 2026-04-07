@@ -93,6 +93,27 @@ export const chatModels: ChatModel[] = [
     description:
       "Alternative locale économique pour tâches techniques légères.",
   },
+  {
+    id: "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct",
+    name: "Fireworks · Llama 3.1 8B Instruct",
+    provider: "fireworks-ai",
+    description:
+      "Modèle Fireworks économique pour assistants et chat à faible coût.",
+  },
+  {
+    id: "fireworks/accounts/fireworks/models/qwen2p5-7b-instruct",
+    name: "Fireworks · Qwen 2.5 7B Instruct",
+    provider: "fireworks-ai",
+    description:
+      "Très bon compromis latence/prix pour usages généralistes Fireworks.",
+  },
+  {
+    id: "fireworks/accounts/fireworks/models/deepseek-v3",
+    name: "Fireworks · DeepSeek V3",
+    provider: "fireworks-ai",
+    description:
+      "Option à coût maîtrisé pour tâches plus complexes côté Fireworks.",
+  },
 
   // 🟡 Peu cher
   {
