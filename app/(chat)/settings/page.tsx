@@ -39,7 +39,7 @@ const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
-const APP_VERSION = "0.6.7";
+const APP_VERSION = "0.7.0";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -982,31 +982,6 @@ export default function SettingsPage() {
           Pendant la consultation des notifications, les actions sensibles sur
           les données sont limitées.
         </p>
-      </section>
-
-      <section className="liquid-glass rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-card/70 p-5">
-        <h2 className="text-lg font-semibold">
-          v{APP_VERSION} · Sécurité &amp; Contrôle parental
-        </h2>
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-          <li>
-            <strong>Module parental :</strong> nouvelle section dédiée pour
-            piloter les accès sensibles et les extensions actives.
-          </li>
-          <li>
-            <strong>Code de verrouillage :</strong> activation d&apos;un PIN
-            local pour déverrouiller temporairement les paramètres avancés.
-          </li>
-          <li>
-            <strong>Administration :</strong> gestion du temps
-            d&apos;utilisation quotidien et blocage sélectif des extensions.
-          </li>
-          <li>
-            <strong>Correctif :</strong> la restriction d&apos;accès n&apos;est
-            plus liée au changement d&apos;onglet, mais au véritable état
-            parental et au quota d&apos;usage.
-          </li>
-        </ul>
       </section>
 
       <section

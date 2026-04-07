@@ -35,12 +35,12 @@ Pour comprendre en profondeur l'architecture et le fonctionnement du projet, veu
   - Menus contextuels et actions rapides
 
 - **Contrôle parental & sécurité**
-  - Module de **contrôle parental** (v0.6.7)
+  - Module de **contrôle parental** (v0.7.0)
   - Paramètres de sécurité centralisés
   - Gestion des niveaux de réflexion / profondeur de réponse
 
 - **Expérience utilisateur**
-  - Refonte graphique moderne (v0.6.7)
+  - Refonte graphique moderne (v0.7.0)
   - Mode **ghost** (discrétion / présence minimale)
   - UI basée sur **shadcn/ui** + **Radix UI** + **Tailwind CSS**
 

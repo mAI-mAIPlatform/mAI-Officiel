@@ -139,7 +139,7 @@ export default function PricingPage() {
           <BadgeCheck className="size-7 text-primary" />
           <h1 className="text-3xl font-bold">Comparer les forfaits mAI</h1>
           <Badge className="rounded-full bg-primary/90 text-white hover:bg-primary/90">
-            v0.6.7
+            v0.7.0
           </Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
@@ -309,8 +309,9 @@ export default function PricingPage() {
       >
         <h3 className="text-lg font-semibold">Activation par code officiel</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          Forfait ciblé: <strong>{planDefinitions[selectedTargetPlan].label}</strong>. Saisissez
-          votre code officiel reçu via les canaux mAI.
+          Forfait ciblé:{" "}
+          <strong>{planDefinitions[selectedTargetPlan].label}</strong>.
+          Saisissez votre code officiel reçu via les canaux mAI.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
