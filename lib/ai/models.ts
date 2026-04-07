@@ -94,6 +94,28 @@ export const chatModels: ChatModel[] = [
       "Alternative locale économique pour tâches techniques légères.",
   },
   {
+    id: "sambanova/meta-llama-3.1-8b-instruct",
+    name: "SambaNova · Llama 3.1 8B Instruct",
+    provider: "sambanova",
+    description:
+      "Très bon coût/latence via SambaNova pour assistants et chat rapide.",
+  },
+  {
+    id: "sambanova/qwen2.5-7b-instruct",
+    name: "SambaNova · Qwen 2.5 7B Instruct",
+    provider: "sambanova",
+    description:
+      "Modèle Qwen économique avec excellente réactivité sur tâches courantes.",
+  },
+  {
+    id: "sambanova/deepseek-r1-distill-llama-70b",
+    name: "SambaNova · DeepSeek R1 Distill Llama 70B",
+    provider: "sambanova",
+    description:
+      "Très performant en raisonnement, avec coût maîtrisé côté SambaNova.",
+    reasoningEffort: "medium",
+  },
+  {
     id: "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct",
     name: "Fireworks · Llama 3.1 8B Instruct",
     provider: "fireworks-ai",
@@ -300,7 +322,10 @@ function buildLocalCapabilities(): Record<string, ModelCapabilities> {
           m.id.includes("flash") ||
           m.id.includes("4o") ||
           m.id.includes("gemini"),
-        reasoning: m.id.includes("oss") || m.id.includes("reasoning"),
+        reasoning:
+          m.id.includes("oss") ||
+          m.id.includes("reasoning") ||
+          m.id.includes("r1"),
       },
     ])
   );

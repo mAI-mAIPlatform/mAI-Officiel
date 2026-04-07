@@ -1255,6 +1255,7 @@ function PureModelSelectorCompact({
               openai: "OpenAI",
               perplexity: "Perplexity",
               "prime-intellect": "Prime Intellect",
+              sambanova: "SambaNova",
               xiaomi: "Xiaomi",
               voyage: "Voyage",
               xai: "xAI",

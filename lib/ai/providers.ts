@@ -29,6 +29,12 @@ const fireworksProvider = createOpenAI({
     process.env.FIREWORKS_BASE_URL ?? "https://api.fireworks.ai/inference/v1",
 });
 
+// Instance SambaNova Cloud (API OpenAI-compatible)
+const sambanovaProvider = createOpenAI({
+  apiKey: process.env.SAMBANOVA_API_KEY,
+  baseURL: process.env.SAMBANOVA_BASE_URL ?? "https://api.sambanova.ai/v1",
+});
+
 // Instance Ollama (token optionnel pour instance locale)
 const ollamaProvider = createOllama({
   baseURL: process.env.OLLAMA_BASE_URL,
@@ -77,6 +83,16 @@ export function getLanguageModel(modelId: string) {
   // --- FIREWORKS AI ---
   if (modelId.startsWith("fireworks/")) {
     return fireworksProvider(modelId.replace("fireworks/", ""));
+  }
+
+  // --- SAMBANOVA ---
+  if (modelId.startsWith("sambanova/")) {
+    if (!process.env.SAMBANOVA_API_KEY) {
+      throw new Error(
+        "SAMBANOVA_API_KEY manquante: impossible d'utiliser un modèle SambaNova."
+      );
+    }
+    return sambanovaProvider(modelId.replace("sambanova/", ""));
   }
 
   return gateway.languageModel(modelId);
