@@ -6,6 +6,18 @@ export type AffordableModelOption = {
 export const affordableTextModels: AffordableModelOption[] = [
   { id: "gpt-5.4-nano", label: "GPT-5.4 Nano (CometAPI)" },
   { id: "gpt-5.4-mini", label: "GPT-5.4 Mini (CometAPI)" },
+  {
+    id: "huggingface/Qwen/Qwen2.5-7B-Instruct",
+    label: "Qwen 2.5 7B Instruct (Hugging Face)",
+  },
+  {
+    id: "huggingface/meta-llama/Llama-3.1-8B-Instruct",
+    label: "Llama 3.1 8B Instruct (Hugging Face)",
+  },
+  {
+    id: "huggingface/microsoft/Phi-3.5-mini-instruct",
+    label: "Phi-3.5 Mini Instruct (Hugging Face)",
+  },
   { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },

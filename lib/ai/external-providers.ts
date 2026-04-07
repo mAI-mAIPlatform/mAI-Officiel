@@ -9,6 +9,9 @@ const CEREBRAS_API_BASE_URL =
   process.env.CEREBRAS_API_BASE_URL ?? "https://api.cerebras.ai/v1";
 const MISTRAL_API_BASE_URL =
   process.env.MISTRAL_API_BASE_URL ?? "https://api.mistral.ai/v1";
+const HUGGINGFACE_API_BASE_URL =
+  process.env.HUGGINGFACE_API_BASE_URL ??
+  "https://router.huggingface.co/v1/chat/completions";
 
 export const cometTextModels = new Set(["gpt-5.4-nano", "gpt-5.4-mini"]);
 export const cometImageModels = new Set([
@@ -21,6 +24,11 @@ export const geminiCheapModels = new Set(
   affordableTextModels
     .map((model) => model.id)
     .filter((modelId) => modelId.startsWith("gemini-"))
+);
+export const huggingFaceCheapModels = new Set(
+  affordableTextModels
+    .map((model) => model.id)
+    .filter((modelId) => modelId.startsWith("huggingface/"))
 );
 
 const cerebrasModelMapping: Record<string, string> = {
@@ -48,6 +56,7 @@ const geminiKeys = [
 ].filter(Boolean) as string[];
 const cerebrasKeys = [process.env.CEREBRAS_API_KEY].filter(Boolean) as string[];
 const mistralKeys = [process.env.MISTRAL_API_KEY].filter(Boolean) as string[];
+const huggingFaceKeys = [process.env.HF_API_KEY].filter(Boolean) as string[];
 
 // Alias pour rester compatible avec des IDs "marketing"/preview selon les périodes.
 const geminiModelAliases: Record<string, string[]> = {
@@ -146,6 +155,7 @@ export function isExternalTextModel(modelId: string): boolean {
   return (
     cometTextModels.has(modelId) ||
     geminiCheapModels.has(modelId) ||
+    huggingFaceCheapModels.has(modelId) ||
     cerebrasCheapModels.has(modelId) ||
     mistralCheapModels.has(modelId)
   );
@@ -266,6 +276,9 @@ export function runExternalTextModel(
     }
 
     const providerModelId = cerebrasModelMapping[modelId];
+    if (!providerModelId) {
+      throw new Error("Mapping modèle Cerebras introuvable");
+    }
 
     const cerebrasCalls = cerebrasKeys.map((apiKey, index) => async () => {
       const response = await fetch(
@@ -315,6 +328,9 @@ export function runExternalTextModel(
     }
 
     const providerModelId = mistralModelMapping[modelId];
+    if (!providerModelId) {
+      throw new Error("Mapping modèle Mistral introuvable");
+    }
 
     const mistralCalls = mistralKeys.map((apiKey, index) => async () => {
       const response = await fetch(`${MISTRAL_API_BASE_URL}/chat/completions`, {
@@ -353,6 +369,54 @@ export function runExternalTextModel(
     });
 
     return withFallback(mistralCalls, "Échec fallback Mistral");
+  }
+
+  if (huggingFaceCheapModels.has(modelId)) {
+    if (huggingFaceKeys.length === 0) {
+      throw new Error("HF_API_KEY manquante");
+    }
+
+    const providerModelId = modelId.replace("huggingface/", "");
+
+    const hfCalls = huggingFaceKeys.map((apiKey, index) => async () => {
+      const response = await fetch(HUGGINGFACE_API_BASE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: providerModelId,
+          messages: [
+            ...(systemInstruction
+              ? [{ role: "system", content: systemInstruction }]
+              : []),
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 1200,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Hugging Face clé ${index + 1} a échoué (${response.status})`
+        );
+      }
+
+      const data = await response.json();
+      const text = extractTextFromChatCompletion(data);
+
+      if (!text) {
+        throw new Error(
+          `Hugging Face clé ${index + 1} a renvoyé une réponse vide`
+        );
+      }
+
+      return { provider: `huggingface-${index + 1}`, text };
+    });
+
+    return withFallback(hfCalls, "Échec fallback Hugging Face");
   }
 
   throw new Error("Modèle externe texte non supporté");
