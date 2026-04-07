@@ -21,11 +21,14 @@ const or1 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_1 });
 const or2 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_2 });
 const or3 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_3 });
 
-// Instance Ollama
+// Instance Ollama (token optionnel pour instance locale)
 const ollamaProvider = createOllama({
-  headers: {
-    Authorization: `Bearer ${process.env.OLLAMA_API_TOKEN}`,
-  },
+  baseURL: process.env.OLLAMA_BASE_URL,
+  headers: process.env.OLLAMA_API_TOKEN
+    ? {
+        Authorization: `Bearer ${process.env.OLLAMA_API_TOKEN}`,
+      }
+    : undefined,
 });
 
 export function getLanguageModel(modelId: string) {
