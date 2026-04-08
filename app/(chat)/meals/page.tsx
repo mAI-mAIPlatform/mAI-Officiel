@@ -1,6 +1,12 @@
 "use client";
 
-import { Download, SendHorizonal, UploadCloud, Utensils } from "lucide-react";
+import {
+  ClipboardList,
+  Download,
+  SendHorizonal,
+  UploadCloud,
+  Utensils,
+} from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -21,6 +27,13 @@ type Result = { link: string; snippet: string; source: string; title: string };
 type ReportHistory = { createdAt: string; query: string; report: string };
 
 const MEALS_HISTORY_STORAGE_KEY = "mai.meals.history.v2";
+const dietaryFocuses = [
+  "Équilibré",
+  "Végétarien",
+  "Protéiné",
+  "Sans gluten",
+] as const;
+
 const MEALS_INSPIRATION_BUBBLES = [
   "Recettes de saison rapides",
   "Dîner végétarien léger",
@@ -45,6 +58,9 @@ export default function MealsPage() {
   const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
     defaultExtensionAiModel
   );
+  const [dietaryFocus, setDietaryFocus] =
+    useState<(typeof dietaryFocuses)[number]>("Équilibré");
+  const [servings, setServings] = useState(2);
 
   const dailyLimit = currentPlanDefinition.limits.mealsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
@@ -95,6 +111,7 @@ export default function MealsPage() {
 
   const handleSearch = async () => {
     if (!query.trim()) {
+      setQuotaMessage("Ajoutez une requête recette avant de lancer CookAI.");
       return;
     }
 
@@ -114,7 +131,7 @@ export default function MealsPage() {
         body: JSON.stringify({
           fileContext: externalContext,
           model: selectedModel,
-          query,
+          query: `${query} | régime: ${dietaryFocus} | portions: ${servings}`,
         }),
       });
       const payload = await response.json();
@@ -127,7 +144,7 @@ export default function MealsPage() {
       const generatedReport =
         payload.report ?? payload.error ?? "Aucun rapport généré";
       setReport(
-        `${buildAiCopilotNote(selectedModel, "cuisine", query)}\n\n${generatedReport}`
+        `${buildAiCopilotNote(selectedModel, "cuisine", query)}\nPréférence: ${dietaryFocus} · Portions: ${servings}\n\n${generatedReport}`
       );
       const usage = consumeUsage("meals", "day");
       setSearchesToday(usage.count);
@@ -153,6 +170,19 @@ export default function MealsPage() {
     [report]
   );
 
+  const shoppingList = useMemo(() => {
+    if (!report) {
+      return [];
+    }
+
+    return report
+      .split("\n")
+      .filter(
+        (line) => /[-•]/.test(line) || /ingrédient|ingredient/i.test(line)
+      )
+      .slice(0, 8);
+  }, [report]);
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-5 overflow-y-auto p-6 md:p-10">
       <div className="flex items-center gap-3">
@@ -175,7 +205,7 @@ export default function MealsPage() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+      <div className="liquid-glass rounded-2xl p-4">
         <p className="mb-3 text-xs text-muted-foreground">
           Quota CookAI : {searchesToday}/{dailyLimit} recherches
           aujourd&apos;hui ({remainingSearches} restante
@@ -208,6 +238,31 @@ export default function MealsPage() {
           <select
             className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
             onChange={(event) =>
+              setDietaryFocus(
+                event.target.value as (typeof dietaryFocuses)[number]
+              )
+            }
+            value={dietaryFocus}
+          >
+            {dietaryFocuses.map((entry) => (
+              <option key={entry}>{entry}</option>
+            ))}
+          </select>
+          <input
+            className="h-11 w-24 rounded-xl border border-border bg-background/60 px-3 text-xs"
+            max={12}
+            min={1}
+            onChange={(event) =>
+              setServings(
+                Math.min(12, Math.max(1, Number(event.target.value) || 1))
+              )
+            }
+            type="number"
+            value={servings}
+          />
+          <select
+            className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
+            onChange={(event) =>
               setImportSource(event.target.value as "device" | "mai-library")
             }
             value={importSource}
@@ -231,7 +286,7 @@ export default function MealsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+        <div className="liquid-glass rounded-2xl p-4">
           <h2 className="mb-2 font-semibold">Résultats Web (mSearch)</h2>
           <div className="space-y-3 text-sm">
             {results.map((item) => (
@@ -254,7 +309,7 @@ export default function MealsPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+        <div className="liquid-glass rounded-2xl p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Rapport de synthèse</h2>
             <div className="flex gap-2">
@@ -285,7 +340,25 @@ export default function MealsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+      <div className="liquid-glass rounded-2xl p-4">
+        <h3 className="mb-2 flex items-center gap-2 font-semibold">
+          <ClipboardList className="size-4 text-primary" /> Liste de courses
+          rapide
+        </h3>
+        {shoppingList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Lancez une recherche pour générer une liste de courses.
+          </p>
+        ) : (
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            {shoppingList.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="liquid-glass rounded-2xl p-4">
         <h3 className="mb-2 font-semibold">Historique des rapports</h3>
         <div className="space-y-2 text-sm">
           {history.map((item) => (

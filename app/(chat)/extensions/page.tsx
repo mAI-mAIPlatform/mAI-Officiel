@@ -271,26 +271,36 @@ export default function ExtensionsPage() {
             className="liquid-glass group rounded-2xl border border-border/50 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[var(--shadow-card)]"
             key={extension.id}
           >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xl font-semibold">
-                <span className="inline-flex size-8 items-center justify-center rounded-xl border border-black/20 bg-white text-black shadow-sm dark:border-white/20 dark:bg-black dark:text-white">
-                  <extension.icon
-                    className="size-4 stroke-[2.2]"
-                    stroke="currentColor"
-                  />
+            <button
+              className="w-full cursor-pointer text-left"
+              onClick={() => handleOpenExtension(extension.route)}
+              type="button"
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xl font-semibold">
+                  <span className="inline-flex size-8 items-center justify-center rounded-xl border border-black/20 bg-white text-black shadow-sm dark:border-white/20 dark:bg-black dark:text-white">
+                    <extension.icon
+                      className="size-4 stroke-[2.2]"
+                      stroke="currentColor"
+                    />
+                  </span>
+                  <h2 className="text-lg font-bold text-foreground">
+                    {extension.title}
+                  </h2>
+                </div>
+                <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                  Standard
                 </span>
-                <h2 className="text-lg font-bold text-foreground">
-                  {extension.title}
-                </h2>
               </div>
-              <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-                Standard
-              </span>
-            </div>
 
-            <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
-              {extension.description}
-            </p>
+              <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
+                {extension.description}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs text-foreground">
+                Ouvrir l&apos;extension
+                <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </span>
+            </button>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
@@ -353,15 +363,6 @@ export default function ExtensionsPage() {
                 {extension.isHidden ? "Afficher" : "Masquer"}
               </button>
             </div>
-
-            <button
-              className="mt-4 inline-flex items-center gap-1 text-xs text-foreground"
-              onClick={() => handleOpenExtension(extension.route)}
-              type="button"
-            >
-              Ouvrir l&apos;extension
-              <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </button>
           </div>
         ))}
       </section>
