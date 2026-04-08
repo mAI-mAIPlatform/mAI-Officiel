@@ -25,6 +25,7 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
-const APP_VERSION = "0.7.1";
+const APP_VERSION = "0.7.2";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -223,6 +224,37 @@ function sanitizeMemoryEntries(input: unknown): string[] {
     .slice(0, ABSOLUTE_MAX_MEMORY_ENTRIES);
 }
 
+function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input
+    .filter((task): task is Partial<ScheduledTask> => {
+      if (!task || typeof task !== "object") {
+        return false;
+      }
+
+      return true;
+    })
+    .filter(
+      (task): task is ScheduledTask =>
+        typeof task.id === "string" &&
+        typeof task.title === "string" &&
+        typeof task.createdAt === "string" &&
+        typeof task.nextRunAt === "string" &&
+        schedulerFrequencies.includes(
+          task.frequency as ScheduledTask["frequency"]
+        ) &&
+        schedulerModels.includes(task.model as ScheduledTask["model"])
+    )
+    .map((task) => ({
+      ...task,
+      title: task.title.trim(),
+    }))
+    .filter((task) => task.title.length > 0);
+}
+
 export default function SettingsPage() {
   const { data } = useSession();
   const {
@@ -305,13 +337,14 @@ export default function SettingsPage() {
         return;
       }
 
-      const parsed = JSON.parse(rawTasks) as ScheduledTask[];
-      if (!Array.isArray(parsed)) {
+      const parsed = JSON.parse(rawTasks) as unknown;
+      const sanitizedTasks = sanitizeScheduledTasks(parsed);
+      if (sanitizedTasks.length === 0) {
         setTasksHydrated(true);
         return;
       }
 
-      setTasks(parsed);
+      setTasks(sanitizedTasks);
       setTasksHydrated(true);
     } catch {
       setTaskError(
@@ -1930,8 +1963,20 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <footer className="rounded-2xl border border-border/50 bg-card/70 p-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
-        Version active : <strong>{APP_VERSION}</strong>
+      <footer className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
+        <div className="flex flex-col items-center gap-3">
+          <p>
+            Version active : <strong>{APP_VERSION}</strong>
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/privacy-policy">Politique de confidentialité</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/terms-of-use">Conditions d&apos;utilisation</Link>
+            </Button>
+          </div>
+        </div>
       </footer>
     </div>
   );
