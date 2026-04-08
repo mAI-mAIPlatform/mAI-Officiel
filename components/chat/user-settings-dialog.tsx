@@ -35,7 +35,7 @@ type ProfileSettings = {
 };
 
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
-const APP_VERSION = "0.7.7";
+const APP_VERSION = "0.7.8";
 
 const AVATAR_PRESETS = [
   {

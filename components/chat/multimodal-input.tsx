@@ -1260,8 +1260,6 @@ function PureModelSelectorCompact({
               grouped[key].push({ model, curated: curatedIds.has(model.id) });
             }
 
-            const customAgents = modelsData?.customAgents || [];
-
             const sortedKeys = Object.keys(grouped).sort((a, b) => {
               if (a === "_curated") {
                 return -1;
@@ -1302,43 +1300,6 @@ function PureModelSelectorCompact({
 
             return (
               <>
-                {customAgents.length > 0 && (
-                  <ModelSelectorGroup heading="Mes mAIs">
-                    {customAgents.map((agent: any) => (
-                      <ModelSelectorItem
-                        className={cn(
-                          "flex w-full",
-                          selectedModelId === `agent-${agent.id}` &&
-                            "bg-muted/50"
-                        )}
-                        key={`agent-${agent.id}`}
-                        onSelect={() => {
-                          onModelChange?.(`agent-${agent.id}`);
-                          setCookie("chat-model", `agent-${agent.id}`);
-                          setOpen(false);
-                          setTimeout(() => {
-                            document
-                              .querySelector<HTMLTextAreaElement>(
-                                "[data-testid='multimodal-input']"
-                              )
-                              ?.focus();
-                          }, 50);
-                        }}
-                        value={`agent-${agent.id}`}
-                      >
-                        {agent.image ? (
-                          <div
-                            className="mr-1 h-4 w-4 rounded-sm bg-cover bg-center"
-                            style={{ backgroundImage: `url(${agent.image})` }}
-                          />
-                        ) : (
-                          <BotIcon className="w-4 h-4 mr-1 text-primary" />
-                        )}
-                        <ModelSelectorName>{agent.name}</ModelSelectorName>
-                      </ModelSelectorItem>
-                    ))}
-                  </ModelSelectorGroup>
-                )}
                 {sortedKeys.map((key) => (
                   <ModelSelectorGroup
                     heading={

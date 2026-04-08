@@ -105,7 +105,7 @@ type ProfileSettingsShape = {
 
 type MemorySortMode = "manual" | "alpha";
 
-type ExtensionKey = "coder" | "manalyse" | "news" | "studio";
+type ExtensionKey = "coder" | "news" | "studio";
 
 type ParentalSettings = {
   advancedSettingsLocked: boolean;
@@ -123,7 +123,6 @@ const defaultParentalSettings: ParentalSettings = {
   enabled: false,
   extensions: {
     coder: true,
-    manalyse: true,
     news: true,
     studio: true,
   },
@@ -134,7 +133,6 @@ const defaultParentalSettings: ParentalSettings = {
 
 const extensionLabels: Record<ExtensionKey, string> = {
   coder: "mAICoder",
-  manalyse: "mAnalyse",
   news: "mAINews",
   studio: "Studio",
 };
@@ -581,10 +579,6 @@ export default function SettingsPage() {
             typeof parsedExtensions.coder === "boolean"
               ? parsedExtensions.coder
               : defaultParentalSettings.extensions.coder,
-          manalyse:
-            typeof parsedExtensions.manalyse === "boolean"
-              ? parsedExtensions.manalyse
-              : defaultParentalSettings.extensions.manalyse,
           news:
             typeof parsedExtensions.news === "boolean"
               ? parsedExtensions.news
@@ -811,7 +805,7 @@ export default function SettingsPage() {
       return [];
     }
 
-    // Le suivi existant est branché pour news/health/tâches; les autres limites
+    // Le suivi existant est branché pour news/health/tâches; les autres quotas
     // sont préparées pour une instrumentation progressive.
     return [
       {
@@ -825,7 +819,7 @@ export default function SettingsPage() {
         key: "credits",
         limit: currentPlanDefinition.limits.unifiedCreditsPerWeek,
         period: "week",
-        title: "Crédits extensions unifiés",
+        title: "Crédits IA unifiés",
         used: 0,
       },
       {
@@ -1042,7 +1036,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
             {isHydrated
-              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.unifiedCreditsPerWeek} crédits d'extensions/semaine • ${currentPlanDefinition.limits.imagesPerWeek} images/semaine`
+              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.unifiedCreditsPerWeek} crédits IA/semaine • ${currentPlanDefinition.limits.imagesPerWeek} images/semaine`
               : "Chargement du forfait..."}
           </p>
 
@@ -1086,9 +1080,9 @@ export default function SettingsPage() {
               label: "Tâches",
             },
             {
-              description: "Être notifié des mises à jour projets.",
+              description: "Être notifié des mises à jour de la plateforme.",
               key: "projectUpdates" as const,
-              label: "Projets",
+              label: "Plateforme",
             },
           ].map((notificationItem) => (
             <button
@@ -1491,7 +1485,7 @@ export default function SettingsPage() {
           <div className="rounded-xl border border-border/60 bg-background/60 p-3">
             <p className="flex items-center gap-2 text-sm font-medium">
               <Puzzle className="size-4" />
-              Extensions actives
+              Modules actifs
             </p>
             <div className="mt-2 grid gap-2">
               {(Object.keys(extensionLabels) as ExtensionKey[]).map(
@@ -1676,7 +1670,7 @@ export default function SettingsPage() {
       <section className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Gauge className="size-5" />
-          Crédits & consommation globale
+          Consommation & quotas globaux
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Suivi de toutes les limites avec date de réinitialisation automatique
@@ -1685,7 +1679,7 @@ export default function SettingsPage() {
 
         <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-primary/5 p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Crédits restants (toutes limites)
+            Quotas restants (toutes limites)
           </p>
           <p className="mt-2 text-2xl font-bold">
             {totalCreditsOverview.remaining}/{totalCreditsOverview.total}

@@ -34,14 +34,14 @@ const planPrices: Record<PlanKey, { amount: string; subtitle: string }> = {
 
 const highlightsByPlan: Record<PlanKey, string[]> = {
   free: [
-    "20 crédits unifiés / semaine sur tout l'écosystème",
+    "20 messages / heure",
     "Obtenez des explications simples",
     "Discutez brièvement pour des besoins courants",
     "Essayez la génération d'images",
     "Mémoire et contexte limités",
   ],
   plus: [
-    "35 crédits unifiés / semaine",
+    "30 messages / heure",
     "Résolvez des problèmes complexes",
     "Discutez plus longtemps dans différentes sessions",
     "Créez plus d'images, plus vite",
@@ -49,17 +49,17 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Planifiez des tâches récurrentes",
   ],
   pro: [
-    "50 crédits unifiés / semaine",
+    "50 messages / heure",
     "Analyses avancées multi-outils",
     "Capacités étendues pour Coder et Studio",
     "Volume de messages et fichiers élevé",
     "Exécution fluide pour équipes projet",
   ],
   max: [
-    "75 crédits unifiés / semaine",
+    "75 messages / heure",
     "Capacité maximale sur tous les modules mAI",
     "Priorité sur les flux intensifs",
-    "Crédits extensions unifiés majorés pour tous les modules",
+    "Quotas unifiés élevés pour un usage intensif",
     "Conçu pour usage professionnel continu",
   ],
 };
@@ -90,7 +90,7 @@ export default function PricingPage() {
         `${planDefinitions[key].limits.messagesPerHour}`,
     },
     {
-      label: "Crédits extensions / semaine",
+      label: "Crédits IA / semaine",
       getValue: (key: PlanKey) =>
         `${planDefinitions[key].limits.unifiedCreditsPerWeek}`,
     },
@@ -139,7 +139,7 @@ export default function PricingPage() {
           <BadgeCheck className="size-7 text-primary" />
           <h1 className="text-3xl font-bold">Comparer les forfaits mAI</h1>
           <Badge className="rounded-full bg-primary/90 text-white hover:bg-primary/90">
-            v0.7.5
+            v0.7.8
           </Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
@@ -285,7 +285,7 @@ export default function PricingPage() {
                 </p>
                 <p className="flex items-center gap-1">
                   <Wand2 className="size-3.5" />{" "}
-                  {planItem.limits.unifiedCreditsPerWeek} crédits/sem
+                  {planItem.limits.unifiedCreditsPerWeek} crédits IA/sem
                 </p>
                 <p className="flex items-center gap-1">
                   <Image className="size-3.5" /> {planItem.limits.imagesPerWeek}
