@@ -59,6 +59,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import {
   type ChatModel,
   chatModels,
@@ -66,7 +67,6 @@ import {
   type ModelCapabilities,
 } from "@/lib/ai/models";
 import type { Attachment, ChatMessage } from "@/lib/types";
-import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import { cn } from "@/lib/utils";
 import {
   PromptInput,
@@ -76,7 +76,7 @@ import {
   PromptInputTools,
 } from "../ai-elements/prompt-input";
 import { Button } from "../ui/button";
-import { ModelSeriesStarIcon, StopIcon } from "./icons";
+import { StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import {
   type SlashCommand,
@@ -88,6 +88,8 @@ import type { VisibilityType } from "./visibility-selector";
 
 type UploadSource = "device" | "mai-library";
 type ReflectionLevel = "light" | "moderate" | "deep" | "very-deep";
+const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const MAX_PERSISTENT_MEMORY_CHARS = 4000;
 const reflectionLevels: ReflectionLevel[] = [
   "light",
   "moderate",
@@ -95,15 +97,48 @@ const reflectionLevels: ReflectionLevel[] = [
   "very-deep",
 ];
 
+function getPersistentMemoryFromLocalStorage(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const rawProfile = window.localStorage.getItem(
+      PROFILE_SETTINGS_STORAGE_KEY
+    );
+    if (!rawProfile) {
+      return undefined;
+    }
+
+    const parsedProfile = JSON.parse(rawProfile) as {
+      aiMemory?: unknown;
+      aiMemoryEntries?: unknown;
+    };
+
+    const textMemory =
+      typeof parsedProfile.aiMemory === "string" ? parsedProfile.aiMemory : "";
+    const listMemory = Array.isArray(parsedProfile.aiMemoryEntries)
+      ? parsedProfile.aiMemoryEntries
+          .filter((entry): entry is string => typeof entry === "string")
+          .join("\n")
+      : "";
+
+    const mergedMemory = [listMemory, textMemory]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, MAX_PERSISTENT_MEMORY_CHARS);
+
+    return mergedMemory.length > 0 ? mergedMemory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function setCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 365;
   // biome-ignore lint/suspicious/noDocumentCookie: needed for client-side cookie setting
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
-}
-
-function isMSeriesHighlighted(modelName: string): boolean {
-  const normalizedName = modelName.toLowerCase();
-  return normalizedName.includes("m-5.7") || normalizedName.includes("m-5.8");
 }
 
 function PureMultimodalInput({
@@ -402,6 +437,7 @@ function PureMultimodalInput({
       typeof window === "undefined"
         ? false
         : localStorage.getItem("mai.ghost-mode") === "true";
+    const persistentMemory = getPersistentMemoryFromLocalStorage();
 
     sendMessage({
       role: "user",
@@ -428,6 +464,7 @@ function PureMultimodalInput({
         clientGeolocation: geolocationPos,
         ghostMode: isGhostModeEnabled,
         uploadSource,
+        persistentMemory,
       },
     });
 
@@ -1347,23 +1384,18 @@ function PureModelSelectorCompact({
                             <ModelSelectorLogo provider={logoProvider} />
                             <ModelSelectorName>{model.name}</ModelSelectorName>
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
-                              {isMSeriesHighlighted(model.name) && (
-                                <span
-                                  className="inline-flex items-center text-foreground"
-                                  title="Série m-5.7 / m-5.8"
-                                >
-                                  <ModelSeriesStarIcon size={13} />
-                                </span>
-                              )}
-                              {capabilities?.[model.id]?.tools && (
-                                <WrenchIcon className="size-3.5" />
-                              )}
-                              {capabilities?.[model.id]?.vision && (
-                                <EyeIcon className="size-3.5" />
-                              )}
-                              {capabilities?.[model.id]?.reasoning && (
-                                <BrainIcon className="size-3.5" />
-                              )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.tools && (
+                                  <WrenchIcon className="size-3.5" />
+                                )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.vision && (
+                                  <EyeIcon className="size-3.5" />
+                                )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.reasoning && (
+                                  <BrainIcon className="size-3.5" />
+                                )}
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />
                               )}

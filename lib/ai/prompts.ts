@@ -96,6 +96,7 @@ export const systemPrompt = ({
   supportsTools,
   agentPrompt,
   agentMemory,
+  userMemory,
   isLearningEnabled,
   reasoningLevel,
 }: {
@@ -103,6 +104,7 @@ export const systemPrompt = ({
   supportsTools: boolean;
   agentPrompt?: string | null;
   agentMemory?: string | null;
+  userMemory?: string;
   isLearningEnabled?: boolean;
   reasoningLevel?: "light" | "moderate" | "deep" | "very-deep";
 }) => {
@@ -116,6 +118,9 @@ export const systemPrompt = ({
 
   if (agentMemory) {
     basePrompt += `\n\n**Base de connaissances (Memory):**\n${agentMemory}\n`;
+  }
+  if (userMemory) {
+    basePrompt += `\n\n**Mémoire persistante utilisateur (à respecter):**\n${userMemory}\n`;
   }
 
   if (reasoningLevel) {

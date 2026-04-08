@@ -81,6 +81,7 @@ export async function POST(request: Request) {
       selectedVisibilityType,
       contextualActions,
       ghostMode,
+      persistentMemory,
     } = requestBody;
     const isGhostMode = ghostMode === true;
 
@@ -329,6 +330,7 @@ export async function POST(request: Request) {
             supportsTools,
             agentPrompt: customAgent?.systemPrompt,
             agentMemory: customAgent?.memory,
+            userMemory: persistentMemory,
             isLearningEnabled: contextualActions?.isLearningEnabled,
             reasoningLevel:
               contextualActions?.isReasoningEnabled === true

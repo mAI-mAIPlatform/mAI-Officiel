@@ -8,6 +8,20 @@ type ModelBrandInput = Pick<ChatModel, "id" | "name" | "provider">;
 export function resolveModelLogoProvider(model: ModelBrandInput): string {
   const id = model.id.toLowerCase();
   const name = model.name.toLowerCase();
+  const provider = model.provider.toLowerCase();
+
+  // Priorité explicite pour la série mAI (évite qu'un sous-modèle "grok/deepseek/..." écrase l'icône mAI).
+  if (
+    provider === "mai" ||
+    name === "m-5.8" ||
+    name === "m-5.8-mini" ||
+    name === "m-5.8-nano" ||
+    name === "m-5.7" ||
+    name === "m-5.7-mini" ||
+    name === "m-5.7-nano"
+  ) {
+    return "mai-star";
+  }
 
   if (id.includes("llama") || name.includes("llama")) {
     return "meta";
@@ -48,10 +62,6 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
   }
   if (id.includes("nemotron") || model.provider === "nvidia") {
     return "nvidia";
-  }
-
-  if (name.includes("m-5.")) {
-    return "mai-star";
   }
 
   // Fournisseurs agrégateurs: on essaye d'afficher la marque du modèle si détectable.
