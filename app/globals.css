@@ -48,9 +48,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.985 0 0);
+  --background: oklch(0.978 0.01 255);
   --foreground: oklch(0.12 0 0);
-  --card: oklch(1 0 0);
+  --card: oklch(0.995 0.006 255);
   --card-foreground: oklch(0.12 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.12 0 0);
@@ -102,9 +102,9 @@
 }
 
 .dark {
-  --background: oklch(0.195 0 0);
+  --background: oklch(0.18 0.02 255);
   --foreground: oklch(0.94 0 0);
-  --card: oklch(0.225 0 0);
+  --card: oklch(0.23 0.02 255);
   --card-foreground: oklch(0.94 0 0);
   --popover: oklch(0.225 0 0);
   --popover-foreground: oklch(0.94 0 0);
@@ -112,7 +112,7 @@
   --primary-foreground: oklch(0.195 0 0);
   --secondary: oklch(0.26 0 0);
   --secondary-foreground: oklch(0.75 0 0);
-  --muted: oklch(0.165 0 0);
+  --muted: oklch(0.2 0.015 255);
   --muted-foreground: oklch(0.6 0 0);
   --accent: oklch(0.26 0 0);
   --accent-foreground: oklch(0.94 0 0);
@@ -146,8 +146,8 @@
     0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 16px -4px oklch(0 0 0 / 0.3),
     inset 0 1px 0 oklch(1 0 0 / 0.04);
   --glass-border: oklch(1 0 0 / 0.1);
-  --glass-surface: oklch(0.24 0.01 260 / 0.58);
-  --glass-surface-strong: oklch(0.26 0.01 260 / 0.75);
+  --glass-surface: oklch(0.23 0.03 258 / 0.62);
+  --glass-surface-strong: oklch(0.27 0.03 258 / 0.82);
   --glass-highlight: oklch(1 0 0 / 0.09);
   --glass-shadow:
     0 20px 48px -28px oklch(0 0 0 / 0.75), 0 2px 12px -4px oklch(0 0 0 / 0.4);
@@ -159,6 +159,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-app), "Inter", "Segoe UI", sans-serif;
     font-feature-settings: "ss01", "ss02", "cv01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -295,7 +296,7 @@ textarea:focus-visible {
   box-shadow:
     inset 0 1px 0 var(--glass-highlight),
     var(--glass-shadow);
-  backdrop-filter: blur(22px) saturate(1.22);
+  backdrop-filter: blur(24px) saturate(1.28);
 }
 
 .dark .liquid-glass {

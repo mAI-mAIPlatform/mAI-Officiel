@@ -40,7 +40,7 @@ const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
-const APP_VERSION = "0.7.2";
+const APP_VERSION = "0.7.3";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -825,7 +825,7 @@ export default function SettingsPage() {
         key: "credits",
         limit: currentPlanDefinition.limits.unifiedCreditsPerWeek,
         period: "week",
-        title: "Crédit d'extensions",
+        title: "Crédits extensions unifiés",
         used: 0,
       },
       {

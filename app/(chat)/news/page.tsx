@@ -1,6 +1,12 @@
 "use client";
 
-import { Download, Newspaper, SendHorizonal, UploadCloud } from "lucide-react";
+import {
+  Download,
+  Newspaper,
+  Search,
+  SendHorizonal,
+  UploadCloud,
+} from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -11,8 +17,16 @@ import {
 } from "@/lib/usage-limits";
 
 type Result = { link: string; snippet: string; source: string; title: string };
-
 type ReportHistory = { createdAt: string; query: string; report: string };
+
+const HISTORY_STORAGE_KEY = "mai.news.history.v2";
+const INSPIRATION_BUBBLES = [
+  "Startup IA européennes",
+  "Cybersécurité entreprises 2026",
+  "Nouveaux modèles open source",
+  "Robots et santé",
+  "Marché GPU cloud",
+] as const;
 
 export default function NewsPage() {
   const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
@@ -30,15 +44,8 @@ export default function NewsPage() {
 
   const dailyLimit = currentPlanDefinition.limits.newsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
-  const inspirationBubbles = [
-    "Startup IA européennes",
-    "Cybersécurité entreprises 2026",
-    "Nouveaux modèles open source",
-    "Robots et santé",
-    "Marché GPU cloud",
-  ];
   const randomBubbles = useMemo(
-    () => [...inspirationBubbles].sort(() => Math.random() - 0.5).slice(0, 3),
+    () => [...INSPIRATION_BUBBLES].sort(() => Math.random() - 0.5).slice(0, 3),
     []
   );
 
@@ -48,7 +55,28 @@ export default function NewsPage() {
     }
 
     setSearchesToday(getUsageCount("news", "day"));
+
+    const rawHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (rawHistory) {
+      try {
+        const parsed = JSON.parse(rawHistory) as ReportHistory[];
+        setHistory(Array.isArray(parsed) ? parsed.slice(0, 10) : []);
+      } catch {
+        localStorage.removeItem(HISTORY_STORAGE_KEY);
+      }
+    }
   }, [isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    localStorage.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify(history.slice(0, 10))
+    );
+  }, [history, isHydrated]);
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -61,12 +89,13 @@ export default function NewsPage() {
 
   const handleSearch = async () => {
     if (!query.trim()) {
+      setQuotaMessage("Ajoutez une requête avant de lancer la recherche.");
       return;
     }
 
     if (!canConsumeUsage("news", "day", dailyLimit)) {
       setQuotaMessage(
-        `Quota mAINews atteint (${dailyLimit}/jour). Passez au forfait supérieur ou réessayez demain.`
+        `Quota Actualités atteint (${dailyLimit}/jour). Passez au forfait supérieur ou réessayez demain.`
       );
       return;
     }
@@ -99,6 +128,8 @@ export default function NewsPage() {
           ...prev,
         ]);
       }
+    } catch {
+      setReport("Impossible de contacter le service Actualités. Réessayez.");
     } finally {
       setIsLoading(false);
     }
@@ -111,9 +142,15 @@ export default function NewsPage() {
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-5 overflow-y-auto p-6 md:p-10">
-      <div className="flex items-center gap-3">
+      <div className="liquid-glass flex items-center gap-3 rounded-2xl p-4">
         <Newspaper className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Actualités (mAINews)</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Actualités</h1>
+          <p className="text-xs text-muted-foreground">
+            Veille assistée IA avec contexte importé, rapport exportable et
+            historique persistant.
+          </p>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {randomBubbles.map((bubble) => (
@@ -128,9 +165,9 @@ export default function NewsPage() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+      <div className="liquid-glass rounded-2xl p-4">
         <p className="mb-3 text-xs text-muted-foreground">
-          Quota mAINews : {searchesToday}/{dailyLimit} recherches
+          Quota Actualités : {searchesToday}/{dailyLimit} recherches
           aujourd&apos;hui ({remainingSearches} restante
           {remainingSearches > 1 ? "s" : ""}).
         </p>
@@ -145,6 +182,7 @@ export default function NewsPage() {
             disabled={isLoading || !isHydrated || remainingSearches <= 0}
             onClick={handleSearch}
           >
+            <Search className="mr-1 size-4" />
             {isLoading ? "Recherche..." : "Rechercher"}
           </Button>
           <select
@@ -173,7 +211,7 @@ export default function NewsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+        <div className="liquid-glass rounded-2xl p-4">
           <h2 className="mb-2 font-semibold">Résultats Web (mSearch)</h2>
           <div className="space-y-3 text-sm">
             {results.map((item) => (
@@ -196,11 +234,12 @@ export default function NewsPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+        <div className="liquid-glass rounded-2xl p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Rapport de synthèse</h2>
             <div className="flex gap-2">
               <Button
+                disabled={!report}
                 onClick={() => {
                   const url = URL.createObjectURL(reportAsBlob);
                   const a = document.createElement("a");
@@ -215,7 +254,7 @@ export default function NewsPage() {
                 <Download className="mr-1 size-4" />
                 Télécharger
               </Button>
-              <Button size="sm" variant="outline">
+              <Button disabled={!report} size="sm" variant="outline">
                 <SendHorizonal className="mr-1 size-4" />
                 Envoyer
               </Button>
@@ -227,19 +266,24 @@ export default function NewsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
+      <div className="liquid-glass rounded-2xl p-4">
         <h3 className="mb-2 font-semibold">Historique des rapports</h3>
         <div className="space-y-2 text-sm">
-          {history.map((item, index) => (
-            <div
-              className="rounded-lg border border-border/50 p-3"
-              key={`${item.createdAt}-${index}`}
+          {history.map((item) => (
+            <button
+              className="w-full rounded-lg border border-border/50 p-3 text-left hover:bg-background/45"
+              key={`${item.createdAt}-${item.query}`}
+              onClick={() => {
+                setQuery(item.query);
+                setReport(item.report);
+              }}
+              type="button"
             >
               <p className="font-medium">{item.query}</p>
               <p className="text-xs text-muted-foreground">
-                {new Date(item.createdAt).toLocaleString()}
+                {new Date(item.createdAt).toLocaleString("fr-FR")}
               </p>
-            </div>
+            </button>
           ))}
           {history.length === 0 && (
             <p className="text-muted-foreground">

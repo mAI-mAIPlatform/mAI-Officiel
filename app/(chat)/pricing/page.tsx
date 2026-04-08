@@ -59,7 +59,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "75 crédits unifiés / semaine",
     "Capacité maximale sur tous les modules mAI",
     "Priorité sur les flux intensifs",
-    "Quotas très élevés pour mAINews & mAIHealth",
+    "Crédits extensions unifiés majorés pour tous les modules",
     "Conçu pour usage professionnel continu",
   ],
 };
@@ -139,7 +139,7 @@ export default function PricingPage() {
           <BadgeCheck className="size-7 text-primary" />
           <h1 className="text-3xl font-bold">Comparer les forfaits mAI</h1>
           <Badge className="rounded-full bg-primary/90 text-white hover:bg-primary/90">
-            v0.7.1
+            v0.7.3
           </Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
