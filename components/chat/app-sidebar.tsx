@@ -1,10 +1,10 @@
 "use client";
 
-import { PenSquareIcon, PuzzleIcon, SearchIcon, TrashIcon } from "lucide-react";
+import { PenSquareIcon, SearchIcon, TrashIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -38,6 +38,18 @@ import {
 } from "../ui/alert-dialog";
 import { BrandStarLogoIcon } from "./icons";
 
+const QUICK_LINKS = [
+  { href: "/", label: "Discussion" },
+  { href: "/news", label: "Actualités" },
+  { href: "/studio", label: "Studio" },
+  { href: "/translation", label: "Traduction" },
+  { href: "/library", label: "Bibliothèque" },
+  { href: "/meals", label: "Repas" },
+  { href: "/Health", label: "Santé" },
+  { href: "/settings", label: "Paramètres" },
+  { href: "/pricing", label: "Tarifs" },
+] as const;
+
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -45,11 +57,34 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
+
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
     }
   };
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        document.getElementById("global-sidebar-search")?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
+
+  const quickLinks = useMemo(() => {
+    if (!normalizedGlobalQuery) {
+      return [];
+    }
+
+    return QUICK_LINKS.filter((item) =>
+      item.label.toLowerCase().includes(normalizedGlobalQuery)
+    );
+  }, [normalizedGlobalQuery]);
 
   const handleDeleteAll = async () => {
     setShowDeleteAllDialog(false);
@@ -100,7 +135,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   </Link>
                 </SidebarMenuButton>
                 <label
-                  className="flex h-9 flex-1 items-center gap-1.5 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/35 px-2.5 backdrop-blur-xl group-data-[collapsible=icon]:hidden"
+                  className="liquid-panel flex h-9 flex-1 items-center gap-1.5 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/35 px-2.5 backdrop-blur-xl group-data-[collapsible=icon]:hidden"
                   htmlFor="global-sidebar-search"
                 >
                   <SearchIcon className="size-3.5 text-sidebar-foreground/60" />
@@ -111,7 +146,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     onChange={(event) =>
                       setGlobalSearchQuery(event.target.value)
                     }
-                    placeholder="Recherche globale..."
+                    placeholder="Recherche globale… (Ctrl/Cmd+K)"
                     type="search"
                     value={globalSearchQuery}
                   />
@@ -137,38 +172,30 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <span className="font-medium">Nouvelle discussion</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-8 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground"
-                    tooltip="Extensions"
-                  >
-                    <Link href="/extensions" onClick={closeMobileSidebar}>
-                      <PuzzleIcon className="size-4" />
-                      <span className="font-medium">Extensions</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+
+                {quickLinks.map((item) => (
+                  <SidebarMenuItem key={`quick-${item.href}`}>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-8 rounded-lg border border-dashed border-sidebar-border/70 text-[12px] text-sidebar-foreground/75"
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href} onClick={closeMobileSidebar}>
+                        <SearchIcon className="size-3.5" />
+                        <span>Aller vers {item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
 
                 {normalizedGlobalQuery.length > 0 &&
-                  [{ href: "/extensions", label: "Extensions" }]
-                    .filter((item) =>
-                      item.label.toLowerCase().includes(normalizedGlobalQuery)
-                    )
-                    .map((item) => (
-                      <SidebarMenuItem key={`quick-${item.href}`}>
-                        <SidebarMenuButton
-                          asChild
-                          className="h-8 rounded-lg border border-dashed border-sidebar-border/70 text-[12px] text-sidebar-foreground/75"
-                          tooltip={item.label}
-                        >
-                          <Link href={item.href} onClick={closeMobileSidebar}>
-                            <SearchIcon className="size-3.5" />
-                            <span>Aller vers {item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                  quickLinks.length === 0 && (
+                    <SidebarMenuItem>
+                      <div className="px-2 py-1 text-[11px] text-sidebar-foreground/60">
+                        Aucun module trouvé.
+                      </div>
+                    </SidebarMenuItem>
+                  )}
 
                 {user && (
                   <SidebarMenuItem>

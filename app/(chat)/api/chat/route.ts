@@ -94,20 +94,11 @@ export async function POST(request: Request) {
       return new ChatbotError("unauthorized:chat").toResponse();
     }
 
-    let chatModel = selectedChatModel;
-    let customAgent: any = null;
-
-    if (selectedChatModel.startsWith("agent-")) {
-      const agentId = selectedChatModel.replace("agent-", "");
-      const { getAgentById } = await import("@/lib/db/queries");
-      customAgent = await getAgentById(agentId);
-      // Fallback model for agents
-      chatModel = DEFAULT_CHAT_MODEL;
-    } else {
-      chatModel = allowedModelIds.has(selectedChatModel)
-        ? selectedChatModel
-        : DEFAULT_CHAT_MODEL;
-    }
+    const chatModel =
+      selectedChatModel.startsWith("agent-") ||
+      !allowedModelIds.has(selectedChatModel)
+        ? DEFAULT_CHAT_MODEL
+        : selectedChatModel;
 
     await checkIpRateLimit(ipAddress(request));
 
@@ -328,8 +319,6 @@ export async function POST(request: Request) {
           system: systemPrompt({
             requestHints,
             supportsTools,
-            agentPrompt: customAgent?.systemPrompt,
-            agentMemory: customAgent?.memory,
             userMemory: persistentMemory,
             isLearningEnabled: contextualActions?.isLearningEnabled,
             reasoningLevel:
