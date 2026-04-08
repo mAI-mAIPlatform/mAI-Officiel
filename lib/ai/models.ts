@@ -32,7 +32,7 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5-nano",
     name: "GPT-5 Nano",
     provider: "openai",
-    description: "Ultra économique pour les tâches rapides à grand volume.",
+    description: "Léger et direct",
   },
   {
     id: "openai/gpt-oss-20b",
@@ -52,64 +52,64 @@ export const chatModels: ChatModel[] = [
     id: "kwaipilot/kat-coder-pro-v1",
     name: "KAT Coder Pro v1",
     provider: "kwaipilot",
-    description: "Modèle code à très bas coût d'entrée.",
+    description: "Modèle de codage à très bas coût d'entrée.",
   },
   {
     id: "openrouter/meta-llama/llama-3.2-3b-instruct:free",
-    name: "OpenRouter · Llama 3.2 3B (Free)",
+    name: "Llama 3.2 3B (Free)",
     provider: "openrouter",
     description:
       "Gratuit via OpenRouter, idéal pour prototypage ultra low-cost.",
   },
   {
     id: "openrouter/mistralai/mistral-small-3.2-24b-instruct:free",
-    name: "OpenRouter · Mistral Small 3.2 (Free)",
+    name: "Mistral Small 3.2 (Free)",
     provider: "openrouter",
     description:
       "Option gratuite polyvalente, bonne qualité/coût côté OpenRouter.",
   },
   {
     id: "openrouter/qwen/qwen-2.5-7b-instruct",
-    name: "OpenRouter · Qwen 2.5 7B",
+    name: "Qwen 2.5 7B",
     provider: "openrouter",
     description: "Très abordable pour chat généraliste via OpenRouter.",
   },
   {
     id: "ollama/qwen2.5:3b",
-    name: "Ollama · Qwen2.5 3B",
+    name: "Qwen2.5 3B",
     provider: "ollama",
     description: "Modèle local très léger, coût quasi nul hors machine.",
   },
   {
     id: "ollama/llama3.2:3b",
-    name: "Ollama · Llama 3.2 3B",
+    name: "Llama 3.2 3B",
     provider: "ollama",
     description: "Local compact pour réponses rapides sans coût API.",
   },
   {
     id: "ollama/phi3.5:3.8b",
-    name: "Ollama · Phi 3.5 3.8B",
+    name: "Phi 3.5 3.8B",
     provider: "ollama",
     description:
       "Alternative locale économique pour tâches techniques légères.",
   },
   {
     id: "sambanova/meta-llama-3.1-8b-instruct",
-    name: "SambaNova · Llama 3.1 8B Instruct",
+    name: "Llama 3.1 8B Instruct",
     provider: "sambanova",
     description:
       "Très bon coût/latence via SambaNova pour assistants et chat rapide.",
   },
   {
     id: "sambanova/qwen2.5-7b-instruct",
-    name: "SambaNova · Qwen 2.5 7B Instruct",
+    name: "Qwen 2.5 7B Instruct",
     provider: "sambanova",
     description:
       "Modèle Qwen économique avec excellente réactivité sur tâches courantes.",
   },
   {
     id: "sambanova/deepseek-r1-distill-llama-70b",
-    name: "SambaNova · DeepSeek R1 Distill Llama 70B",
+    name: "m-5.8-nano",
     provider: "sambanova",
     description:
       "Très performant en raisonnement, avec coût maîtrisé côté SambaNova.",
@@ -118,61 +118,61 @@ export const chatModels: ChatModel[] = [
   // Cloudflare Workers AI: sélection limitée aux modèles annoncés <= 0,5$/M tokens.
   {
     id: "cloudflare/@cf/meta/llama-3.2-1b-instruct",
-    name: "Cloudflare · Llama 3.2 1B Instruct",
+    name: "Llama 3.2 1B Instruct",
     provider: "cloudflare-workers-ai",
     description:
       "Ultra low-cost (≤ 0,5$/M), idéal pour grands volumes et réponses courtes.",
   },
   {
     id: "cloudflare/@cf/meta/llama-3.2-3b-instruct",
-    name: "Cloudflare · Llama 3.2 3B Instruct",
+    name: "Llama 3.2 3B Instruct",
     provider: "cloudflare-workers-ai",
     description:
       "Très économique (≤ 0,5$/M), bon compromis qualité/prix en production.",
   },
   {
     id: "cloudflare/@cf/meta/llama-3.1-8b-instruct-fp8-fast",
-    name: "Cloudflare · Llama 3.1 8B FP8 Fast",
+    name: "Llama 3.1 8B FP8 Fast",
     provider: "cloudflare-workers-ai",
     description:
       "Rapide et abordable (≤ 0,5$/M), pertinent pour assistants réactifs.",
   },
   {
     id: "cloudflare/@cf/meta/llama-3.1-8b-instruct-fp8",
-    name: "Cloudflare · Llama 3.1 8B FP8",
+    name: "Llama 3.1 8B FP8",
     provider: "cloudflare-workers-ai",
     description: "Version 8B coût maîtrisé (≤ 0,5$/M) pour charge soutenue.",
   },
   {
     id: "cloudflare/@cf/meta/llama-3.1-8b-instruct-awq",
-    name: "Cloudflare · Llama 3.1 8B AWQ",
+    name: "Llama 3.1 8B AWQ",
     provider: "cloudflare-workers-ai",
     description:
       "Quantized AWQ économique (≤ 0,5$/M) avec latence généralement faible.",
   },
   {
     id: "cloudflare/@cf/meta/llama-3-8b-instruct-awq",
-    name: "Cloudflare · Llama 3 8B AWQ",
+    name: "Llama 3 8B AWQ",
     provider: "cloudflare-workers-ai",
     description: "Option 8B AWQ très abordable (≤ 0,5$/M) pour chat général.",
   },
   {
     id: "cloudflare/@cf/mistral/mistral-7b-instruct-v0.1",
-    name: "Cloudflare · Mistral 7B Instruct",
+    name: "Mistral 7B Instruct",
     provider: "cloudflare-workers-ai",
     description:
       "Mistral 7B à bas prix (≤ 0,5$/M), utile pour tâches texte polyvalentes.",
   },
   {
     id: "cloudflare/@cf/zai-org/glm-4.7-flash",
-    name: "Cloudflare · GLM 4.7 Flash",
+    name: "GLM 4.7 Flash",
     provider: "cloudflare-workers-ai",
     description:
       "Modèle flash économique (≤ 0,5$/M), orienté vitesse et coût réduit.",
   },
   {
     id: "cloudflare/@cf/google/gemma-4-26b-a4b-it",
-    name: "Cloudflare · Gemma 4 26B A4B",
+    name: "Gemma 4 26B A4B",
     provider: "cloudflare-workers-ai",
     description:
       "Grand modèle restant dans le budget (≤ 0,5$/M) pour usages exigeants.",
@@ -180,21 +180,21 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct",
-    name: "Fireworks · Llama 3.1 8B Instruct",
+    name: "Llama 3.1 8B Instruct",
     provider: "fireworks-ai",
     description:
       "Modèle Fireworks économique pour assistants et chat à faible coût.",
   },
   {
     id: "fireworks/accounts/fireworks/models/qwen2p5-7b-instruct",
-    name: "Fireworks · Qwen 2.5 7B Instruct",
+    name: "Qwen 2.5 7B Instruct",
     provider: "fireworks-ai",
     description:
       "Très bon compromis latence/prix pour usages généralistes Fireworks.",
   },
   {
     id: "fireworks/accounts/fireworks/models/deepseek-v3",
-    name: "Fireworks · DeepSeek V3",
+    name: "DeepSeek V3",
     provider: "fireworks-ai",
     description:
       "Option à coût maîtrisé pour tâches plus complexes côté Fireworks.",
@@ -239,7 +239,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "google/gemini-3.1-flash-lite-preview",
-    name: "Gemini 3.1 Flash Lite Preview",
+    name: "m-5.7-nano",
     provider: "google",
     description: "Version preview Lite demandée pour latence et coût réduits.",
   },
@@ -251,7 +251,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "xai/grok-4.1-fast-reasoning",
-    name: "Grok 4.1 Fast (Reasoning)",
+    name: "m-5.8-mini",
     provider: "xai",
     description: "Version Grok fast avec raisonnement activé.",
     reasoningEffort: "medium",
@@ -270,7 +270,7 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "openai/gpt-5.4-nano",
-    name: "GPT-5.4 Nano",
+    name: "m-5.7-mini",
     provider: "openai",
     description: "Très bon coût d'entrée pour automatisations fréquentes.",
   },
@@ -313,14 +313,14 @@ export const chatModels: ChatModel[] = [
   },
   {
     id: "google/gemini-3-pro-preview",
-    name: "Gemini 3 Pro Preview",
+    name: "Gemini 3 Pro",
     provider: "google",
     description: "Génération Gemini 3 Pro en preview pour tests avancés.",
     reasoningEffort: "medium",
   },
   {
     id: "google/gemini-3.1-pro-preview",
-    name: "Gemini 3.1 Pro Preview",
+    name: "m-5.8",
     provider: "google",
     description: "Variante Gemini 3.1 Pro preview pour cas complexes.",
     reasoningEffort: "high",
