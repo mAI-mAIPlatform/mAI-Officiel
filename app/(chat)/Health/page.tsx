@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Stethoscope,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -36,6 +37,7 @@ const riskKeywords = [
 ];
 
 export default function HealthPage() {
+  const searchParams = useSearchParams();
   const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
   const [documentText, setDocumentText] = useState("");
   const [hasRequestedAnalysis, setHasRequestedAnalysis] = useState(false);
@@ -45,6 +47,17 @@ export default function HealthPage() {
   const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
     defaultExtensionAiModel
   );
+
+  useEffect(() => {
+    const modelFromRoute = searchParams.get("model");
+    if (!modelFromRoute) {
+      return;
+    }
+
+    if (extensionAiModels.includes(modelFromRoute as ExtensionAiModel)) {
+      setSelectedModel(modelFromRoute as ExtensionAiModel);
+    }
+  }, [searchParams]);
   const healthBubbles = useMemo(
     () =>
       [

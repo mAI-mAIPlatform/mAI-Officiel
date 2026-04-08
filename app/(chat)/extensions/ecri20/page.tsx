@@ -13,6 +13,7 @@ import {
   Trash2,
   Underline,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildAiCopilotNote,
@@ -78,6 +79,7 @@ function applyWrap(
 }
 
 export default function Ecri20Page() {
+  const searchParams = useSearchParams();
   const [tone, setTone] = useState<Tone>("Professionnel");
   const [format, setFormat] = useState<Format>("Post LinkedIn");
   const [prompt, setPrompt] = useState("");
@@ -91,6 +93,17 @@ export default function Ecri20Page() {
   const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
     defaultExtensionAiModel
   );
+
+  useEffect(() => {
+    const modelFromRoute = searchParams.get("model");
+    if (!modelFromRoute) {
+      return;
+    }
+
+    if (extensionAiModels.includes(modelFromRoute as ExtensionAiModel)) {
+      setSelectedModel(modelFromRoute as ExtensionAiModel);
+    }
+  }, [searchParams]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 

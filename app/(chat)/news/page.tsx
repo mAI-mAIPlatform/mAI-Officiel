@@ -7,6 +7,7 @@ import {
   SendHorizonal,
   UploadCloud,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -35,6 +36,7 @@ const INSPIRATION_BUBBLES = [
 ] as const;
 
 export default function NewsPage() {
+  const searchParams = useSearchParams();
   const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
@@ -50,6 +52,17 @@ export default function NewsPage() {
   const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
     defaultExtensionAiModel
   );
+
+  useEffect(() => {
+    const modelFromRoute = searchParams.get("model");
+    if (!modelFromRoute) {
+      return;
+    }
+
+    if (extensionAiModels.includes(modelFromRoute as ExtensionAiModel)) {
+      setSelectedModel(modelFromRoute as ExtensionAiModel);
+    }
+  }, [searchParams]);
 
   const dailyLimit = currentPlanDefinition.limits.newsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
