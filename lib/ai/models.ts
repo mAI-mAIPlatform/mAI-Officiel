@@ -64,7 +64,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "openrouter/mistralai/mistral-small-3.2-24b-instruct:free",
     name: "m-5.7",
-    provider: "openrouter",
+    provider: "mAI",
     description:
       "Option gratuite polyvalente, bonne qualité/coût.",
   },
@@ -110,7 +110,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "sambanova/deepseek-r1-distill-llama-70b",
     name: "m-5.8-nano",
-    provider: "sambanova",
+    provider: "mAI",
     description:
       "Très performant en raisonnement, avec coût maîtrisé côté SambaNova.",
     reasoningEffort: "medium",
@@ -240,7 +240,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "google/gemini-3.1-flash-lite-preview",
     name: "m-5.7-nano",
-    provider: "google",
+    provider: "mAI",
     description: "Version preview Lite demandée pour latence et coût réduits.",
   },
   {
@@ -252,7 +252,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "xai/grok-4.1-fast-reasoning",
     name: "m-5.8-mini",
-    provider: "xai",
+    provider: "mAI",
     description: "Version Grok fast avec raisonnement activé.",
     reasoningEffort: "medium",
   },
@@ -271,7 +271,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "openai/gpt-5.4-nano",
     name: "m-5.7-mini",
-    provider: "openai",
+    provider: "mAI",
     description: "Très bon coût d'entrée pour automatisations fréquentes.",
   },
   {
@@ -321,7 +321,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "google/gemini-3.1-pro-preview",
     name: "m-5.8",
-    provider: "google",
+    provider: "mAI",
     description: "Variante Gemini 3.1 Pro preview pour cas complexes.",
     reasoningEffort: "high",
   },
