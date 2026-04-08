@@ -35,6 +35,7 @@ export default function HealthPage() {
   const [hasRequestedAnalysis, setHasRequestedAnalysis] = useState(false);
   const [requestsThisMonth, setRequestsThisMonth] = useState(0);
   const [quotaMessage, setQuotaMessage] = useState<string | null>(null);
+  const [aiPlan, setAiPlan] = useState<string[]>([]);
   const healthBubbles = useMemo(
     () =>
       [
@@ -97,11 +98,25 @@ export default function HealthPage() {
     setRequestsThisMonth(usage.count);
     setHasRequestedAnalysis(true);
     setQuotaMessage(null);
+
+    const actions = [
+      "Vérifier que l'identité patient est anonymisée.",
+      "Confirmer les doses et fréquences avec le référentiel médical local.",
+      "Documenter les points d'incertitude pour le praticien.",
+    ];
+
+    if (analysis.matchedKeywords.length > 0) {
+      actions.unshift(
+        "Escalader la revue clinique rapidement en raison des signaux détectés."
+      );
+    }
+
+    setAiPlan(actions);
   };
 
   return (
     <div className="liquid-glass flex h-full w-full max-w-6xl flex-col gap-6 overflow-y-auto p-4 md:p-8">
-      <header className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <header className="liquid-glass rounded-2xl p-5">
         <div className="flex items-center gap-3">
           <HeartPulse className="size-8 text-primary" />
           <div>
@@ -112,8 +127,8 @@ export default function HealthPage() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Module de santé numérique pour l&apos;analyse préliminaire de
-              documents médicaux.
+              Pré-analyse clinique assistée IA, orientée sécurité et
+              collaboration médecin-patient.
             </p>
           </div>
         </div>
@@ -126,6 +141,7 @@ export default function HealthPage() {
           </p>
         </div>
       </header>
+
       <div className="flex flex-wrap gap-2">
         {healthBubbles.map((bubble) => (
           <button
@@ -145,7 +161,7 @@ export default function HealthPage() {
       </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <article className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+        <article className="liquid-glass rounded-2xl p-5">
           <p className="mb-3 flex items-center gap-2 text-base font-semibold">
             <FileText className="size-4" /> Document clinique
           </p>
@@ -164,7 +180,7 @@ export default function HealthPage() {
           </p>
         </article>
 
-        <article className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+        <article className="liquid-glass rounded-2xl p-5">
           <p className="mb-3 flex items-center gap-2 text-base font-semibold">
             <Stethoscope className="size-4" /> Pré-analyse IA
           </p>
@@ -212,12 +228,15 @@ export default function HealthPage() {
             <div className="rounded-lg border border-border/50 bg-background/65 p-3 text-xs text-muted-foreground">
               <p className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
                 <Pill className="size-3.5" />
-                Conseils rapides avant validation médicale
+                Plan d&apos;actions recommandé
               </p>
               <ul className="list-disc space-y-1 pl-4">
-                <li>Vérifiez les allergies et antécédents mentionnés.</li>
-                <li>Contrôlez les doses, fréquences et unités.</li>
-                <li>Confirmez les résultats avec un professionnel de santé.</li>
+                {(hasRequestedAnalysis
+                  ? aiPlan
+                  : ["Analyse en attente..."]
+                ).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -228,8 +247,7 @@ export default function HealthPage() {
             </p>
             <p className="mt-1">
               En cas de contenu sensible (violence, abus, mise en danger),
-              utilisez le bouton de signalement dans les messages pour renforcer
-              la modération.
+              utilisez le bouton de signalement pour renforcer la modération.
             </p>
           </div>
 
