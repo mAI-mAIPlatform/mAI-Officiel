@@ -1,6 +1,14 @@
 "use client";
 
-import { PenSquareIcon, SearchIcon, TrashIcon } from "lucide-react";
+import {
+  BrainCircuit,
+  Code2,
+  FolderKanban,
+  Newspaper,
+  PenSquareIcon,
+  SearchIcon,
+  TrashIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
@@ -45,7 +53,6 @@ const QUICK_LINKS = [
   { href: "/translation", label: "Traduction" },
   { href: "/library", label: "Bibliothèque" },
   { href: "/projects", label: "Projets" },
-  { href: "/memory", label: "Mémoire" },
   { href: "/coder", label: "Coder" },
   { href: "/meals", label: "Repas" },
   { href: "/Health", label: "Santé" },
@@ -175,6 +182,32 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <span className="font-medium">Nouvelle discussion</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                {[
+                  { href: "/projects", icon: FolderKanban, label: "Projets" },
+                  { href: "/coder", icon: Code2, label: "Coder" },
+                  {
+                    href: "/settings#personnalisation",
+                    icon: BrainCircuit,
+                    label: "Mémoire",
+                  },
+                  { href: "/news", icon: Newspaper, label: "Actualités" },
+                ].map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] transition-colors hover:bg-sidebar-accent/45"
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href} onClick={closeMobileSidebar}>
+                        <item.icon className="size-4 text-black dark:text-black" />
+                        <span className="text-black dark:text-black">
+                          {item.label}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
 
                 {quickLinks.map((item) => (
                   <SidebarMenuItem key={`quick-${item.href}`}>

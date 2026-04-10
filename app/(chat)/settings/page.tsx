@@ -2,6 +2,7 @@
 
 import {
   Bell,
+  Brain,
   CalendarClock,
   Camera,
   Clock3,
@@ -9,7 +10,6 @@ import {
   FileText,
   Gauge,
   KeyRound,
-  ListPlus,
   Lock,
   Mail,
   MessageCircle,
@@ -27,11 +27,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
@@ -101,8 +102,6 @@ type ProfileSettingsShape = {
   projectTitle: string;
   stylisticDirectives: string;
 };
-
-type MemorySortMode = "manual" | "alpha";
 
 type ExtensionKey = "coder" | "news" | "studio";
 
@@ -255,6 +254,12 @@ function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
 export default function SettingsPage() {
   const { data } = useSession();
   const {
+    hydrated: workspaceHydrated,
+    setState: setWorkspaceState,
+    state: workspaceState,
+    syncRemote,
+  } = useWorkspace(data?.user?.type);
+  const {
     activateByCode,
     currentPlanDefinition,
     isActivating,
@@ -302,9 +307,10 @@ export default function SettingsPage() {
     null
   );
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [memorySortMode, setMemorySortMode] =
-    useState<MemorySortMode>("manual");
-  const manualMemoryOrderRef = useRef<string[]>([]);
+  const [memoryScope, setMemoryScope] = useState<"global" | "project">(
+    "global"
+  );
+  const [memoryProjectId, setMemoryProjectId] = useState("");
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
   const [notifications, setNotifications] = useState({
@@ -777,28 +783,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSortSettings = () => {
-    setMemorySortMode((prevMode) => {
-      if (prevMode === "manual") {
-        manualMemoryOrderRef.current = [...aiMemoryEntries];
-        setAiMemoryEntries((prevEntries) =>
-          [...prevEntries].sort((left, right) =>
-            left.localeCompare(right, "fr")
-          )
-        );
-        return "alpha";
-      }
-
-      setAiMemoryEntries(
-        manualMemoryOrderRef.current.length > 0
-          ? manualMemoryOrderRef.current
-          : aiMemoryEntries
-      );
-
-      return "manual";
-    });
-  };
-
   const creditMetrics = useMemo<CreditMetric[]>(() => {
     if (!isHydrated) {
       return [];
@@ -1118,16 +1102,6 @@ export default function SettingsPage() {
             <UserCircle2 className="size-4 text-primary" />
             Personnalisation
           </h2>
-          <Button
-            className="rounded-full"
-            onClick={handleSortSettings}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <ListPlus className="mr-1 size-4" />
-            Trier les paramètres
-          </Button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
@@ -1304,27 +1278,131 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <p className="text-xs text-muted-foreground">Mémoire IA</p>
-            <div className="rounded-xl border border-border/60 bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground">
-                {aiMemoryEntries.length}/{maxMemoryEntries} entrée
-                {maxMemoryEntries > 1 ? "s" : ""} utilisée
-                {maxMemoryEntries > 1 ? "s" : ""}. 500 caractères max par
-                entrée.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Brain className="size-3.5" />
+              Mémoire IA (remplace l'ancienne mémoire de personnalisation)
+            </p>
+            <div className="liquid-glass rounded-xl border border-border/60 bg-background/50 p-3">
+              <div className="mb-2 flex flex-wrap gap-2">
                 <Button
-                  onClick={() => setIsMemoryModalOpen(true)}
+                  onClick={() => setMemoryScope("global")}
                   size="sm"
                   type="button"
-                  variant="outline"
+                  variant={memoryScope === "global" ? "default" : "outline"}
                 >
-                  <ListPlus className="mr-1 size-4" />
-                  Ouvrir la mémoire
+                  Globale
+                </Button>
+                <Button
+                  onClick={() => setMemoryScope("project")}
+                  size="sm"
+                  type="button"
+                  variant={memoryScope === "project" ? "default" : "outline"}
+                >
+                  Par projet
                 </Button>
                 <Badge variant="secondary">
-                  Tri : {memorySortMode === "alpha" ? "A-Z" : "Manuel"}
+                  {workspaceState.memories.length}/{maxMemoryEntries}
                 </Badge>
+              </div>
+              {memoryScope === "project" ? (
+                <select
+                  className="mb-2 h-10 w-full rounded-md border border-border/60 bg-background/70 px-3 text-sm"
+                  onChange={(event) => setMemoryProjectId(event.target.value)}
+                  value={memoryProjectId}
+                >
+                  <option value="">Sélectionner un projet</option>
+                  {workspaceState.projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  onChange={(event) => setMemoryDraft(event.target.value)}
+                  placeholder='Ex: "Mémorise que je préfère des plans détaillés."'
+                  value={memoryDraft}
+                />
+                <Button
+                  disabled={
+                    !workspaceHydrated ||
+                    memoryDraft.trim().length === 0 ||
+                    workspaceState.memories.length >= maxMemoryEntries
+                  }
+                  onClick={async () => {
+                    const entry = {
+                      id: crypto.randomUUID(),
+                      content: memoryDraft
+                        .trim()
+                        .slice(0, MAX_MEMORY_ENTRY_LENGTH),
+                      createdAt: new Date().toISOString(),
+                      ignored: false,
+                      projectId:
+                        memoryScope === "project"
+                          ? memoryProjectId || null
+                          : null,
+                      source: "manual" as const,
+                    };
+                    setWorkspaceState({
+                      ...workspaceState,
+                      memories: [entry, ...workspaceState.memories],
+                    });
+                    await syncRemote("POST", {
+                      payload: entry,
+                      type: "memory",
+                    });
+                    setMemoryDraft("");
+                  }}
+                  size="sm"
+                  type="button"
+                >
+                  Ajouter
+                </Button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {workspaceState.memories
+                  .filter((entry) =>
+                    memoryScope === "global"
+                      ? !entry.projectId
+                      : Boolean(entry.projectId)
+                  )
+                  .slice(0, maxMemoryEntries)
+                  .map((entry) => (
+                    <div
+                      className="rounded-xl border border-border/50 bg-background/70 p-2"
+                      key={entry.id}
+                    >
+                      <p className="text-sm">{entry.content}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary">{entry.source}</Badge>
+                        <span>
+                          {new Date(entry.createdAt).toLocaleDateString(
+                            "fr-FR"
+                          )}
+                        </span>
+                        <Button
+                          onClick={async () => {
+                            setWorkspaceState({
+                              ...workspaceState,
+                              memories: workspaceState.memories.filter(
+                                (memory) => memory.id !== entry.id
+                              ),
+                            });
+                            await syncRemote("DELETE", {
+                              id: entry.id,
+                              type: "memory",
+                            });
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
