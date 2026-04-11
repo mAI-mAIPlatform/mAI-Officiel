@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ProjectTaskManager } from "./project-task-manager";
 
 type ProjectWorkspaceProps = {
   importableChats: Array<{ id: string; title: string }>;
@@ -135,6 +136,10 @@ export function ProjectWorkspace({
           Démarrer une discussion projet
         </Link>
       </article>
+
+      <div className="lg:col-span-2">
+        <ProjectTaskManager projectId={projectId} />
+      </div>
     </section>
   );
 }

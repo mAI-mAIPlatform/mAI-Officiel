@@ -190,11 +190,31 @@ export const task = pgTable("Task", {
   priority: varchar("priority", { enum: ["low", "medium", "high"] })
     .notNull()
     .default("medium"),
+  repeatType: varchar("repeatType", {
+    enum: ["none", "daily", "weekly", "monthly", "custom"],
+  })
+    .notNull()
+    .default("none"),
+  repeatInterval: integer("repeatInterval"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type Task = InferSelectModel<typeof task>;
+
+export const subtask = pgTable("Subtask", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  taskId: uuid("taskId")
+    .notNull()
+    .references(() => task.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  status: varchar("status", { enum: ["todo", "done"] })
+    .notNull()
+    .default("todo"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type Subtask = InferSelectModel<typeof subtask>;
 
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),

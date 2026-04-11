@@ -28,6 +28,9 @@ export default function TranslationPage() {
   const [targetLanguage, setTargetLanguage] = useState("en");
   const [translatedText, setTranslatedText] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
+  const [aiLexicalAnalysis, setAiLexicalAnalysis] = useState("");
+  const [isGeneratingLexicalAnalysis, setIsGeneratingLexicalAnalysis] =
+    useState(false);
 
   useEffect(() => {
     if (!sourceText.trim()) {
@@ -55,7 +58,8 @@ export default function TranslationPage() {
   }, [sourceLanguage, sourceText, targetLanguage]);
 
   const lexicalAnalysis = useMemo(() => {
-    const clean = sourceText
+    const textToAnalyze = translatedText.trim() || sourceText.trim();
+    const clean = textToAnalyze
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\s]/gu, " ")
       .trim();
@@ -64,7 +68,8 @@ export default function TranslationPage() {
       return {
         keyWord: "En attente de sélection...",
         totalWords: 0,
-        uniqueWords: 0,
+        totalCharactersWithSpaces: 0,
+        totalCharactersWithoutSpaces: 0,
       };
     }
 
@@ -81,9 +86,40 @@ export default function TranslationPage() {
     return {
       keyWord: keyWord ?? words[0],
       totalWords: words.length,
-      uniqueWords: frequency.size,
+      totalCharactersWithSpaces: textToAnalyze.length,
+      totalCharactersWithoutSpaces: textToAnalyze.replace(/\s/g, "").length,
     };
-  }, [sourceText]);
+  }, [sourceText, translatedText]);
+
+  const handleGenerateLexicalAnalysis = async () => {
+    if (!translatedText.trim()) {
+      setAiLexicalAnalysis("Traduisez d'abord un texte pour lancer l'analyse IA.");
+      return;
+    }
+
+    setIsGeneratingLexicalAnalysis(true);
+
+    try {
+      const response = await fetch("/api/translation/lexical-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: translatedText }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Analysis failed");
+      }
+
+      const payload = (await response.json()) as { analysis?: string };
+      setAiLexicalAnalysis(payload.analysis ?? "Analyse indisponible.");
+    } catch {
+      setAiLexicalAnalysis(
+        "Impossible de générer l'analyse IA pour le moment."
+      );
+    } finally {
+      setIsGeneratingLexicalAnalysis(false);
+    }
+  };
 
   const synonyms = useMemo(() => {
     const list = synonymsMap[lexicalAnalysis.keyWord] ?? [];
@@ -166,7 +202,33 @@ export default function TranslationPage() {
           <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm text-muted-foreground">
             <p>Mot-clé détecté : {lexicalAnalysis.keyWord}</p>
             <p>Total mots : {lexicalAnalysis.totalWords}</p>
-            <p>Mots uniques : {lexicalAnalysis.uniqueWords}</p>
+            <p>
+              Caractères (espaces inclus) :{" "}
+              {lexicalAnalysis.totalCharactersWithSpaces}
+            </p>
+            <p>
+              Caractères (sans espaces) :{" "}
+              {lexicalAnalysis.totalCharactersWithoutSpaces}
+            </p>
+            <div className="mt-3 rounded-lg border border-border/60 bg-background/70 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium text-foreground">
+                  Analyse IA (GPT-5.4 Nano)
+                </p>
+                <Button
+                  className="h-7 rounded-full px-3 text-xs"
+                  disabled={isGeneratingLexicalAnalysis || !translatedText.trim()}
+                  onClick={handleGenerateLexicalAnalysis}
+                  type="button"
+                  variant="outline"
+                >
+                  {isGeneratingLexicalAnalysis ? "Génération..." : "Générer"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {aiLexicalAnalysis || "Cliquez sur Générer pour une analyse courte."}
+              </p>
+            </div>
           </div>
         </div>
 

@@ -4,8 +4,6 @@ import {
   Copy,
   Download,
   Eye,
-  FileImage,
-  FileText,
   Heart,
   Pencil,
   Pin,
@@ -16,6 +14,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -73,10 +72,9 @@ const initialAssets: LibraryAsset[] = [
 
 export default function LibraryPage() {
   const { plan } = useSubscriptionPlan();
+  const router = useRouter();
   const [assets, setAssets] = useState<LibraryAsset[]>(initialAssets);
   const [searchTerm, setSearchTerm] = useState("");
-  const [importSource, setImportSource] =
-    useState<LibraryAssetSource>("device");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
   const [renamingAssetId, setRenamingAssetId] = useState<string | null>(null);
@@ -185,7 +183,7 @@ export default function LibraryPage() {
         id: crypto.randomUUID(),
         name: file.name,
         type: file.type.startsWith("image/") ? "image" : "document",
-        source: importSource,
+        source: "device",
         createdAt: new Date().toISOString(),
         pinned: false,
         favorite: false,
@@ -252,12 +250,32 @@ export default function LibraryPage() {
   };
 
   const handleOpenAsset = (asset: LibraryAsset) => {
+    if (previewAsset?.id === asset.id) {
+      setPreviewAsset(null);
+      return;
+    }
+
+    const pendingKey = "mai.chat.pending-library-attachments";
+    const existingRaw = localStorage.getItem(pendingKey);
+    const existing = existingRaw ? (JSON.parse(existingRaw) as unknown[]) : [];
+    const contentType = asset.type === "image" ? "image/*" : "text/plain";
+
+    localStorage.setItem(
+      pendingKey,
+      JSON.stringify([
+        {
+          url: asset.url || `data:text/plain,${encodeURIComponent(asset.name)}`,
+          name: asset.name,
+          contentType,
+          fromLibrary: true,
+        },
+        ...existing,
+      ])
+    );
+
     setPreviewAsset(asset);
-    const anchor = document.createElement("a");
-    anchor.href =
-      asset.url || `data:text/plain,${encodeURIComponent(asset.name)}`;
-    anchor.download = asset.name;
-    anchor.click();
+    router.push("/");
+    toast.success("Fichier prêt à être utilisé dans le chat.");
   };
 
   return (
@@ -275,16 +293,6 @@ export default function LibraryPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-background/50 p-2 backdrop-blur-xl">
-          <select
-            className="h-9 rounded-xl border border-border/50 bg-background/70 px-3 text-xs"
-            onChange={(event) =>
-              setImportSource(event.target.value as LibraryAssetSource)
-            }
-            value={importSource}
-          >
-            <option value="device">Source : Appareil local</option>
-            <option value="mai-library">Source : Bibliothèque mAI</option>
-          </select>
           <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-3 text-xs hover:bg-muted/40">
             <UploadCloud className="size-4" /> Importer
             <input className="hidden" onChange={handleImport} type="file" />
@@ -337,14 +345,7 @@ export default function LibraryPage() {
               key={asset.id}
             >
               <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {asset.type === "image" ? (
-                    <FileImage className="size-4" />
-                  ) : (
-                    <FileText className="size-4" />
-                  )}
-                  <span>{asset.source === "device" ? "Appareil" : "mAI"}</span>
-                </div>
+                <div />
                 <button
                   className="rounded-md p-1 hover:bg-muted"
                   onClick={() =>
@@ -473,14 +474,24 @@ export default function LibraryPage() {
         <section className="liquid-glass rounded-2xl border border-border/60 bg-card/70 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">Aperçu instantané</h3>
-            <Button
-              onClick={() => handleOpenAsset(previewAsset)}
-              size="sm"
-              variant="outline"
-            >
-              <Download className="mr-1 size-3.5" />
-              Télécharger à nouveau
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => handleOpenAsset(previewAsset)}
+                size="sm"
+                variant="outline"
+              >
+                <Download className="mr-1 size-3.5" />
+                Ajouter au chat
+              </Button>
+              <Button
+                onClick={() => setPreviewAsset(null)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Fermer
+              </Button>
+            </div>
           </div>
           {previewAsset.url ? (
             <Image

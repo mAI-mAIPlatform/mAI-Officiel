@@ -95,7 +95,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   }, [normalizedGlobalQuery]);
 
   const featuredLinks = useMemo(() => {
-    const order = ["mAIs", "Projets", "Traduction"] as const;
+    const order = ["mAIs", "Projets", "Bibliothèque", "Traduction"] as const;
     return order
       .map((label) => QUICK_LINKS.find((item) => item.label === label))
       .filter((item) => item !== undefined);

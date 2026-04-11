@@ -685,6 +685,8 @@ import {
   memoryEntry,
   type Project,
   project,
+  type Subtask,
+  subtask,
   type Task,
   task,
 } from "./schema";
@@ -886,6 +888,16 @@ export async function getTasksByProject(projectId: string): Promise<Task[]> {
   }
 }
 
+export async function getTaskById(id: string): Promise<Task | undefined> {
+  try {
+    const [item] = await db.select().from(task).where(eq(task.id, id));
+    return item;
+  } catch (error) {
+    console.error("Failed to get task by id:", error);
+    throw new Error("Failed to get task");
+  }
+}
+
 export async function updateTask(id: string, data: Partial<Task>) {
   try {
     return await db
@@ -905,6 +917,49 @@ export async function deleteTask(id: string) {
   } catch (error) {
     console.error("Failed to delete task:", error);
     throw new Error("Failed to delete task");
+  }
+}
+
+export async function getSubtasksByTask(taskId: string): Promise<Subtask[]> {
+  try {
+    return await db
+      .select()
+      .from(subtask)
+      .where(eq(subtask.taskId, taskId))
+      .orderBy(asc(subtask.createdAt));
+  } catch (error) {
+    console.error("Failed to get subtasks by task:", error);
+    throw new Error("Failed to get subtasks");
+  }
+}
+
+export async function createSubtask(
+  data: Pick<Subtask, "taskId" | "title"> &
+    Partial<Omit<Subtask, "id" | "taskId" | "title">>
+) {
+  try {
+    return await db.insert(subtask).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create subtask:", error);
+    throw new Error("Failed to create subtask");
+  }
+}
+
+export async function updateSubtask(id: string, data: Partial<Subtask>) {
+  try {
+    return await db.update(subtask).set(data).where(eq(subtask.id, id)).returning();
+  } catch (error) {
+    console.error("Failed to update subtask:", error);
+    throw new Error("Failed to update subtask");
+  }
+}
+
+export async function deleteSubtask(id: string) {
+  try {
+    return await db.delete(subtask).where(eq(subtask.id, id)).returning();
+  } catch (error) {
+    console.error("Failed to delete subtask:", error);
+    throw new Error("Failed to delete subtask");
   }
 }
 
