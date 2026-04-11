@@ -68,6 +68,10 @@ import {
   chatModels,
   DEFAULT_CHAT_MODEL,
 } from "@/lib/ai/models";
+import {
+  parseFileForAi,
+  validateFileBeforeUpload,
+} from "@/lib/file-parser";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn, fetcher } from "@/lib/utils";
 import {
@@ -332,6 +336,8 @@ function PureMultimodalInput({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [extractedFiles, setExtractedFiles] = useState<Array<{ name: string; text: string }>>([]);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
@@ -501,6 +507,12 @@ function PureMultimodalInput({
         : localStorage.getItem("mai.ghost-mode") === "true";
     const persistentMemory = getPersistentMemoryFromLocalStorage();
 
+    const extractedFileContext = extractedFiles
+      .filter((item) => item.text.trim().length > 0)
+      .map((item) => `### Fichier: ${item.name}\n${item.text}`)
+      .join("\n\n")
+      .trim();
+
     sendMessage({
       role: "user",
       parts: [
@@ -512,7 +524,9 @@ function PureMultimodalInput({
         })),
         {
           type: "text",
-          text: input,
+          text: extractedFileContext
+            ? `${input}\n\n[Contexte extrait des fichiers]\n${extractedFileContext}`
+            : input,
         },
       ],
       // @ts-expect-error - appending to experimental body to be picked up by useChat
@@ -531,6 +545,7 @@ function PureMultimodalInput({
     });
 
     setAttachments([]);
+    setExtractedFiles([]);
     setLocalStorageInput("");
     setInput("");
 
@@ -548,6 +563,7 @@ function PureMultimodalInput({
     chatId,
     uploadSource,
     geolocationPos,
+    extractedFiles,
   ]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -580,14 +596,37 @@ function PureMultimodalInput({
     }
   }, []);
 
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
+  const processFiles = useCallback(
+    async (files: File[]) => {
+      const rejectedFiles = files
+        .map((file) => validateFileBeforeUpload(file))
+        .filter((error): error is string => Boolean(error));
 
-      setUploadQueue(files.map((file) => file.name));
+      for (const error of rejectedFiles) {
+        toast.error(error);
+      }
+
+      const acceptedFiles = files.filter(
+        (file) => validateFileBeforeUpload(file) === null
+      );
+
+      if (acceptedFiles.length === 0) {
+        return;
+      }
+
+      setUploadQueue(acceptedFiles.map((file) => file.name));
 
       try {
-        const uploadPromises = files.map((file) => uploadFile(file));
+        const parsedResults = await Promise.all(
+          acceptedFiles.map(async (file) => {
+            const parsed = await parseFileForAi(file);
+            return { name: file.name, text: parsed.extractedText };
+          })
+        );
+
+        setExtractedFiles((current) => [...current, ...parsedResults]);
+
+        const uploadPromises = acceptedFiles.map((file) => uploadFile(file));
         const uploadedAttachments = await Promise.all(uploadPromises);
         const successfullyUploadedAttachments = uploadedAttachments.filter(
           (attachment) => attachment !== undefined
@@ -604,6 +643,14 @@ function PureMultimodalInput({
       }
     },
     [setAttachments, uploadFile]
+  );
+
+  const handleFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+      await processFiles(files);
+    },
+    [processFiles]
   );
 
   const handlePaste = useCallback(
@@ -713,7 +760,22 @@ function PureMultimodalInput({
       </div>
 
       <PromptInput
-        className="[&>div]:liquid-panel [&>div]:rounded-[1.35rem] [&>div]:transition-shadow [&>div]:duration-300 [&>div]:focus-within:shadow-[var(--shadow-composer-focus)]"
+        className={cn(
+          "[&>div]:liquid-panel [&>div]:rounded-[1.35rem] [&>div]:transition-shadow [&>div]:duration-300 [&>div]:focus-within:shadow-[var(--shadow-composer-focus)]",
+          isDragActive &&
+            "[&>div]:ring-2 [&>div]:ring-primary/40 [&>div]:bg-primary/5"
+        )}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragActive(true);
+        }}
+        onDragLeave={() => setIsDragActive(false)}
+        onDrop={async (event) => {
+          event.preventDefault();
+          setIsDragActive(false);
+          const droppedFiles = Array.from(event.dataTransfer.files || []);
+          await processFiles(droppedFiles);
+        }}
         onSubmit={() => {
           if (input.startsWith("/")) {
             const query = input.slice(1).trim();
@@ -764,6 +826,11 @@ function PureMultimodalInput({
                 key={filename}
               />
             ))}
+          </div>
+        )}
+        {isDragActive && (
+          <div className="mx-3 mb-2 rounded-xl border border-dashed border-primary/40 bg-primary/10 px-3 py-2 text-xs text-primary">
+            Déposez vos fichiers ici (PDF, TXT, MD, JSON, CSV, images...)
           </div>
         )}
         <PromptInputTextarea

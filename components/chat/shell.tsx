@@ -18,6 +18,11 @@ import {
   useArtifactSelector,
 } from "@/hooks/use-artifact";
 import type { Attachment, ChatMessage } from "@/lib/types";
+import {
+  defaultShortcuts,
+  SHORTCUTS_STORAGE_KEY,
+  type ShortcutConfig,
+} from "@/lib/chat-preferences";
 import { cn } from "@/lib/utils";
 import { Artifact } from "./artifact";
 import { DataStreamHandler } from "./data-stream-handler";
@@ -68,6 +73,118 @@ export function ChatShell() {
       setAttachments([]);
     }
   }, [chatId, setArtifact]);
+
+  useEffect(() => {
+    const normalize = (value: string) =>
+      value.toLowerCase().replace(/\s+/g, "");
+    const fromKeyboardEvent = (event: KeyboardEvent) =>
+      normalize(
+        [
+          event.ctrlKey ? "ctrl" : null,
+          event.altKey ? "alt" : null,
+          event.shiftKey ? "shift" : null,
+          event.key.toLowerCase(),
+        ]
+          .filter(Boolean)
+          .join("+")
+      );
+
+    const handler = async (event: KeyboardEvent) => {
+      const configRaw = window.localStorage.getItem(SHORTCUTS_STORAGE_KEY);
+      const shortcuts: ShortcutConfig = (() => {
+        if (!configRaw) {
+          return defaultShortcuts;
+        }
+        try {
+          return JSON.parse(configRaw) as ShortcutConfig;
+        } catch {
+          return defaultShortcuts;
+        }
+      })();
+      const combo = fromKeyboardEvent(event);
+      const getLastAssistantMessage = () =>
+        [...messages].reverse().find((message) => message.role === "assistant");
+
+      if (combo === normalize(shortcuts.newChat)) {
+        event.preventDefault();
+        window.location.href = "/";
+        return;
+      }
+      if (combo === normalize(shortcuts.copyMessage)) {
+        event.preventDefault();
+        const last = getLastAssistantMessage();
+        const text = last?.parts
+          ?.filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("\n");
+        if (text) {
+          await navigator.clipboard.writeText(text);
+        }
+        return;
+      }
+      if (combo === normalize(shortcuts.likeMessage)) {
+        event.preventDefault();
+        const last = getLastAssistantMessage();
+        if (last) {
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/vote`, {
+            method: "PATCH",
+            body: JSON.stringify({ chatId, messageId: last.id, type: "up" }),
+          });
+        }
+        return;
+      }
+      if (combo === normalize(shortcuts.dislikeMessage)) {
+        event.preventDefault();
+        const last = getLastAssistantMessage();
+        if (last) {
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/vote`, {
+            method: "PATCH",
+            body: JSON.stringify({ chatId, messageId: last.id, type: "down" }),
+          });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [chatId, messages]);
+
+  useEffect(() => {
+    const rewriteHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        chatId: string;
+        mode: "same" | "shorter" | "longer";
+        text: string;
+      }>;
+      if (customEvent.detail.chatId !== chatId || status !== "ready") {
+        return;
+      }
+      const modeLabel =
+        customEvent.detail.mode === "shorter"
+          ? "plus concise"
+          : customEvent.detail.mode === "longer"
+            ? "plus détaillée"
+            : "équivalente";
+      sendMessage({
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: `Réécris la dernière réponse en version ${modeLabel}. Conserve le contexte.\n\nRéponse à réécrire:\n${customEvent.detail.text}`,
+          },
+        ],
+      });
+    };
+    window.addEventListener(
+      "mai:rewrite-message",
+      rewriteHandler as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        "mai:rewrite-message",
+        rewriteHandler as EventListener
+      );
+  }, [chatId, sendMessage, status]);
 
   return (
     <>

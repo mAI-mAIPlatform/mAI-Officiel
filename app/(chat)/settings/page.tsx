@@ -34,6 +34,11 @@ import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { createNotification } from "@/lib/notifications";
 import { APP_VERSION } from "@/lib/app-version";
+import {
+  TAG_DEFINITIONS_STORAGE_KEY,
+  TAG_PALETTE,
+  type TagDefinition,
+} from "@/lib/chat-preferences";
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
@@ -273,7 +278,10 @@ function parseTaskCommand(command: string): {
 
   const lower = normalized.toLowerCase();
   const title = normalized
-    .replace(/^(créer|cree|ajoute[rz]?)( une)? tâche planifiée\s*[:\-]?\s*/i, "")
+    .replace(
+      /^(créer|cree|ajoute[rz]?)( une)? tâche planifiée\s*[:-]?\s*/i,
+      ""
+    )
     .trim();
   const nextDate = new Date();
 
@@ -283,7 +291,12 @@ function parseTaskCommand(command: string): {
 
   const timeMatch = lower.match(/(\d{1,2})h(?:(\d{2}))?/);
   if (timeMatch) {
-    nextDate.setHours(Number(timeMatch[1] ?? 9), Number(timeMatch[2] ?? 0), 0, 0);
+    nextDate.setHours(
+      Number(timeMatch[1] ?? 9),
+      Number(timeMatch[2] ?? 0),
+      0,
+      0
+    );
   } else {
     nextDate.setHours(9, 0, 0, 0);
   }
@@ -315,6 +328,9 @@ export default function SettingsPage() {
   } = useSubscriptionPlan();
 
   const [activationCode, setActivationCode] = useState("");
+  const [conversationTags, setConversationTags] = useState<TagDefinition[]>([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0]);
   const [activationMessage, setActivationMessage] = useState<{
     type: "error" | "success";
     text: string;
@@ -409,6 +425,28 @@ export default function SettingsPage() {
       setTasksHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    const rawTags = window.localStorage.getItem(TAG_DEFINITIONS_STORAGE_KEY);
+    if (!rawTags) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(rawTags) as TagDefinition[];
+      if (Array.isArray(parsed)) {
+        setConversationTags(parsed);
+      }
+    } catch {
+      setConversationTags([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      TAG_DEFINITIONS_STORAGE_KEY,
+      JSON.stringify(conversationTags)
+    );
+  }, [conversationTags]);
 
   useEffect(() => {
     const savedProfile = window.localStorage.getItem(
@@ -852,7 +890,9 @@ export default function SettingsPage() {
   const handleTaskCommand = () => {
     const parsed = parseTaskCommand(taskCommand);
     if (!parsed) {
-      setTaskError("Commande vide. Essayez : créer une tâche planifiée demain à 18h.");
+      setTaskError(
+        "Commande vide. Essayez : créer une tâche planifiée demain à 18h."
+      );
       return;
     }
 
@@ -1322,14 +1362,18 @@ export default function SettingsPage() {
               value={profileName}
             />
             <p className="text-xs text-muted-foreground">
-              Ce nom est utilisé dans les en-têtes et interactions personnalisées.
+              Ce nom est utilisé dans les en-têtes et interactions
+              personnalisées.
             </p>
           </div>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground" htmlFor="ai-call-name">
+            <label
+              className="text-xs text-muted-foreground"
+              htmlFor="ai-call-name"
+            >
               Nom (comment l&apos;IA doit vous appeler)
             </label>
             <Input
@@ -1340,7 +1384,10 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground" htmlFor="profession">
+            <label
+              className="text-xs text-muted-foreground"
+              htmlFor="profession"
+            >
               Profession
             </label>
             <Input
@@ -1865,6 +1912,101 @@ export default function SettingsPage() {
           )}
         </div>
 
+        <div className="liquid-panel mt-6 rounded-2xl border border-white/30 bg-white/80 p-4 text-black backdrop-blur-2xl">
+          <h3 className="text-base font-semibold">Tags de conversations</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Créez vos tags (max 20), nom limité à 20 caractères, avec couleur
+            personnalisée.
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {conversationTags.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                Aucun tag créé pour le moment.
+              </span>
+            ) : (
+              conversationTags.map((tag) => (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs"
+                  key={tag.id}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  {tag.name}
+                  <button
+                    className="rounded-full p-0.5 text-muted-foreground transition hover:bg-black/10 hover:text-foreground"
+                    onClick={() =>
+                      setConversationTags((current) =>
+                        current.filter((item) => item.id !== tag.id)
+                      )
+                    }
+                    type="button"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto]">
+            <Input
+              maxLength={20}
+              onChange={(event) => setNewTagName(event.target.value)}
+              placeholder="Nom du tag"
+              value={newTagName}
+            />
+            <Button
+              disabled={
+                newTagName.trim().length === 0 || conversationTags.length >= 20
+              }
+              onClick={() => {
+                const safeName = newTagName.trim().slice(0, 20);
+                if (!safeName) {
+                  return;
+                }
+                if (
+                  conversationTags.some(
+                    (tag) => tag.name.toLowerCase() === safeName.toLowerCase()
+                  )
+                ) {
+                  return;
+                }
+                setConversationTags((current) => [
+                  ...current,
+                  {
+                    id: crypto.randomUUID(),
+                    name: safeName,
+                    color: newTagColor,
+                  },
+                ]);
+                setNewTagName("");
+              }}
+              type="button"
+              variant="outline"
+            >
+              Créer le tag
+            </Button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {TAG_PALETTE.map((color) => (
+              <button
+                className={cn(
+                  "h-5 w-5 rounded-full ring-1 ring-border/50 transition",
+                  newTagColor === color && "ring-2 ring-primary"
+                )}
+                key={color}
+                onClick={() => setNewTagColor(color)}
+                style={{ backgroundColor: color }}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+
         <h3 className="mt-6 text-base font-semibold">
           Activation Premium par code
         </h3>
@@ -1907,7 +2049,9 @@ export default function SettingsPage() {
         )}
 
         <div className="mt-6 rounded-xl border border-border/60 bg-background/60 p-3">
-          <p className="text-sm font-medium">Position (localisation optionnelle)</p>
+          <p className="text-sm font-medium">
+            Position (localisation optionnelle)
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Personnalise certains contenus selon votre position.
           </p>

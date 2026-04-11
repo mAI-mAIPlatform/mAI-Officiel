@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { FolderIcon } from "lucide-react";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
+import {
+  CHAT_TAGS_STORAGE_KEY,
+  TAG_DEFINITIONS_STORAGE_KEY,
+  type TagDefinition,
+  readJsonStorage,
+} from "@/lib/chat-preferences";
 import type { Chat, Project } from "@/lib/db/schema";
 import {
   DropdownMenu,
@@ -13,6 +19,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   SidebarMenuAction,
   SidebarMenuButton,
@@ -54,27 +67,125 @@ const PureChatItem = ({
     chatId: chat.id,
     initialVisibilityType: chat.visibility,
   });
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(chat.title);
+  const [summaryLength, setSummaryLength] = useState<
+    "short" | "medium" | "long"
+  >("medium");
+  const [summaryText, setSummaryText] = useState("");
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [chatTags, setChatTags] = useState<TagDefinition[]>([]);
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(chat.id);
   };
 
-  const handleExportChat = async () => {
+  const handleExportChat = async (format: "json" | "md" | "txt") => {
     const response = await fetch(`/api/messages?chatId=${chat.id}`);
     const payload = await response.json();
-    const content = JSON.stringify(
-      { chat: { id: chat.id, title: chat.title }, messages: payload.messages },
-      null,
-      2
-    );
-    const blob = new Blob([content], { type: "application/json" });
+    const title = chat.title || "discussion";
+    const messages = payload.messages ?? [];
+
+    const normalized: Array<{ role: string; text: string }> = messages
+      .map(
+        (msg: {
+          role: string;
+          parts?: Array<{ type: string; text?: string }>;
+        }) => {
+          const text = (msg.parts ?? [])
+            .filter(
+              (part: { type: string; text?: string }) => part.type === "text"
+            )
+            .map((part: { type: string; text?: string }) => part.text ?? "")
+            .join("\n")
+            .trim();
+          return { role: msg.role, text };
+        }
+      )
+      .filter((item: { role: string; text: string }) => item.text.length > 0);
+
+    const content =
+      format === "json"
+        ? JSON.stringify(
+            { chat: { id: chat.id, title }, messages: normalized },
+            null,
+            2
+          )
+        : format === "md"
+          ? `# ${title}\n\n${normalized.map((item: { role: string; text: string }) => `## ${item.role}\n\n${item.text}`).join("\n\n")}`
+          : normalized
+              .map(
+                (item: { role: string; text: string }) =>
+                  `[${item.role}]\n${item.text}`
+              )
+              .join("\n\n");
+
+    const mime = format === "json" ? "application/json" : "text/plain";
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${chat.title.replace(/\s+/g, "-").toLowerCase() || "discussion"}.json`;
+    anchor.download = `${title.replace(/\s+/g, "-").toLowerCase() || "discussion"}.${format}`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
+
+  const handleOpenSummary = async (length: "short" | "medium" | "long") => {
+    setSummaryOpen(true);
+    setSummaryLength(length);
+    setIsSummaryLoading(true);
+
+    const response = await fetch("/api/chat/summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: chat.id, length }),
+    });
+
+    const payload = await response.json();
+    setSummaryText(payload.summary ?? "Impossible de générer le résumé.");
+    setIsSummaryLoading(false);
+  };
+
+  const assignTag = (tagId: string) => {
+    const allTags = readJsonStorage<Record<string, string[]>>(
+      CHAT_TAGS_STORAGE_KEY,
+      {}
+    );
+    const current = allTags[chat.id] ?? [];
+    const next = current.includes(tagId)
+      ? current.filter((id) => id !== tagId)
+      : [...current, tagId].slice(0, 3);
+    allTags[chat.id] = next;
+    window.localStorage.setItem(CHAT_TAGS_STORAGE_KEY, JSON.stringify(allTags));
+    const definitions = readJsonStorage<TagDefinition[]>(
+      TAG_DEFINITIONS_STORAGE_KEY,
+      []
+    );
+    setChatTags(definitions.filter((tag) => next.includes(tag.id)));
+  };
+
+  const allTagDefinitions = readJsonStorage<TagDefinition[]>(
+    TAG_DEFINITIONS_STORAGE_KEY,
+    []
+  );
+
+  useEffect(() => {
+    setRenameValue(chat.title);
+  }, [chat.title]);
+
+  useEffect(() => {
+    const allTags = readJsonStorage<Record<string, string[]>>(
+      CHAT_TAGS_STORAGE_KEY,
+      {}
+    );
+    const definitions = readJsonStorage<TagDefinition[]>(
+      TAG_DEFINITIONS_STORAGE_KEY,
+      []
+    );
+    const ids = allTags[chat.id] ?? [];
+    setChatTags(definitions.filter((tag) => ids.includes(tag.id)));
+  }, [chat.id]);
 
   return (
     <SidebarMenuItem>
@@ -85,6 +196,18 @@ const PureChatItem = ({
       >
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
           <span className="truncate">{chat.title}</span>
+          {chatTags.length > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1">
+              {chatTags.map((tag) => (
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  key={tag.id}
+                  style={{ backgroundColor: tag.color }}
+                  title={tag.name}
+                />
+              ))}
+            </span>
+          )}
         </Link>
       </SidebarMenuButton>
 
@@ -106,28 +229,95 @@ const PureChatItem = ({
         >
           <DropdownMenuItem
             className="cursor-pointer"
-            onSelect={() => {
-              const nextTitle = window.prompt(
-                "Nouveau nom de la discussion",
-                chat.title
-              );
-              if (!nextTitle) {
-                return;
-              }
-              onRename(chat.id, nextTitle.trim());
-            }}
+            onSelect={() => setRenameOpen(true)}
           >
             Renommer
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-pointer" onSelect={handleCopyId}>
             Copier l'ID
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onSelect={handleExportChat}
-          >
-            Exporter
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Exporter
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("md")}
+                >
+                  Markdown (.md)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("json")}
+                >
+                  JSON (.json)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("txt")}
+                >
+                  Texte (.txt)
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Résumé
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("short")}
+                >
+                  Plus court
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("medium")}
+                >
+                  Concis
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("long")}
+                >
+                  Plus long
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Tags
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
+                {allTagDefinitions.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    Créez d'abord des tags
+                  </DropdownMenuItem>
+                ) : (
+                  allTagDefinitions.map((tag) => (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      key={tag.id}
+                      onClick={() => assignTag(tag.id)}
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span>{tag.name}</span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => onPin(chat.id)}
@@ -206,6 +396,52 @@ const PureChatItem = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog onOpenChange={setSummaryOpen} open={summaryOpen}>
+        <DialogContent className="liquid-panel border-white/25 bg-white/85 text-black backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Résumé de la conversation ({summaryLength})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border/60 bg-background/70 p-3 text-sm">
+            {isSummaryLoading ? "Génération en cours..." : summaryText}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={setRenameOpen} open={renameOpen}>
+        <DialogContent className="liquid-panel border-white/25 bg-white/85 text-black backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle>Renommer la discussion</DialogTitle>
+            <DialogDescription>
+              Choisissez un titre court et clair.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            className="h-10 w-full rounded-xl border border-border/60 bg-background/80 px-3 text-sm outline-none"
+            maxLength={80}
+            onChange={(event) => setRenameValue(event.target.value)}
+            value={renameValue}
+          />
+          <div className="mt-3 flex justify-end">
+            <button
+              className="rounded-xl border border-border/60 px-3 py-1.5 text-sm"
+              onClick={() => {
+                const next = renameValue.trim();
+                if (!next) {
+                  return;
+                }
+                onRename(chat.id, next);
+                setRenameOpen(false);
+              }}
+              type="button"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarMenuItem>
   );
 };

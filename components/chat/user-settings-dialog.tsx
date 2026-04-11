@@ -9,7 +9,8 @@ import {
   UserCircle2,
 } from "lucide-react";
 import type { User } from "next-auth";
-import { useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { APP_VERSION } from "@/lib/app-version";
+import {
+  defaultShortcuts,
+  SHORTCUTS_STORAGE_KEY,
+  TAG_DEFINITIONS_STORAGE_KEY,
+  TAG_PALETTE,
+  type ShortcutConfig,
+  type TagDefinition,
+} from "@/lib/chat-preferences";
 import { cn } from "@/lib/utils";
 
 type ProfileSettings = {
@@ -282,6 +291,17 @@ export function UserSettingsDialog({
   stylisticDirectives: string;
   user: User;
 }) {
+  const [tagDefinitions, setTagDefinitions] = useLocalStorage<TagDefinition[]>(
+    TAG_DEFINITIONS_STORAGE_KEY,
+    []
+  );
+  const [nextTagName, setNextTagName] = useState("");
+  const [nextTagColor, setNextTagColor] = useState<string>(TAG_PALETTE[0]);
+  const [shortcuts, setShortcuts] = useLocalStorage<ShortcutConfig>(
+    SHORTCUTS_STORAGE_KEY,
+    defaultShortcuts
+  );
+
   const handleResetLocalData = () => {
     window.localStorage.removeItem(PROFILE_SETTINGS_STORAGE_KEY);
     onDisplayNameChange(getDefaultDisplayName(user, isGuest));
@@ -295,6 +315,30 @@ export function UserSettingsDialog({
     onProjectDescriptionChange("");
     onProjectIconColorChange("#60a5fa");
     onStylisticDirectivesChange("");
+  };
+
+  const registerShortcut = (
+    action: keyof ShortcutConfig,
+    keyboardEvent: KeyboardEvent<HTMLInputElement>
+  ) => {
+    keyboardEvent.preventDefault();
+    const parts = [
+      keyboardEvent.ctrlKey ? "ctrl" : null,
+      keyboardEvent.altKey ? "alt" : null,
+      keyboardEvent.shiftKey ? "shift" : null,
+      keyboardEvent.key.toLowerCase(),
+    ].filter(Boolean);
+
+    const combo = parts.join("+");
+    const hasConflict = Object.entries(shortcuts).some(
+      ([currentAction, value]) => currentAction !== action && value === combo
+    );
+
+    if (hasConflict) {
+      return;
+    }
+
+    setShortcuts((current) => ({ ...current, [action]: combo }));
   };
 
   return (
@@ -460,6 +504,93 @@ export function UserSettingsDialog({
                 placeholder="Ex: Style professionnel, concis, orienté plan d'action"
                 value={stylisticDirectives}
               />
+            </section>
+
+            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+              <h3 className="text-sm font-semibold">Tags de conversations</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Maximum 20 tags, 20 caractères par nom, et 3 tags par conversation.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tagDefinitions.map((tag) => (
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs"
+                    key={tag.id}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                <Input
+                  maxLength={20}
+                  onChange={(event) => setNextTagName(event.target.value)}
+                  placeholder="Nouveau tag"
+                  value={nextTagName}
+                />
+                <button
+                  className="rounded-xl border border-border/60 px-3 text-xs"
+                  onClick={() => {
+                    if (!nextTagName.trim() || tagDefinitions.length >= 20) return;
+                    setTagDefinitions((current) => [
+                      ...current,
+                      {
+                        id: crypto.randomUUID(),
+                        name: nextTagName.trim().slice(0, 20),
+                        color: nextTagColor,
+                      },
+                    ]);
+                    setNextTagName("");
+                  }}
+                  type="button"
+                >
+                  Ajouter
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {TAG_PALETTE.map((color) => (
+                  <button
+                    className={cn(
+                      "h-5 w-5 rounded-full ring-1 ring-border/50",
+                      nextTagColor === color && "ring-2 ring-foreground"
+                    )}
+                    key={color}
+                    onClick={() => setNextTagColor(color)}
+                    style={{ backgroundColor: color }}
+                    type="button"
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
+              <h3 className="text-sm font-semibold">Raccourcis clavier</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cliquez dans un champ puis tapez votre combinaison. Les conflits sont bloqués.
+              </p>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {[
+                  { key: "newChat", label: "Nouveau chat" },
+                  { key: "likeMessage", label: "Like message" },
+                  { key: "dislikeMessage", label: "Dislike message" },
+                  { key: "copyMessage", label: "Copier message" },
+                ].map((item) => (
+                  <label className="text-xs" key={item.key}>
+                    <span className="mb-1 block text-muted-foreground">{item.label}</span>
+                    <Input
+                      onKeyDown={(event) =>
+                        registerShortcut(
+                          item.key as keyof ShortcutConfig,
+                          event
+                        )
+                      }
+                      readOnly
+                      value={shortcuts[item.key as keyof ShortcutConfig]}
+                    />
+                  </label>
+                ))}
+              </div>
             </section>
 
             <section className="rounded-2xl border border-border/60 bg-background/35 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">

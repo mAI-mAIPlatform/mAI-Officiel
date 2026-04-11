@@ -6,6 +6,12 @@ import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import {
   MessageAction as Action,
   MessageActions as Actions,
 } from "../ai-elements/message";
@@ -143,6 +149,40 @@ export function PureMessageActions({
 
   return (
     <Actions className="-ml-0.5 opacity-0 transition-opacity duration-150 group-hover/message:opacity-100">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="inline-flex h-7 items-center justify-center rounded-md px-1.5 text-xs text-muted-foreground/70 hover:text-foreground"
+            type="button"
+          >
+            Réécrire
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-44">
+          {[
+            { mode: "same", label: "Réécrire (identique)" },
+            { mode: "shorter", label: "Plus concis" },
+            { mode: "longer", label: "Plus détaillé" },
+          ].map((item) => (
+            <DropdownMenuItem
+              key={item.mode}
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("mai:rewrite-message", {
+                    detail: {
+                      chatId,
+                      mode: item.mode,
+                      text: textFromParts ?? "",
+                    },
+                  })
+                );
+              }}
+            >
+              {item.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Action
         className="text-muted-foreground/50 hover:text-foreground"
         onClick={handleCopy}
