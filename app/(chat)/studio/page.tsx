@@ -70,7 +70,7 @@ export default function StudioPage() {
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Erreur Studio");
+        throw new Error(payload?.error ?? "Erreur de génération");
       }
 
       setResultProvider(payload.provider ?? "provider inconnu");
@@ -96,7 +96,7 @@ export default function StudioPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-black">
-            Coder & Studio IA
+            Atelier visuel IA
           </h1>
           <p className="text-sm text-black/70">
             Génération et édition d'images avec une interface moderne.
@@ -247,7 +247,7 @@ export default function StudioPage() {
             disabled={isLoading}
             onClick={runStudio}
           >
-            {isLoading ? "Traitement..." : "Lancer dans Studio"}
+            {isLoading ? "Traitement..." : "Lancer la génération"}
           </Button>
           {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
         </div>
@@ -260,7 +260,7 @@ export default function StudioPage() {
 
           {resultImage ? (
             <img
-              alt="Résultat Studio"
+              alt="Résultat généré"
               className="mt-3 w-full rounded-2xl border border-border/40 object-cover"
               src={resultImage}
             />

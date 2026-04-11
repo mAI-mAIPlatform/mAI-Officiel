@@ -40,14 +40,9 @@ import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
   { href: "/", label: "Discussion" },
-  { href: "/news", label: "Actualités" },
-  { href: "/studio", label: "Studio" },
-  { href: "/studio", label: "Coder" },
   { href: "/translation", label: "Traduction" },
   { href: "/library", label: "Bibliothèque" },
   { href: "/projects", label: "Projets" },
-  { href: "/meals", label: "Repas" },
-  { href: "/Health", label: "Santé" },
   { href: "/settings", label: "Paramètres" },
   { href: "/pricing", label: "Tarifs" },
 ] as const;
@@ -89,8 +84,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   }, [normalizedGlobalQuery]);
 
   const featuredLinks = useMemo(
-    () =>
-      QUICK_LINKS.filter((item) => ["Projets", "Coder"].includes(item.label)),
+    () => QUICK_LINKS.filter((item) => item.label === "Projets"),
     []
   );
 

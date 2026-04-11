@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { planDefinitions } from "@/lib/subscription";
-import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
+import { getNextResetDate } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
@@ -111,7 +111,7 @@ type PersistedMemoryEntry = {
   type: "auto" | "manual";
 };
 
-type ExtensionKey = "coder" | "news" | "studio";
+type ExtensionKey = "projects" | "library" | "translation";
 
 type ParentalSettings = {
   advancedSettingsLocked: boolean;
@@ -128,9 +128,9 @@ const defaultParentalSettings: ParentalSettings = {
   dailyLimitMinutes: 90,
   enabled: false,
   extensions: {
-    coder: true,
-    news: true,
-    studio: true,
+    library: true,
+    projects: true,
+    translation: true,
   },
   lockCodeHash: "",
   sessionUnlockedUntil: 0,
@@ -138,9 +138,9 @@ const defaultParentalSettings: ParentalSettings = {
 };
 
 const extensionLabels: Record<ExtensionKey, string> = {
-  coder: "mAICoder",
-  news: "mAINews",
-  studio: "Studio",
+  library: "Bibliothèque",
+  projects: "Projets",
+  translation: "Traduction",
 };
 
 function hashLockCode(code: string): string {
@@ -632,18 +632,18 @@ export default function SettingsPage() {
             ? parsed.enabled
             : defaultParentalSettings.enabled,
         extensions: {
-          coder:
-            typeof parsedExtensions.coder === "boolean"
-              ? parsedExtensions.coder
-              : defaultParentalSettings.extensions.coder,
-          news:
-            typeof parsedExtensions.news === "boolean"
-              ? parsedExtensions.news
-              : defaultParentalSettings.extensions.news,
-          studio:
-            typeof parsedExtensions.studio === "boolean"
-              ? parsedExtensions.studio
-              : defaultParentalSettings.extensions.studio,
+          library:
+            typeof parsedExtensions.library === "boolean"
+              ? parsedExtensions.library
+              : defaultParentalSettings.extensions.library,
+          projects:
+            typeof parsedExtensions.projects === "boolean"
+              ? parsedExtensions.projects
+              : defaultParentalSettings.extensions.projects,
+          translation:
+            typeof parsedExtensions.translation === "boolean"
+              ? parsedExtensions.translation
+              : defaultParentalSettings.extensions.translation,
         },
         lockCodeHash:
           typeof parsed.lockCodeHash === "string" ? parsed.lockCodeHash : "",
@@ -931,8 +931,8 @@ export default function SettingsPage() {
       return [];
     }
 
-    // Le suivi existant est branché pour news/health/tâches; les autres quotas
-    // sont préparées pour une instrumentation progressive.
+    // Le suivi existant est branché pour messages/fichiers/images/tâches; les
+    // autres quotas sont préparés pour une instrumentation progressive.
     return [
       {
         key: "messages",
@@ -978,20 +978,6 @@ export default function SettingsPage() {
         period: "month",
         title: "Tâches planifiées",
         used: tasks.length,
-      },
-      {
-        key: "news",
-        limit: currentPlanDefinition.limits.newsSearchesPerDay,
-        period: "day",
-        title: "mAINews",
-        used: getUsageCount("news", "day"),
-      },
-      {
-        key: "health",
-        limit: currentPlanDefinition.limits.healthRequestsPerMonth,
-        period: "month",
-        title: "mAIHealth",
-        used: getUsageCount("health", "month"),
       },
     ];
   }, [currentPlanDefinition, isHydrated, tasks.length]);
