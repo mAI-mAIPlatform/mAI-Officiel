@@ -51,6 +51,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -208,6 +214,34 @@ function PureMultimodalInput({
   useEffect(() => {
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
+
+  useEffect(() => {
+    const pendingKey = "mai.chat.pending-library-attachments";
+    const raw = localStorage.getItem(pendingKey);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Attachment[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setAttachments((current) => {
+          const existingUrls = new Set(current.map((item) => item.url));
+          const merged = [...current];
+          for (const item of parsed) {
+            if (!existingUrls.has(item.url)) {
+              merged.push(item);
+            }
+          }
+          return merged;
+        });
+      }
+    } catch {
+      // ignore invalid local cache
+    } finally {
+      localStorage.removeItem(pendingKey);
+    }
+  }, [setAttachments]);
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = event.target.value;
@@ -841,6 +875,7 @@ function PureMultimodalInput({
               hasVision={true}
               isGeolocationEnabled={isGeolocationEnabled}
               onInsertTemplate={handleInsertTemplate}
+              setAttachments={setAttachments}
               setIsGeolocationEnabled={setIsGeolocationEnabled}
               status={status}
             />
@@ -928,6 +963,7 @@ export const MultimodalInput = memo(
 
 function PureContextualActionsMenu({
   fileInputRef,
+  setAttachments,
   onInsertTemplate,
   status,
   hasVision,
@@ -935,6 +971,7 @@ function PureContextualActionsMenu({
   setIsGeolocationEnabled,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  setAttachments: Dispatch<SetStateAction<Attachment[]>>;
   onInsertTemplate: (templateText: string) => void;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
@@ -942,6 +979,22 @@ function PureContextualActionsMenu({
   setIsGeolocationEnabled?: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false);
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [libraryFilter, setLibraryFilter] = useState<
+    "all" | "favorites" | "pinned"
+  >("all");
+  const [libraryAssets, setLibraryAssets] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type: "image" | "document";
+      pinned: boolean;
+      favorite: boolean;
+      url: string;
+      createdAt: string;
+    }>
+  >([]);
 
   // States to hold the toggled options (to pass to chat logic later)
   // For the moment, we just expose them or keep them in sync with local storage/context
@@ -1007,6 +1060,60 @@ function PureContextualActionsMenu({
     setReasoningLevel,
   ]);
 
+  useEffect(() => {
+    const raw = localStorage.getItem("mai.library.assets");
+    if (!raw) {
+      setLibraryAssets([]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setLibraryAssets(parsed);
+      }
+    } catch {
+      setLibraryAssets([]);
+    }
+  }, [isLibraryDialogOpen]);
+
+  const filteredLibraryAssets = libraryAssets
+    .filter((asset) =>
+      asset.name.toLowerCase().includes(librarySearch.trim().toLowerCase())
+    )
+    .filter((asset) => {
+      if (libraryFilter === "favorites") return asset.favorite;
+      if (libraryFilter === "pinned") return asset.pinned;
+      return true;
+    })
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        +new Date(b.createdAt) - +new Date(a.createdAt)
+    );
+
+  const attachFromLibrary = (asset: {
+    name: string;
+    type: "image" | "document";
+    url: string;
+  }) => {
+    const attachment: Attachment = {
+      url: asset.url || `data:text/plain,${encodeURIComponent(asset.name)}`,
+      name: asset.name,
+      contentType: asset.type === "image" ? "image/*" : "text/plain",
+    };
+
+    setAttachments((current) => {
+      if (current.some((item) => item.url === attachment.url)) {
+        return current;
+      }
+      return [...current, attachment];
+    });
+
+    setIsLibraryDialogOpen(false);
+    setOpen(false);
+    toast.success("Fichier ajouté depuis la bibliothèque.");
+  };
+
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <div className="flex items-center gap-1.5">
@@ -1031,21 +1138,38 @@ function PureContextualActionsMenu({
         className="flex w-72 flex-col gap-1 rounded-xl p-2 shadow-lg"
         sideOffset={8}
       >
-        <Button
-          className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
-          onClick={() => {
-            setOpen(false);
-            if (hasVision) {
-              fileInputRef.current?.click();
-            } else {
-              toast.error("Le modèle actuel ne supporte pas les images");
-            }
-          }}
-          variant="ghost"
-        >
-          <Paperclip className="text-muted-foreground" size={16} />
-          Ajouter photos/fichiers
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
+              variant="ghost"
+            >
+              <Paperclip className="text-muted-foreground" size={16} />
+              Ajouter photos/fichiers
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem
+              onClick={() => {
+                if (hasVision) {
+                  fileInputRef.current?.click();
+                } else {
+                  toast.error("Le modèle actuel ne supporte pas les images");
+                }
+                setOpen(false);
+              }}
+            >
+              Depuis l'appareil
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setIsLibraryDialogOpen(true);
+              }}
+            >
+              Depuis la bibliothèque
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="h-[1px] bg-border my-1 mx-2" />
 
@@ -1202,6 +1326,67 @@ function PureContextualActionsMenu({
           Position
         </Button>
       </PopoverContent>
+      <Dialog
+        onOpenChange={setIsLibraryDialogOpen}
+        open={isLibraryDialogOpen}
+      >
+        <DialogContent className="liquid-panel max-w-2xl border-white/30 bg-white/85 backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle>Bibliothèque</DialogTitle>
+            <DialogDescription>
+              Ajout rapide sans réimporter dans la bibliothèque.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                className="h-9 w-full rounded-lg border border-border/60 bg-background/70 px-3 text-sm"
+                onChange={(event) => setLibrarySearch(event.target.value)}
+                placeholder="Rechercher un fichier..."
+                value={librarySearch}
+              />
+              <select
+                className="h-9 rounded-lg border border-border/60 bg-background/70 px-2 text-xs"
+                onChange={(event) =>
+                  setLibraryFilter(
+                    event.target.value as "all" | "favorites" | "pinned"
+                  )
+                }
+                value={libraryFilter}
+              >
+                <option value="all">Tous</option>
+                <option value="favorites">Favoris</option>
+                <option value="pinned">Épinglés</option>
+              </select>
+            </div>
+            <div className="grid max-h-80 grid-cols-2 gap-2 overflow-auto pr-1">
+              {filteredLibraryAssets.map((asset) => (
+                <button
+                  className="liquid-panel rounded-xl border border-border/60 bg-background/65 p-2 text-left text-xs hover:border-primary/40"
+                  key={asset.id}
+                  onClick={() => attachFromLibrary(asset)}
+                  type="button"
+                >
+                  <p className="truncate font-medium">{asset.name}</p>
+                  <p className="text-muted-foreground">
+                    {asset.favorite ? "★ Favori" : "☆"} {asset.pinned ? "• 📌" : ""}
+                  </p>
+                </button>
+              ))}
+              {filteredLibraryAssets.length === 0 ? (
+                <p className="col-span-2 rounded-lg border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
+                  Aucun fichier disponible.
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsLibraryDialogOpen(false)} variant="ghost">
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog onOpenChange={setIsQuizDialogOpen} open={isQuizDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

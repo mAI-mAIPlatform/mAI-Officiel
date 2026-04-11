@@ -29,7 +29,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -173,9 +172,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup className="pt-1">
-            <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-              Modules
-            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
