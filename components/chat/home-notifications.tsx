@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CheckCheck, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type AppNotification,
   clearNotifications,
@@ -14,10 +14,22 @@ import { Button } from "../ui/button";
 export function HomeNotifications() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setItems(getNotificationHistory());
     return subscribeNotifications(() => setItems(getNotificationHistory()));
+  }, []);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
   const unreadCount = useMemo(
@@ -26,9 +38,10 @@ export function HomeNotifications() {
   );
 
   return (
-    <div className="fixed top-3 right-3 z-40">
+    <div className="fixed top-3 right-3 z-40" ref={containerRef}>
       <button
         aria-expanded={isOpen}
+        aria-label="Afficher les notifications"
         className="liquid-glass flex items-center gap-2 rounded-full border border-border/50 bg-card/80 px-3 py-2 shadow-[var(--shadow-float)] backdrop-blur-xl"
         onClick={() => setIsOpen((prev) => !prev)}
         type="button"

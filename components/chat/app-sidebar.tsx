@@ -3,9 +3,11 @@
 import {
   BookOpenIcon,
   BotIcon,
+  BrainCircuitIcon,
   CreditCardIcon,
   FolderIcon,
   LanguagesIcon,
+  LayoutGridIcon,
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
@@ -25,6 +27,12 @@ import {
   SidebarHistory,
 } from "@/components/chat/sidebar-history";
 import { SidebarUserNav } from "@/components/chat/sidebar-user-nav";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -52,14 +60,18 @@ import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
   { href: "/", label: "Discussion", icon: PenSquareIcon },
-  { href: "/mais", label: "mAIs", icon: BotIcon },
-  { href: "/translation", label: "Traduction", icon: LanguagesIcon },
   { href: "/library", label: "Bibliothèque", icon: BookOpenIcon },
   { href: "/projects", label: "Projets", icon: FolderIcon },
-  { href: "/interpreter", label: "Code", icon: TerminalSquareIcon },
-  { href: "/speaky", label: "Speaky", icon: Volume2Icon },
   { href: "/settings", label: "Paramètres", icon: Settings2Icon },
   { href: "/pricing", label: "Tarifs", icon: CreditCardIcon },
+] as const;
+
+const APPLICATION_LINKS = [
+  { href: "/mais", label: "mAIs", icon: BotIcon },
+  { href: "/translation", label: "Traduction", icon: LanguagesIcon },
+  { href: "/interpreter", label: "Code", icon: TerminalSquareIcon },
+  { href: "/speaky", label: "Speaky", icon: Volume2Icon },
+  { href: "/humanizy", label: "Humanizy", icon: BrainCircuitIcon },
 ] as const;
 
 export function AppSidebar({ user }: { user: User | undefined }) {
@@ -99,7 +111,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   }, [normalizedGlobalQuery]);
 
   const featuredLinks = useMemo(() => {
-    const order = ["mAIs", "Projets", "Code", "Speaky", "Bibliothèque"] as const;
+    const order = ["Projets", "Bibliothèque"] as const;
     return order
       .map((label) => QUICK_LINKS.find((item) => item.label === label))
       .filter((item) => item !== undefined);
@@ -206,6 +218,37 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                <SidebarMenuItem>
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] text-sidebar-foreground/85 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        tooltip="Applications"
+                      >
+                        <LayoutGridIcon className="size-3.5" />
+                        <span className="font-medium">Applications</span>
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-56"
+                      side="right"
+                      sideOffset={6}
+                    >
+                      {APPLICATION_LINKS.map((item) => (
+                        <DropdownMenuItem asChild key={`app-${item.href}`}>
+                          <Link
+                            href={item.href}
+                            onClick={closeMobileSidebar}
+                          >
+                            <item.icon className="mr-2 size-3.5" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
 
                 {quickLinks.map((item) => (
                   <SidebarMenuItem key={`quick-${item.href}`}>

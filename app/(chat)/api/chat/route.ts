@@ -24,6 +24,7 @@ import {
 } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
+import { audioAssistant } from "@/lib/ai/tools/audio-assistant";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { createMaiTool } from "@/lib/ai/tools/create-mai";
 import { createProjectTool } from "@/lib/ai/tools/create-project";
@@ -32,6 +33,7 @@ import { editDocument } from "@/lib/ai/tools/edit-document";
 import { followUpSuggestions } from "@/lib/ai/tools/follow-up-suggestions";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
+import { textUtilities } from "@/lib/ai/tools/text-utilities";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { webSearch } from "@/lib/ai/tools/web-search";
 import { isProductionEnvironment } from "@/lib/constants";
@@ -314,6 +316,8 @@ export async function POST(request: Request) {
       | "createProjectTask"
       | "createProject"
       | "createMai"
+      | "audioAssistant"
+      | "textUtilities"
       | "webSearch"
     )[] = [
       "getWeather",
@@ -325,6 +329,8 @@ export async function POST(request: Request) {
       "createProjectTask",
       "createProject",
       "createMai",
+      "audioAssistant",
+      "textUtilities",
     ];
 
     // Add web search tool if contextual action is enabled
@@ -381,6 +387,8 @@ export async function POST(request: Request) {
             createProjectTask: createProjectTaskTool(session.user.id),
             createProject: createProjectTool(session.user.id),
             createMai: createMaiTool(session.user.id),
+            audioAssistant,
+            textUtilities,
             webSearch,
           },
           experimental_telemetry: {

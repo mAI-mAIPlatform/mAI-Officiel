@@ -1,40 +1,41 @@
-export type PluginField = {
-  key: string;
-  label: string;
-  type: "number" | "select" | "text";
-  options?: string[];
-  placeholder?: string;
-};
-
 export type MaiPlugin = {
+  command: `@${string}`;
   description: string;
-  fields: PluginField[];
   id: string;
   name: string;
+  targetTool: "audioAssistant" | "textUtilities";
 };
 
 export const pluginRegistry: MaiPlugin[] = [
   {
     id: "audio-generator",
-    name: "Audio Generator",
-    description: "Synthèse audio depuis un script texte.",
-    fields: [
-      { key: "text", label: "Texte", type: "text", placeholder: "Votre script" },
-      { key: "voice", label: "Voix", type: "select", options: ["femme", "homme"] },
-    ],
+    command: "@audio",
+    name: "Audio Assistant",
+    description: "Prépare un pack voix pour Speaky (voix, style, script).",
+    targetTool: "audioAssistant",
   },
   {
-    id: "password-generator",
-    name: "Password Generator",
-    description: "Génère des mots de passe robustes.",
-    fields: [
-      { key: "length", label: "Longueur", type: "number", placeholder: "16" },
-      {
-        key: "charset",
-        label: "Jeu de caractères",
-        type: "select",
-        options: ["alpha", "alphanum", "alphanum+symboles"],
-      },
-    ],
+    id: "text-tools",
+    command: "@utils",
+    name: "Text Utilities",
+    description:
+      "Lance des utilitaires texte: résumé, mots-clés, slug, mot de passe.",
+    targetTool: "textUtilities",
+  },
+  {
+    id: "tone-rewriter",
+    command: "@rewrite",
+    name: "Tone Rewriter",
+    description:
+      "Utilise l'outil texte pour reformuler rapidement selon le ton voulu.",
+    targetTool: "textUtilities",
+  },
+  {
+    id: "password-safe",
+    command: "@password",
+    name: "Password Safe",
+    description:
+      "Génère des mots de passe robustes via l'outil utilitaire texte.",
+    targetTool: "textUtilities",
   },
 ];

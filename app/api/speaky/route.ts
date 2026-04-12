@@ -27,9 +27,18 @@ const SpeakyRequestSchema = z.object({
   text: z.string().trim().min(1).max(500),
   language: z.string().trim().min(2).max(8).default("fr"),
   voice: z.string().trim().min(2).max(32).optional(),
+  voiceStyle: z
+    .enum(["narratif", "conversationnel", "énergique"])
+    .optional()
+    .default("narratif"),
+  voiceGender: z.enum(["homme", "femme"]).optional().default("femme"),
 });
 
-function resolveVoice(language: string, requestedVoice?: string) {
+function resolveVoice(
+  language: string,
+  requestedVoice?: string,
+  voiceGender: "homme" | "femme" = "femme"
+) {
   const normalizedLanguage = language.toLowerCase().slice(0, 2);
   const voices = (VOICE_BY_LANGUAGE[
     normalizedLanguage as keyof typeof VOICE_BY_LANGUAGE
@@ -39,13 +48,46 @@ function resolveVoice(language: string, requestedVoice?: string) {
     return requestedVoice;
   }
 
+  const masculineByLanguage: Record<string, string[]> = {
+    de: ["Hans"],
+    en: ["Brian", "Matthew"],
+    es: ["Enrique"],
+    fr: ["Mathieu"],
+    it: ["Giorgio"],
+    nl: ["Ruben"],
+    pl: ["Jacek"],
+    pt: ["Ricardo"],
+    ru: ["Maxim"],
+    ja: ["Takumi"],
+  };
+
+  if (voiceGender === "homme") {
+    const maleCandidate = (masculineByLanguage[normalizedLanguage] ?? []).find(
+      (candidate) => voices.includes(candidate)
+    );
+
+    if (maleCandidate) {
+      return maleCandidate;
+    }
+  }
+
   return voices[0];
 }
 
-async function fetchStreamElementsAudio(text: string, voice: string) {
+async function fetchStreamElementsAudio(
+  text: string,
+  voice: string,
+  voiceStyle: "narratif" | "conversationnel" | "énergique"
+) {
+  const stylePrefix =
+    voiceStyle === "énergique"
+      ? "Ton dynamique: "
+      : voiceStyle === "conversationnel"
+        ? "Ton naturel: "
+        : "Ton narratif: ";
   const url = new URL("https://api.streamelements.com/kappa/v2/speech");
   url.searchParams.set("voice", voice);
-  url.searchParams.set("text", text);
+  url.searchParams.set("text", `${stylePrefix}${text}`);
 
   const response = await fetch(url, {
     headers: {
@@ -103,14 +145,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const { language, text, voice } = parsed.data;
-    const selectedVoice = resolveVoice(language, voice);
+    const { language, text, voice, voiceGender, voiceStyle } = parsed.data;
+    const selectedVoice = resolveVoice(language, voice, voiceGender);
 
     let arrayBuffer: ArrayBuffer;
     let provider = "streamelements";
 
     try {
-      arrayBuffer = await fetchStreamElementsAudio(text, selectedVoice);
+      arrayBuffer = await fetchStreamElementsAudio(
+        text,
+        selectedVoice,
+        voiceStyle
+      );
     } catch {
       arrayBuffer = await fetchGoogleAudio(text, language);
       provider = "public-google-tts-fallback";

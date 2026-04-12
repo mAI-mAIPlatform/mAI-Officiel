@@ -1,11 +1,17 @@
 "use client";
 
-import { BookOpen, Languages, RefreshCcw, SendHorizonal } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BookOpen,
+  Languages,
+  RefreshCcw,
+  SendHorizonal,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const languageOptions = [
-  { code: "auto", label: "Détecter la langue" },
+  { code: "auto", label: "Détection auto" },
   { code: "fr", label: "Français" },
   { code: "en", label: "Anglais" },
   { code: "es", label: "Espagnol" },
@@ -13,14 +19,52 @@ const languageOptions = [
   { code: "ar", label: "Arabe" },
   { code: "it", label: "Italien" },
   { code: "pt", label: "Portugais" },
-];
+  { code: "nl", label: "Néerlandais" },
+  { code: "pl", label: "Polonais" },
+  { code: "tr", label: "Turc" },
+  { code: "sv", label: "Suédois" },
+  { code: "ru", label: "Russe" },
+  { code: "ja", label: "Japonais" },
+  { code: "ko", label: "Coréen" },
+  { code: "zh", label: "Chinois" },
+] as const;
 
 const synonymsMap: Record<string, string[]> = {
   bug: ["anomalie", "défaut", "erreur"],
   rapide: ["vite", "prompt", "expéditif"],
   code: ["script", "source", "implémentation"],
   sécurité: ["protection", "fiabilité", "robustesse"],
+  translation: ["traduction", "interprétation", "localisation"],
 };
+
+const detectorPatterns = {
+  fr: /\b(le|la|les|des|une|être|avec|pour)\b/giu,
+  en: /\b(the|and|with|for|this|that|are)\b/giu,
+  es: /\b(el|la|los|las|una|para|con|que)\b/giu,
+  de: /\b(der|die|das|mit|und|ist|für)\b/giu,
+  it: /\b(il|lo|gli|che|per|con|una)\b/giu,
+  pt: /\b(o|a|os|as|com|para|que|uma)\b/giu,
+};
+
+function detectLanguage(text: string) {
+  const normalized = text.toLowerCase();
+  if (!normalized.trim()) {
+    return "auto";
+  }
+
+  let topCode = "en";
+  let topScore = -1;
+
+  for (const [code, pattern] of Object.entries(detectorPatterns)) {
+    const matches = normalized.match(pattern)?.length ?? 0;
+    if (matches > topScore) {
+      topScore = matches;
+      topCode = code;
+    }
+  }
+
+  return topScore <= 0 ? "en" : topCode;
+}
 
 export default function TranslationPage() {
   const [sourceText, setSourceText] = useState("");
@@ -32,6 +76,11 @@ export default function TranslationPage() {
   const [isGeneratingLexicalAnalysis, setIsGeneratingLexicalAnalysis] =
     useState(false);
 
+  const detectedLanguage = useMemo(
+    () => detectLanguage(sourceText),
+    [sourceText]
+  );
+
   useEffect(() => {
     if (!sourceText.trim()) {
       setTranslatedText("");
@@ -41,7 +90,9 @@ export default function TranslationPage() {
     const timer = setTimeout(async () => {
       setIsTranslating(true);
       try {
-        const langPair = `${sourceLanguage === "auto" ? "fr" : sourceLanguage}|${targetLanguage}`;
+        const sourceLang =
+          sourceLanguage === "auto" ? detectedLanguage : sourceLanguage;
+        const langPair = `${sourceLang}|${targetLanguage}`;
         const response = await fetch(
           `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`
         );
@@ -52,10 +103,10 @@ export default function TranslationPage() {
       } finally {
         setIsTranslating(false);
       }
-    }, 450);
+    }, 350);
 
     return () => clearTimeout(timer);
-  }, [sourceLanguage, sourceText, targetLanguage]);
+  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguage]);
 
   const lexicalAnalysis = useMemo(() => {
     const textToAnalyze = translatedText.trim() || sourceText.trim();
@@ -93,7 +144,9 @@ export default function TranslationPage() {
 
   const handleGenerateLexicalAnalysis = async () => {
     if (!translatedText.trim()) {
-      setAiLexicalAnalysis("Traduisez d'abord un texte pour lancer l'analyse IA.");
+      setAiLexicalAnalysis(
+        "Traduisez d'abord un texte pour lancer l'analyse IA."
+      );
       return;
     }
 
@@ -126,19 +179,38 @@ export default function TranslationPage() {
     return list.length > 0 ? list : ["Aucun synonyme suggéré pour ce terme."];
   }, [lexicalAnalysis.keyWord]);
 
+  const swapLanguages = () => {
+    if (sourceLanguage === "auto") {
+      setSourceLanguage(targetLanguage);
+      setTargetLanguage(detectedLanguage === "auto" ? "fr" : detectedLanguage);
+      return;
+    }
+
+    setSourceLanguage(targetLanguage);
+    setTargetLanguage(sourceLanguage);
+    setSourceText(translatedText);
+    setTranslatedText(sourceText);
+  };
+
   return (
     <div className="liquid-glass flex h-full w-full max-w-6xl flex-col gap-6 overflow-y-auto p-4 md:p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Languages className="size-8 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">Traduction</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Traduction</h1>
+            <p className="text-xs text-muted-foreground">
+              Détection auto:{" "}
+              {sourceLanguage === "auto" ? detectedLanguage : sourceLanguage}
+            </p>
+          </div>
         </div>
         <Button size="sm" variant="outline">
           <SendHorizonal className="mr-2 size-4" /> Exporter
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr]">
         <div className="liquid-glass flex flex-col space-y-3 rounded-xl border border-border p-4">
           <div className="border-b border-border pb-3">
             <select
@@ -159,6 +231,17 @@ export default function TranslationPage() {
             placeholder="Saisissez le texte à traduire..."
             value={sourceText}
           />
+        </div>
+
+        <div className="flex items-center justify-center">
+          <Button
+            className="rounded-full"
+            onClick={swapLanguages}
+            type="button"
+            variant="secondary"
+          >
+            <ArrowLeftRight className="size-4" />
+          </Button>
         </div>
 
         <div className="liquid-glass flex flex-col space-y-3 rounded-xl border border-border bg-muted/20 p-4">
@@ -217,7 +300,9 @@ export default function TranslationPage() {
                 </p>
                 <Button
                   className="h-7 rounded-full px-3 text-xs"
-                  disabled={isGeneratingLexicalAnalysis || !translatedText.trim()}
+                  disabled={
+                    isGeneratingLexicalAnalysis || !translatedText.trim()
+                  }
                   onClick={handleGenerateLexicalAnalysis}
                   type="button"
                   variant="outline"
@@ -226,7 +311,8 @@ export default function TranslationPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {aiLexicalAnalysis || "Cliquez sur Générer pour une analyse courte."}
+                {aiLexicalAnalysis ||
+                  "Cliquez sur Générer pour une analyse courte."}
               </p>
             </div>
           </div>

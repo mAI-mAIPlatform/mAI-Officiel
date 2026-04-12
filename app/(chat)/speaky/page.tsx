@@ -2,10 +2,13 @@
 
 import {
   Download,
+  Gauge,
   LibraryBig,
   Loader2,
   Play,
+  Sparkles,
   Square,
+  Volume,
   Waves,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +22,8 @@ type SpeakyResponse = {
   selectedVoice?: string;
   suggestedVoices?: string[];
 };
+
+type VoiceStyle = "narratif" | "conversationnel" | "énergique";
 
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
@@ -72,6 +77,8 @@ export default function SpeakyPage() {
   const [voice, setVoice] = useState("Lea");
   const [rate, setRate] = useState(1);
   const [tone, setTone] = useState(0);
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("narratif");
+  const [voiceGender, setVoiceGender] = useState<"homme" | "femme">("femme");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
@@ -92,6 +99,10 @@ export default function SpeakyPage() {
     () => getEffectiveRate(rate, tone),
     [rate, tone]
   );
+  const speechSupport =
+    typeof window !== "undefined" &&
+    "speechSynthesis" in window &&
+    "SpeechSynthesisUtterance" in window;
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -125,7 +136,13 @@ export default function SpeakyPage() {
       const response = await fetch("/api/speaky", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language, voice }),
+        body: JSON.stringify({
+          text,
+          language,
+          voice,
+          voiceStyle,
+          voiceGender,
+        }),
       });
 
       const payload = (await response.json()) as SpeakyResponse & {
@@ -169,6 +186,47 @@ export default function SpeakyPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const previewWithBrowserSpeech = () => {
+    if (!text.trim()) {
+      toast.error("Ajoutez du texte pour la prévisualisation.");
+      return;
+    }
+
+    if (!speechSupport) {
+      toast.error("Web Speech API indisponible sur ce navigateur.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = Math.max(0.5, Math.min(1.8, rate));
+    utterance.pitch = Math.max(0, Math.min(2, 1 + tone / 10));
+    utterance.lang = `${language}-${language.toUpperCase()}`;
+    utterance.volume = 1;
+
+    const styleBoost =
+      voiceStyle === "énergique"
+        ? 0.12
+        : voiceStyle === "conversationnel"
+          ? 0.04
+          : 0;
+    utterance.rate = Math.max(0.5, Math.min(2, utterance.rate + styleBoost));
+
+    const selectedVoice = window.speechSynthesis
+      .getVoices()
+      .find((candidate) =>
+        candidate.lang.toLowerCase().startsWith(language.toLowerCase())
+      );
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleDownload = () => {
@@ -272,6 +330,36 @@ export default function SpeakyPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-xs">
+              Style
+              <select
+                className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                onChange={(event) =>
+                  setVoiceStyle(event.target.value as VoiceStyle)
+                }
+                value={voiceStyle}
+              >
+                <option value="narratif">Narratif</option>
+                <option value="conversationnel">Conversationnel</option>
+                <option value="énergique">Énergique</option>
+              </select>
+            </label>
+            <label className="text-xs">
+              Variante
+              <select
+                className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                onChange={(event) =>
+                  setVoiceGender(event.target.value as "homme" | "femme")
+                }
+                value={voiceGender}
+              >
+                <option value="femme">Femme</option>
+                <option value="homme">Homme</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="text-xs">
               Vitesse ({rate.toFixed(2)}x)
               <input
                 className="mt-1 w-full"
@@ -319,8 +407,19 @@ export default function SpeakyPage() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
+              onClick={previewWithBrowserSpeech}
+              type="button"
+            >
+              <Volume className="size-3.5" />
+              Prévisualisation temps réel
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
               onClick={() => {
                 audioRef.current?.pause();
+                if (speechSupport) {
+                  window.speechSynthesis.cancel();
+                }
                 setIsPlaying(false);
               }}
               type="button"
@@ -335,6 +434,14 @@ export default function SpeakyPage() {
           <p className="mb-2 inline-flex items-center gap-2 font-medium text-foreground">
             <Waves className="size-4" />
             Animation audio
+          </p>
+          <p className="text-[11px]">
+            <Gauge className="mr-1 inline size-3" />
+            Style: {voiceStyle} · Variante: {voiceGender}
+          </p>
+          <p className="mb-2 text-[11px]">
+            <Sparkles className="mr-1 inline size-3" />
+            Web Speech: {speechSupport ? "actif" : "indisponible"}
           </p>
 
           <div className="mb-4 flex h-16 items-end gap-1 rounded-xl border border-border/40 bg-background/60 p-2">

@@ -86,7 +86,13 @@ Automation policy (Projects + mAIs):
 - If the user asks to create a project (e.g., "Crée un projet d'IA pour moi"), use the createProject tool.
 - If the user asks to create a specialized assistant/mAI (e.g., "Fais un mAI prof de collège"), use the createMai tool.
 - Mention the effect label returned by tools ("Connexion aux Projets" or "Connexion aux mAIs").
-- If the user explicitly wants a simulation only, choose the "Faire sans l'outil" mode.`;
+- If the user explicitly wants a simulation only, choose the "Faire sans l'outil" mode.
+
+Plugin policy (commands @):
+- Treat mentions like @audio, @utils, @rewrite, @password as plugin intents.
+- Use audioAssistant for audio preparation requests.
+- Use textUtilities for text utility requests (summaries, keywords, slug, password, cleanup).
+- Return the tool output directly and clearly.`;
 
 export type RequestHints = {
   latitude: Geo["latitude"];
