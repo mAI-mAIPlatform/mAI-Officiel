@@ -6,12 +6,13 @@ import { createNotification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { CheckCircleFillIcon, WarningIcon } from "./icons";
 
-const iconsByType: Record<"success" | "error" | "warning" | "info", ReactNode> = {
-  success: <CheckCircleFillIcon />,
-  error: <WarningIcon />,
-  warning: <WarningIcon />,
-  info: <CheckCircleFillIcon />,
-};
+const iconsByType: Record<"success" | "error" | "warning" | "info", ReactNode> =
+  {
+    success: <CheckCircleFillIcon />,
+    error: <WarningIcon />,
+    warning: <WarningIcon />,
+    info: <CheckCircleFillIcon />,
+  };
 
 export function toast(props: Omit<ToastProps, "id">) {
   createNotification({
@@ -50,10 +51,10 @@ function Toast(props: ToastProps) {
   }, []);
 
   return (
-    <div className="flex toast-mobile:w-[356px] w-full justify-center">
+    <div className="flex w-full justify-end">
       <div
         className={cn(
-          "flex toast-mobile:w-fit w-full flex-row gap-3 rounded-lg bg-card border border-border/50 shadow-[var(--shadow-float)] p-3",
+          "liquid-panel flex max-w-[min(356px,calc(100vw-1rem))] flex-row gap-3 rounded-lg border border-border/50 bg-card/90 p-3 shadow-[var(--shadow-float)]",
           multiLine ? "items-start" : "items-center"
         )}
         data-testid="toast"

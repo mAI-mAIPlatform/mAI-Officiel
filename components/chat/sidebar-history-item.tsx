@@ -79,6 +79,9 @@ const PureChatItem = ({
   const [summaryText, setSummaryText] = useState("");
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [chatTags, setChatTags] = useState<TagDefinition[]>([]);
+  const [allTagDefinitions, setAllTagDefinitions] = useState<TagDefinition[]>(
+    []
+  );
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(chat.id);
@@ -168,10 +171,22 @@ const PureChatItem = ({
     setChatTags(definitions.filter((tag) => next.includes(tag.id)));
   };
 
-  const allTagDefinitions = readJsonStorage<TagDefinition[]>(
-    TAG_DEFINITIONS_STORAGE_KEY,
-    []
-  );
+  useEffect(() => {
+    const refreshTagDefinitions = () => {
+      setAllTagDefinitions(
+        readJsonStorage<TagDefinition[]>(TAG_DEFINITIONS_STORAGE_KEY, [])
+      );
+    };
+
+    refreshTagDefinitions();
+    window.addEventListener("storage", refreshTagDefinitions);
+    window.addEventListener("mai:tags-updated", refreshTagDefinitions);
+
+    return () => {
+      window.removeEventListener("storage", refreshTagDefinitions);
+      window.removeEventListener("mai:tags-updated", refreshTagDefinitions);
+    };
+  }, []);
 
   useEffect(() => {
     setRenameValue(chat.title);
@@ -182,13 +197,9 @@ const PureChatItem = ({
       CHAT_TAGS_STORAGE_KEY,
       {}
     );
-    const definitions = readJsonStorage<TagDefinition[]>(
-      TAG_DEFINITIONS_STORAGE_KEY,
-      []
-    );
     const ids = allTags[chat.id] ?? [];
-    setChatTags(definitions.filter((tag) => ids.includes(tag.id)));
-  }, [chat.id]);
+    setChatTags(allTagDefinitions.filter((tag) => ids.includes(tag.id)));
+  }, [allTagDefinitions, chat.id]);
 
   return (
     <SidebarMenuItem>

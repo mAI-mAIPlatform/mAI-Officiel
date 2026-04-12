@@ -32,7 +32,7 @@ async function SidebarShell({ children }: { children: React.ReactNode }) {
           <SidebarTrigger className="pointer-events-auto rounded-full border border-sidebar-border/45 bg-transparent text-sidebar-foreground shadow-none backdrop-blur-0 hover:bg-transparent" />
         </div>
         <Toaster
-          position="top-center"
+          position="top-right"
           theme="system"
           toastOptions={{
             className:

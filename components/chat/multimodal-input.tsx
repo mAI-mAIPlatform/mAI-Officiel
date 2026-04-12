@@ -11,7 +11,6 @@ import {
   Ghost,
   GraduationCapIcon,
   LockIcon,
-  MapPin,
   MicIcon,
   Paperclip,
   PlusIcon,
@@ -1027,10 +1026,8 @@ ${extractedFileContext}`
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
-              isGeolocationEnabled={isGeolocationEnabled}
               onInsertTemplate={handleInsertTemplate}
               setAttachments={setAttachments}
-              setIsGeolocationEnabled={setIsGeolocationEnabled}
               status={status}
             />
             <ModelSelectorCompact
@@ -1122,16 +1119,12 @@ function PureContextualActionsMenu({
   onInsertTemplate,
   status,
   hasVision,
-  isGeolocationEnabled,
-  setIsGeolocationEnabled,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   setAttachments: Dispatch<SetStateAction<Attachment[]>>;
   onInsertTemplate: (templateText: string) => void;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
-  isGeolocationEnabled?: boolean;
-  setIsGeolocationEnabled?: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false);
@@ -1191,9 +1184,6 @@ function PureContextualActionsMenu({
   }
   if (isLearningEnabled) {
     selectedActions.push("Apprentissage");
-  }
-  if (isGeolocationEnabled) {
-    selectedActions.push("Position");
   }
 
   const canUseDeepReflection = plan === "pro" || plan === "max";
@@ -1470,24 +1460,6 @@ function PureContextualActionsMenu({
             size={16}
           />
           Apprendre & Étudier
-        </Button>
-
-        <Button
-          className={cn(
-            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
-            isGeolocationEnabled &&
-              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          )}
-          onClick={() => setIsGeolocationEnabled?.(!isGeolocationEnabled)}
-          variant="ghost"
-        >
-          <MapPin
-            className={
-              isGeolocationEnabled ? "text-primary" : "text-muted-foreground"
-            }
-            size={16}
-          />
-          Position
         </Button>
       </PopoverContent>
       <Dialog onOpenChange={setIsLibraryDialogOpen} open={isLibraryDialogOpen}>
