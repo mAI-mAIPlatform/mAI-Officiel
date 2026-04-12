@@ -3,8 +3,8 @@
 import { Bell, CheckCheck, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  clearNotifications,
   type AppNotification,
+  clearNotifications,
   getNotificationHistory,
   markAllNotificationsRead,
   subscribeNotifications,
@@ -26,7 +26,7 @@ export function HomeNotifications() {
   );
 
   return (
-    <div className="absolute top-3 right-3 z-30">
+    <div className="fixed top-3 right-3 z-40">
       <button
         aria-expanded={isOpen}
         className="liquid-glass flex items-center gap-2 rounded-full border border-border/50 bg-card/80 px-3 py-2 shadow-[var(--shadow-float)] backdrop-blur-xl"
@@ -37,13 +37,19 @@ export function HomeNotifications() {
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
           {unreadCount}
         </span>
-        {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        {isOpen ? (
+          <ChevronUp className="size-4" />
+        ) : (
+          <ChevronDown className="size-4" />
+        )}
       </button>
 
       {isOpen && (
-        <div className="liquid-glass mt-2 w-[320px] rounded-2xl border border-border/50 bg-card/80 p-3 shadow-[var(--shadow-float)] backdrop-blur-xl">
+        <div className="liquid-glass mt-2 ml-auto w-[320px] rounded-2xl border border-border/50 bg-card/80 p-3 shadow-[var(--shadow-float)] backdrop-blur-xl">
           <div className="flex items-center justify-between">
-            <p className="flex items-center gap-2 font-semibold">Notifications</p>
+            <p className="flex items-center gap-2 font-semibold">
+              Notifications
+            </p>
             <div className="flex items-center gap-1">
               <Button
                 onClick={() => markAllNotificationsRead(true)}

@@ -17,12 +17,13 @@ import {
   useArtifact,
   useArtifactSelector,
 } from "@/hooks/use-artifact";
-import type { Attachment, ChatMessage } from "@/lib/types";
 import {
   defaultShortcuts,
   SHORTCUTS_STORAGE_KEY,
   type ShortcutConfig,
 } from "@/lib/chat-preferences";
+import { createAiResponseNotification } from "@/lib/notifications";
+import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Artifact } from "./artifact";
 import { DataStreamHandler } from "./data-stream-handler";
@@ -62,6 +63,8 @@ export function ChatShell() {
 
   const stopRef = useRef(stop);
   stopRef.current = stop;
+  const previousStatusRef = useRef(status);
+  const lastNotifiedAssistantIdRef = useRef<string | null>(null);
 
   const prevChatIdRef = useRef(chatId);
   useEffect(() => {
@@ -185,6 +188,71 @@ export function ChatShell() {
         rewriteHandler as EventListener
       );
   }, [chatId, sendMessage, status]);
+
+  useEffect(() => {
+    const isGenerating = status === "submitted" || status === "streaming";
+    window.dispatchEvent(
+      new CustomEvent("mai:chat-stream-status", {
+        detail: { chatId, isGenerating },
+      })
+    );
+
+    if (isGenerating) {
+      sessionStorage.setItem("mai.chat.streaming.chatId", chatId);
+      return;
+    }
+
+    if (sessionStorage.getItem("mai.chat.streaming.chatId") === chatId) {
+      sessionStorage.removeItem("mai.chat.streaming.chatId");
+    }
+  }, [chatId, status]);
+
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    const wasGenerating =
+      previousStatus === "submitted" || previousStatus === "streaming";
+    const isReady = status === "ready";
+    const isError = status === "error";
+
+    const latestAssistantMessage = [...messages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    const latestAssistantText = latestAssistantMessage?.parts
+      ?.filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+      .trim();
+    const preview =
+      latestAssistantText && latestAssistantText.length > 160
+        ? `${latestAssistantText.slice(0, 157)}…`
+        : latestAssistantText;
+
+    if (
+      wasGenerating &&
+      isReady &&
+      latestAssistantMessage?.id &&
+      latestAssistantMessage.id !== lastNotifiedAssistantIdRef.current
+    ) {
+      createAiResponseNotification({
+        phase: "completed",
+        chatId,
+        assistantMessageId: latestAssistantMessage.id,
+        modelId: currentModelId,
+        preview,
+      });
+      lastNotifiedAssistantIdRef.current = latestAssistantMessage.id;
+    }
+
+    if (wasGenerating && isError) {
+      createAiResponseNotification({
+        phase: "error",
+        chatId,
+        modelId: currentModelId,
+      });
+    }
+
+    previousStatusRef.current = status;
+  }, [chatId, currentModelId, messages, status]);
 
   return (
     <>

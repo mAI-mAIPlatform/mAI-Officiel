@@ -10,7 +10,31 @@ export type AppNotification = {
   createdAt: string;
   read: boolean;
   source: "user" | "system";
+  metadata?: {
+    chatId?: string;
+    assistantMessageId?: string;
+    conversationTitle?: string;
+    modelId?: string;
+    phase?: "started" | "completed" | "error";
+  };
 };
+
+type NotificationVariables = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
+const interpolateTemplate = (
+  template: string,
+  variables?: NotificationVariables
+) =>
+  template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_fullMatch, key: string) => {
+    const value = variables?.[key];
+    if (value === null || value === undefined) {
+      return "";
+    }
+    return String(value);
+  });
 
 const STORAGE_KEY = "mai.notifications.history.v1";
 const EVENT_NAME = "mai:notifications-updated";
@@ -60,6 +84,8 @@ export function createNotification(input: {
   message: string;
   source?: "user" | "system";
   title?: string;
+  variables?: NotificationVariables;
+  metadata?: AppNotification["metadata"];
 }) {
   const titleByLevel: Record<NotificationLevel, string> = {
     error: "Erreur",
@@ -72,14 +98,69 @@ export function createNotification(input: {
     createdAt: new Date().toISOString(),
     id: crypto.randomUUID(),
     level: input.level,
-    message: input.message.trim(),
+    message: interpolateTemplate(input.message, input.variables).trim(),
+    metadata: input.metadata,
     read: false,
     source: input.source ?? "system",
-    title: input.title?.trim() || titleByLevel[input.level],
+    title:
+      interpolateTemplate(
+        input.title?.trim() || titleByLevel[input.level],
+        input.variables
+      ) || titleByLevel[input.level],
   };
 
   const current = getNotificationHistory();
   saveNotificationHistory([next, ...current]);
+}
+
+export function createAiResponseNotification(input: {
+  phase: "started" | "completed" | "error";
+  chatId: string;
+  conversationTitle?: string;
+  assistantMessageId?: string;
+  modelId?: string;
+  preview?: string;
+}) {
+  const templateByPhase = {
+    started: {
+      level: "info" as const,
+      title: "Réponse IA en cours",
+      message:
+        "La conversation « {{conversationTitle}} » est en cours de génération.",
+    },
+    completed: {
+      level: "success" as const,
+      title: "Réponse IA terminée",
+      message: "{{preview}}",
+    },
+    error: {
+      level: "error" as const,
+      title: "Réponse IA interrompue",
+      message:
+        "Une erreur est survenue sur la conversation « {{conversationTitle}} ».",
+    },
+  } as const;
+
+  const selectedTemplate = templateByPhase[input.phase];
+  const fallbackPreview = "La réponse est disponible dans la conversation.";
+
+  createNotification({
+    level: selectedTemplate.level,
+    message: selectedTemplate.message,
+    metadata: {
+      chatId: input.chatId,
+      assistantMessageId: input.assistantMessageId,
+      conversationTitle: input.conversationTitle,
+      modelId: input.modelId,
+      phase: input.phase,
+    },
+    source: "system",
+    title: selectedTemplate.title,
+    variables: {
+      conversationTitle: input.conversationTitle ?? "Sans titre",
+      preview: input.preview?.trim() || fallbackPreview,
+    },
+  });
 }
 
 export function markNotificationRead(id: string, read: boolean) {
@@ -100,7 +181,9 @@ export function clearNotifications() {
 
 export function subscribeNotifications(onUpdate: () => void) {
   if (typeof window === "undefined") {
-    return () => {};
+    return () => {
+      // no-op côté serveur
+    };
   }
 
   window.addEventListener(EVENT_NAME, onUpdate);

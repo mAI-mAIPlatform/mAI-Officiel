@@ -8,9 +8,9 @@ import {
   BotIcon,
   BrainIcon,
   FilePenLineIcon,
+  Ghost,
   GraduationCapIcon,
   LockIcon,
-  MapPin,
   MicIcon,
   Paperclip,
   PlusIcon,
@@ -352,6 +352,8 @@ function PureMultimodalInput({
     "mai.upload-source",
     "mai-library"
   );
+  const [isGhostModeArmed, setIsGhostModeArmed] = useState(false);
+  const [isGhostConversation, setIsGhostConversation] = useState(false);
 
   const [isGeolocationEnabled, setIsGeolocationEnabled] = useLocalStorage(
     "mai.geolocation-enabled",
@@ -372,6 +374,28 @@ function PureMultimodalInput({
     latitude: number;
     longitude: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncGhostState = () => {
+      setIsGhostModeArmed(localStorage.getItem("mai.ghost-mode") === "true");
+      setIsGhostConversation(
+        sessionStorage.getItem(GHOST_CHAT_ID_STORAGE_KEY) === chatId
+      );
+    };
+
+    syncGhostState();
+    window.addEventListener("storage", syncGhostState);
+    window.addEventListener("focus", syncGhostState);
+
+    return () => {
+      window.removeEventListener("storage", syncGhostState);
+      window.removeEventListener("focus", syncGhostState);
+    };
+  }, [chatId]);
 
   useEffect(() => {
     if (isGeolocationEnabled && navigator.geolocation) {
@@ -563,6 +587,8 @@ ${extractedFileContext}`
         // flagged as ghost to prevent any later persistence on follow-up requests.
         sessionStorage.setItem(GHOST_CHAT_ID_STORAGE_KEY, chatId);
         localStorage.setItem("mai.ghost-mode", "false");
+        setIsGhostModeArmed(false);
+        setIsGhostConversation(true);
       }
 
       setAttachments([]);
@@ -817,11 +843,11 @@ ${extractedFileContext}`
           isDragActive &&
             "[&>div]:ring-2 [&>div]:ring-primary/40 [&>div]:bg-primary/5"
         )}
+        onDragLeave={() => setIsDragActive(false)}
         onDragOver={(event) => {
           event.preventDefault();
           setIsDragActive(true);
         }}
-        onDragLeave={() => setIsDragActive(false)}
         onDrop={async (event) => {
           event.preventDefault();
           setIsDragActive(false);
@@ -883,6 +909,14 @@ ${extractedFileContext}`
         {isDragActive && (
           <div className="mx-3 mb-2 rounded-xl border border-dashed border-primary/40 bg-primary/10 px-3 py-2 text-xs text-primary">
             Déposez vos fichiers ici (PDF, TXT, MD, JSON, CSV, images...)
+          </div>
+        )}
+        {(isGhostModeArmed || isGhostConversation) && (
+          <div className="mx-3 mb-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-violet-400/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-medium text-violet-700 dark:text-violet-200">
+            <Ghost className="size-3.5" />
+            {isGhostModeArmed
+              ? "Mode Fantôme activé : prochain message privé"
+              : "Conversation Fantôme : historique désactivé"}
           </div>
         )}
         <PromptInputTextarea
@@ -992,10 +1026,8 @@ ${extractedFileContext}`
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
-              isGeolocationEnabled={isGeolocationEnabled}
               onInsertTemplate={handleInsertTemplate}
               setAttachments={setAttachments}
-              setIsGeolocationEnabled={setIsGeolocationEnabled}
               status={status}
             />
             <ModelSelectorCompact
@@ -1087,16 +1119,12 @@ function PureContextualActionsMenu({
   onInsertTemplate,
   status,
   hasVision,
-  isGeolocationEnabled,
-  setIsGeolocationEnabled,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   setAttachments: Dispatch<SetStateAction<Attachment[]>>;
   onInsertTemplate: (templateText: string) => void;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
-  isGeolocationEnabled?: boolean;
-  setIsGeolocationEnabled?: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false);
@@ -1157,9 +1185,6 @@ function PureContextualActionsMenu({
   if (isLearningEnabled) {
     selectedActions.push("Apprentissage");
   }
-  if (isGeolocationEnabled) {
-    selectedActions.push("Position");
-  }
 
   const canUseDeepReflection = plan === "pro" || plan === "max";
   const canUseVeryDeepReflection = plan === "max";
@@ -1182,6 +1207,9 @@ function PureContextualActionsMenu({
   ]);
 
   useEffect(() => {
+    if (!isLibraryDialogOpen) {
+      return;
+    }
     const raw = localStorage.getItem("mai.library.assets");
     if (!raw) {
       setLibraryAssets([]);
@@ -1202,8 +1230,12 @@ function PureContextualActionsMenu({
       asset.name.toLowerCase().includes(librarySearch.trim().toLowerCase())
     )
     .filter((asset) => {
-      if (libraryFilter === "favorites") return asset.favorite;
-      if (libraryFilter === "pinned") return asset.pinned;
+      if (libraryFilter === "favorites") {
+        return asset.favorite;
+      }
+      if (libraryFilter === "pinned") {
+        return asset.pinned;
+      }
       return true;
     })
     .sort(
@@ -1428,24 +1460,6 @@ function PureContextualActionsMenu({
             size={16}
           />
           Apprendre & Étudier
-        </Button>
-
-        <Button
-          className={cn(
-            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
-            isGeolocationEnabled &&
-              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          )}
-          onClick={() => setIsGeolocationEnabled?.(!isGeolocationEnabled)}
-          variant="ghost"
-        >
-          <MapPin
-            className={
-              isGeolocationEnabled ? "text-primary" : "text-muted-foreground"
-            }
-            size={16}
-          />
-          Position
         </Button>
       </PopoverContent>
       <Dialog onOpenChange={setIsLibraryDialogOpen} open={isLibraryDialogOpen}>

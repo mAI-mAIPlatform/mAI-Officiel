@@ -4,7 +4,7 @@ import { isToday, isYesterday, subMonths, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "next-auth";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import useSWR from "swr";
 import useSWRInfinite from "swr/infinite";
@@ -148,10 +148,47 @@ export function SidebarHistory({
     "mai.pinned.chats",
     []
   );
+  const [generatingChatIds, setGeneratingChatIds] = useState<string[]>([]);
   const searchQuery = useMemo(
     () => globalSearchQuery.trim().toLowerCase(),
     [globalSearchQuery]
   );
+
+  useEffect(() => {
+    const initialStreamingChatId = sessionStorage.getItem(
+      "mai.chat.streaming.chatId"
+    );
+    if (initialStreamingChatId) {
+      setGeneratingChatIds([initialStreamingChatId]);
+    }
+
+    const handleStreamStatus = (
+      event: Event & { detail?: { chatId?: string; isGenerating?: boolean } }
+    ) => {
+      const eventChatId = event.detail?.chatId;
+      const isGenerating = event.detail?.isGenerating === true;
+      if (!eventChatId) {
+        return;
+      }
+
+      setGeneratingChatIds((current) => {
+        if (isGenerating) {
+          return current.includes(eventChatId) ? current : [eventChatId];
+        }
+        return current.filter((id) => id !== eventChatId);
+      });
+    };
+
+    window.addEventListener(
+      "mai:chat-stream-status",
+      handleStreamStatus as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        "mai:chat-stream-status",
+        handleStreamStatus as EventListener
+      );
+  }, []);
 
   const hasReachedEnd = paginatedChatHistories
     ? paginatedChatHistories.some((page) => page.hasMore === false)
@@ -251,6 +288,39 @@ export function SidebarHistory({
     );
 
     toast.success("Discussion supprimée");
+  };
+
+  const renderChatSection = (label: string, chats: Chat[]) => {
+    if (chats.length === 0) {
+      return null;
+    }
+
+    return (
+      <div>
+        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
+          {label}
+        </div>
+        {chats.map((chat) => (
+          <ChatItem
+            chat={chat}
+            isActive={chat.id === id}
+            isGenerating={generatingChatIds.includes(chat.id)}
+            isPinned={pinnedChatIds.includes(chat.id)}
+            key={chat.id}
+            onAssignProject={handleAssignProject}
+            onDelete={(chatId) => {
+              setDeleteId(chatId);
+              setShowDeleteDialog(true);
+            }}
+            onPin={handlePin}
+            onRename={handleRename}
+            onReport={handleReport}
+            projects={projects}
+            setOpenMobile={setOpenMobile}
+          />
+        ))}
+      </div>
+    );
   };
 
   if (!user) {
@@ -353,135 +423,17 @@ export function SidebarHistory({
 
                 return (
                   <div className="flex flex-col gap-4">
-                    {groupedChats.today.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-                          Aujourd&apos;hui
-                        </div>
-                        {groupedChats.today.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            isPinned={pinnedChatIds.includes(chat.id)}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            onPin={handlePin}
-                            onRename={handleRename}
-                            onReport={handleReport}
-                            onAssignProject={handleAssignProject}
-                            projects={projects}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
-                      </div>
+                    {renderChatSection("Aujourd'hui", groupedChats.today)}
+                    {renderChatSection("Hier", groupedChats.yesterday)}
+                    {renderChatSection(
+                      "7 derniers jours",
+                      groupedChats.lastWeek
                     )}
-
-                    {groupedChats.yesterday.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-                          Hier
-                        </div>
-                        {groupedChats.yesterday.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            isPinned={pinnedChatIds.includes(chat.id)}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            onPin={handlePin}
-                            onRename={handleRename}
-                            onReport={handleReport}
-                            onAssignProject={handleAssignProject}
-                            projects={projects}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
-                      </div>
+                    {renderChatSection(
+                      "30 derniers jours",
+                      groupedChats.lastMonth
                     )}
-
-                    {groupedChats.lastWeek.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-                          7 derniers jours
-                        </div>
-                        {groupedChats.lastWeek.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            isPinned={pinnedChatIds.includes(chat.id)}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            onPin={handlePin}
-                            onRename={handleRename}
-                            onReport={handleReport}
-                            onAssignProject={handleAssignProject}
-                            projects={projects}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {groupedChats.lastMonth.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-                          30 derniers jours
-                        </div>
-                        {groupedChats.lastMonth.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            isPinned={pinnedChatIds.includes(chat.id)}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            onPin={handlePin}
-                            onRename={handleRename}
-                            onReport={handleReport}
-                            onAssignProject={handleAssignProject}
-                            projects={projects}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {groupedChats.older.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-                          Anciennes
-                        </div>
-                        {groupedChats.older.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            isPinned={pinnedChatIds.includes(chat.id)}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            onPin={handlePin}
-                            onRename={handleRename}
-                            onReport={handleReport}
-                            onAssignProject={handleAssignProject}
-                            projects={projects}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    {renderChatSection("Anciennes", groupedChats.older)}
                   </div>
                 );
               })()}

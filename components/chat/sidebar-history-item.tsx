@@ -1,14 +1,21 @@
+import { FolderIcon } from "lucide-react";
 import Link from "next/link";
 import { memo, useEffect, useState } from "react";
-import { FolderIcon } from "lucide-react";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
 import {
   CHAT_TAGS_STORAGE_KEY,
+  readJsonStorage,
   TAG_DEFINITIONS_STORAGE_KEY,
   type TagDefinition,
-  readJsonStorage,
 } from "@/lib/chat-preferences";
 import type { Chat, Project } from "@/lib/db/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,13 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -34,6 +34,7 @@ import {
 import {
   CheckCircleFillIcon,
   GlobeIcon,
+  LoaderIcon,
   LockIcon,
   MoreHorizontalIcon,
   ShareIcon,
@@ -43,6 +44,7 @@ import {
 const PureChatItem = ({
   chat,
   isActive,
+  isGenerating,
   isPinned,
   onDelete,
   onPin,
@@ -54,6 +56,7 @@ const PureChatItem = ({
 }: {
   chat: Chat;
   isActive: boolean;
+  isGenerating: boolean;
   isPinned: boolean;
   onDelete: (chatId: string) => void;
   onPin: (chatId: string) => void;
@@ -76,6 +79,9 @@ const PureChatItem = ({
   const [summaryText, setSummaryText] = useState("");
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [chatTags, setChatTags] = useState<TagDefinition[]>([]);
+  const [allTagDefinitions, setAllTagDefinitions] = useState<TagDefinition[]>(
+    []
+  );
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(chat.id);
@@ -165,10 +171,22 @@ const PureChatItem = ({
     setChatTags(definitions.filter((tag) => next.includes(tag.id)));
   };
 
-  const allTagDefinitions = readJsonStorage<TagDefinition[]>(
-    TAG_DEFINITIONS_STORAGE_KEY,
-    []
-  );
+  useEffect(() => {
+    const refreshTagDefinitions = () => {
+      setAllTagDefinitions(
+        readJsonStorage<TagDefinition[]>(TAG_DEFINITIONS_STORAGE_KEY, [])
+      );
+    };
+
+    refreshTagDefinitions();
+    window.addEventListener("storage", refreshTagDefinitions);
+    window.addEventListener("mai:tags-updated", refreshTagDefinitions);
+
+    return () => {
+      window.removeEventListener("storage", refreshTagDefinitions);
+      window.removeEventListener("mai:tags-updated", refreshTagDefinitions);
+    };
+  }, []);
 
   useEffect(() => {
     setRenameValue(chat.title);
@@ -179,13 +197,9 @@ const PureChatItem = ({
       CHAT_TAGS_STORAGE_KEY,
       {}
     );
-    const definitions = readJsonStorage<TagDefinition[]>(
-      TAG_DEFINITIONS_STORAGE_KEY,
-      []
-    );
     const ids = allTags[chat.id] ?? [];
-    setChatTags(definitions.filter((tag) => ids.includes(tag.id)));
-  }, [chat.id]);
+    setChatTags(allTagDefinitions.filter((tag) => ids.includes(tag.id)));
+  }, [allTagDefinitions, chat.id]);
 
   return (
     <SidebarMenuItem>
@@ -195,7 +209,19 @@ const PureChatItem = ({
         isActive={isActive}
       >
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span className="truncate">{chat.title}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{chat.title}</span>
+            {isGenerating ? (
+              <span
+                className="liquid-panel inline-flex size-3 items-center justify-center rounded-full"
+                title="Réponse en cours…"
+              >
+                <span className="animate-spin text-sidebar-foreground/80">
+                  <LoaderIcon />
+                </span>
+              </span>
+            ) : null}
+          </span>
           {chatTags.length > 0 && (
             <span className="ml-2 inline-flex items-center gap-1">
               {chatTags.map((tag) => (
@@ -448,6 +474,15 @@ const PureChatItem = ({
 
 export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
   if (prevProps.isActive !== nextProps.isActive) {
+    return false;
+  }
+  if (prevProps.isGenerating !== nextProps.isGenerating) {
+    return false;
+  }
+  if (prevProps.chat.title !== nextProps.chat.title) {
+    return false;
+  }
+  if (prevProps.isPinned !== nextProps.isPinned) {
     return false;
   }
   return true;

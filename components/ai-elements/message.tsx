@@ -488,7 +488,8 @@ export const MessageResponse = memo(
 
           return (
             <button
-              className="inline cursor-pointer rounded-md border border-border/40 bg-muted/25 px-1 py-0.5 font-medium text-foreground underline decoration-primary/50 underline-offset-4 transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/10"
+              aria-label="Envoyer cette suggestion"
+              className="inline cursor-pointer rounded-sm px-0.5 font-medium text-foreground underline decoration-primary/45 decoration-[1.5px] underline-offset-3 transition-all duration-200 hover:-translate-y-0.5 hover:decoration-primary hover:[text-shadow:0_0_10px_oklch(0.62_0.13_265_/_22%)] focus-visible:rounded-md focus-visible:bg-primary/10"
               onClick={() => {
                 if (typeof window === "undefined") return;
                 const prompt = decodeSuggestionPrompt(href);

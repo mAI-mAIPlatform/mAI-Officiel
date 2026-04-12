@@ -32,13 +32,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
-import { createNotification } from "@/lib/notifications";
 import { APP_VERSION } from "@/lib/app-version";
 import {
+  CHAT_TAGS_STORAGE_KEY,
   TAG_DEFINITIONS_STORAGE_KEY,
   TAG_PALETTE,
   type TagDefinition,
 } from "@/lib/chat-preferences";
+import { createNotification } from "@/lib/notifications";
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
@@ -278,10 +279,7 @@ function parseTaskCommand(command: string): {
 
   const lower = normalized.toLowerCase();
   const title = normalized
-    .replace(
-      /^(créer|cree|ajoute[rz]?)( une)? tâche planifiée\s*[:-]?\s*/i,
-      ""
-    )
+    .replace(/^(créer|cree|ajoute[rz]?)( une)? tâche planifiée\s*[:-]?\s*/i, "")
     .trim();
   const nextDate = new Date();
 
@@ -331,6 +329,11 @@ export default function SettingsPage() {
   const [conversationTags, setConversationTags] = useState<TagDefinition[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0]);
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editingTagName, setEditingTagName] = useState("");
+  const [editingTagColor, setEditingTagColor] = useState<string>(
+    TAG_PALETTE[0]
+  );
   const [activationMessage, setActivationMessage] = useState<{
     type: "error" | "success";
     text: string;
@@ -381,6 +384,7 @@ export default function SettingsPage() {
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
   const [positionEnabled, setPositionEnabled] = useState(false);
   const [positionLabel, setPositionLabel] = useState("");
+  const [isResolvingPosition, setIsResolvingPosition] = useState(false);
   const [notifications, setNotifications] = useState({
     projectUpdates: true,
     responseReady: true,
@@ -446,6 +450,35 @@ export default function SettingsPage() {
       TAG_DEFINITIONS_STORAGE_KEY,
       JSON.stringify(conversationTags)
     );
+
+    // Synchronise les références de tags dans les conversations pour éviter
+    // les IDs orphelins après suppression/édition.
+    const rawAssignments = window.localStorage.getItem(CHAT_TAGS_STORAGE_KEY);
+    if (rawAssignments) {
+      try {
+        const parsedAssignments = JSON.parse(rawAssignments) as Record<
+          string,
+          string[]
+        >;
+        const allowedIds = new Set(conversationTags.map((tag) => tag.id));
+        const sanitizedAssignments = Object.fromEntries(
+          Object.entries(parsedAssignments).map(([chatId, tagIds]) => [
+            chatId,
+            (Array.isArray(tagIds) ? tagIds : []).filter((tagId) =>
+              allowedIds.has(tagId)
+            ),
+          ])
+        );
+        window.localStorage.setItem(
+          CHAT_TAGS_STORAGE_KEY,
+          JSON.stringify(sanitizedAssignments)
+        );
+      } catch {
+        // ignore invalid payload
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent("mai:tags-updated"));
   }, [conversationTags]);
 
   useEffect(() => {
@@ -758,6 +791,10 @@ export default function SettingsPage() {
   useEffect(() => {
     const raw = window.localStorage.getItem(POSITION_SETTINGS_STORAGE_KEY);
     if (!raw) {
+      setPositionEnabled(
+        localStorage.getItem("mai.geolocation-enabled") === "true"
+      );
+      setPositionLabel(localStorage.getItem("mai.geolocation-label") ?? "");
       return;
     }
 
@@ -776,7 +813,71 @@ export default function SettingsPage() {
       POSITION_SETTINGS_STORAGE_KEY,
       JSON.stringify({ enabled: positionEnabled, label: positionLabel.trim() })
     );
+    window.localStorage.setItem(
+      "mai.geolocation-enabled",
+      String(positionEnabled)
+    );
+    window.localStorage.setItem("mai.geolocation-label", positionLabel.trim());
   }, [positionEnabled, positionLabel]);
+
+  const resolveBrowserLocation = async () => {
+    if (!navigator.geolocation) {
+      createNotification({
+        level: "warning",
+        message: "La géolocalisation n'est pas disponible sur ce navigateur.",
+        source: "system",
+        title: "Position",
+      });
+      return null;
+    }
+
+    return new Promise<{ latitude: number; longitude: number } | null>(
+      (resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) =>
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 10_000 }
+        );
+      }
+    );
+  };
+
+  const handleTogglePosition = async () => {
+    if (positionEnabled) {
+      setPositionEnabled(false);
+      setPositionLabel("");
+      return;
+    }
+
+    setIsResolvingPosition(true);
+    const position = await resolveBrowserLocation();
+    setIsResolvingPosition(false);
+
+    if (!position) {
+      createNotification({
+        level: "error",
+        message:
+          "Accès à la position refusé ou indisponible. Autorisez la localisation dans le navigateur.",
+        source: "system",
+        title: "Position",
+      });
+      return;
+    }
+
+    const nextLabel = `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`;
+    setPositionEnabled(true);
+    setPositionLabel(nextLabel);
+    createNotification({
+      level: "success",
+      message: `Position activée: ${nextLabel}`,
+      source: "system",
+      title: "Position",
+    });
+  };
 
   useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
@@ -1937,6 +2038,17 @@ export default function SettingsPage() {
                   {tag.name}
                   <button
                     className="rounded-full p-0.5 text-muted-foreground transition hover:bg-black/10 hover:text-foreground"
+                    onClick={() => {
+                      setEditingTagId(tag.id);
+                      setEditingTagName(tag.name);
+                      setEditingTagColor(tag.color);
+                    }}
+                    type="button"
+                  >
+                    <PencilLine className="size-3" />
+                  </button>
+                  <button
+                    className="rounded-full p-0.5 text-muted-foreground transition hover:bg-black/10 hover:text-foreground"
                     onClick={() =>
                       setConversationTags((current) =>
                         current.filter((item) => item.id !== tag.id)
@@ -1950,6 +2062,67 @@ export default function SettingsPage() {
               ))
             )}
           </div>
+
+          {editingTagId && (
+            <div className="liquid-panel mt-3 rounded-xl border border-white/30 bg-white/70 p-3">
+              <p className="text-xs font-medium text-foreground">
+                Modifier le tag
+              </p>
+              <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto_auto]">
+                <Input
+                  maxLength={20}
+                  onChange={(event) => setEditingTagName(event.target.value)}
+                  value={editingTagName}
+                />
+                <Button
+                  onClick={() => {
+                    const safeName = editingTagName.trim().slice(0, 20);
+                    if (!safeName) {
+                      return;
+                    }
+                    setConversationTags((current) =>
+                      current.map((tag) =>
+                        tag.id === editingTagId
+                          ? {
+                              ...tag,
+                              color: editingTagColor,
+                              name: safeName,
+                            }
+                          : tag
+                      )
+                    );
+                    setEditingTagId(null);
+                    setEditingTagName("");
+                  }}
+                  type="button"
+                  variant="outline"
+                >
+                  Enregistrer
+                </Button>
+                <Button
+                  onClick={() => setEditingTagId(null)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Annuler
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {TAG_PALETTE.map((color) => (
+                  <button
+                    className={cn(
+                      "h-5 w-5 rounded-full ring-1 ring-border/50 transition",
+                      editingTagColor === color && "ring-2 ring-primary"
+                    )}
+                    key={`edit-${color}`}
+                    onClick={() => setEditingTagColor(color)}
+                    style={{ backgroundColor: color }}
+                    type="button"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto]">
             <Input
@@ -2057,18 +2230,23 @@ export default function SettingsPage() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
-              onClick={() => setPositionEnabled((prev) => !prev)}
+              onClick={handleTogglePosition}
               size="sm"
               type="button"
               variant="outline"
             >
-              {positionEnabled ? "Désactiver" : "Activer"}
+              {isResolvingPosition
+                ? "Localisation..."
+                : positionEnabled
+                  ? "Désactiver"
+                  : "Activer"}
             </Button>
             <Input
               className="max-w-xs"
               disabled={!positionEnabled}
               onChange={(event) => setPositionLabel(event.target.value)}
-              placeholder="Ex: Paris, FR"
+              placeholder="Coordonnées détectées"
+              readOnly
               value={positionLabel}
             />
           </div>

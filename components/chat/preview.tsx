@@ -46,8 +46,8 @@ export function Preview() {
         <button
           className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
             isGhostModeEnabled
-              ? "border-purple-500/40 bg-purple-500/20 text-purple-200"
-              : "border-border/40 bg-card/40 text-muted-foreground"
+              ? "border-purple-500/40 bg-purple-500/20 text-purple-200 shadow-[0_0_0_3px_rgba(168,85,247,0.15)]"
+              : "border-border/40 bg-card/40 text-muted-foreground hover:border-border/70"
           }`}
           onClick={() => {
             const nextValue = !isGhostModeEnabled;
@@ -69,6 +69,11 @@ export function Preview() {
           <p className="mt-1.5 text-sm text-muted-foreground">
             Posez une question, écrivez du code, ou explorez des idées.
           </p>
+          {isGhostModeEnabled && (
+            <p className="mt-2 text-xs text-purple-300">
+              Le prochain message ne sera pas enregistré dans l'historique.
+            </p>
+          )}
         </div>
 
         <div className="grid w-full max-w-md grid-cols-2 gap-2">
