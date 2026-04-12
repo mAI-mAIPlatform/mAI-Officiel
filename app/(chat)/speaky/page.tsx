@@ -4,16 +4,12 @@ import {
   Download,
   LibraryBig,
   Loader2,
-  Pause,
   Play,
-  Sparkles,
   Square,
   Waves,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-
-type VoiceGender = "male" | "female";
 
 type SpeakyResponse = {
   audioBase64: string;
@@ -28,71 +24,18 @@ function generateWaveBars(seed = 24) {
 
 export default function SpeakyPage() {
   const [text, setText] = useState("");
-  const [rate, setRate] = useState(1);
-  const [pitch, setPitch] = useState(1);
-  const [voiceGender, setVoiceGender] = useState<VoiceGender>("female");
+  const [language, setLanguage] = useState("fr");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
-  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
-  const [useCloudVoice, setUseCloudVoice] = useState(true);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(
+    null
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const refreshVoices = () => {
-      setAvailableVoices(window.speechSynthesis.getVoices());
-    };
-
-    refreshVoices();
-    window.speechSynthesis.onvoiceschanged = refreshVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      if (currentAudioUrlRef.current) {
-        URL.revokeObjectURL(currentAudioUrlRef.current);
-      }
-    };
-  }, []);
-
-  const browserVoices = useMemo(() => {
-    return availableVoices.filter((voice) => {
-      const voiceName = voice.name.toLowerCase();
-      return voiceGender === "female"
-        ? /(female|woman|femme|sophie|claire|celine|marie)/i.test(voiceName)
-        : /(male|man|homme|thomas|daniel|paul|henri)/i.test(voiceName);
-    });
-  }, [availableVoices, voiceGender]);
-
   const bars = useMemo(() => generateWaveBars(), []);
   const cloudTextLength = text.trim().length;
-
-  const playBrowserSpeech = () => {
-    if (typeof window === "undefined" || !text.trim()) {
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-
-    if (browserVoices[0]) {
-      utterance.voice = browserVoices[0];
-    }
-
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
-
-    setIsPlaying(true);
-    window.speechSynthesis.speak(utterance);
-  };
 
   const generateCloudAudio = async () => {
     if (!text.trim()) {
@@ -111,13 +54,12 @@ export default function SpeakyPage() {
       const response = await fetch("/api/speaky", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          language: "fr",
-        }),
+        body: JSON.stringify({ text, language }),
       });
 
-      const payload = (await response.json()) as SpeakyResponse & { error?: string };
+      const payload = (await response.json()) as SpeakyResponse & {
+        error?: string;
+      };
       if (!response.ok || !payload.audioBase64) {
         throw new Error(payload.error ?? "Génération audio impossible");
       }
@@ -125,7 +67,9 @@ export default function SpeakyPage() {
       const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
         char.charCodeAt(0)
       );
-      const blob = new Blob([bytes], { type: payload.contentType || "audio/mpeg" });
+      const blob = new Blob([bytes], {
+        type: payload.contentType || "audio/mpeg",
+      });
       const nextUrl = URL.createObjectURL(blob);
 
       if (currentAudioUrlRef.current) {
@@ -135,9 +79,17 @@ export default function SpeakyPage() {
 
       setAudioUrl(nextUrl);
       setEstimatedDuration(payload.durationEstimateSec);
-      toast.success("Audio généré avec succès (sans clé API). ");
+      toast.success("Audio cloud généré avec succès.");
+
+      setTimeout(() => {
+        audioRef.current?.play().catch(() => {
+          // Ignore autoplay restrictions.
+        });
+      }, 10);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur de génération audio");
+      toast.error(
+        error instanceof Error ? error.message : "Erreur de génération audio"
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -192,13 +144,7 @@ export default function SpeakyPage() {
         <div>
           <h1 className="text-2xl font-semibold">Speaky</h1>
           <p className="text-sm text-muted-foreground">
-            Studio vocal Liquid Glass: animation, export MP3, ajout bibliothèque, sans OpenAI key.
-          </p>
-        </div>
-        <div className="liquid-panel rounded-xl px-3 py-2 text-xs text-muted-foreground">
-          <p className="inline-flex items-center gap-2">
-            <Sparkles className="size-3.5" />
-            Mode {useCloudVoice ? "Cloud public" : "Web Speech local"}
+            Faire des sons d'exceptions.
           </p>
         </div>
       </header>
@@ -212,110 +158,43 @@ export default function SpeakyPage() {
             value={text}
           />
 
-          {useCloudVoice && (
-            <p className="text-[11px] text-muted-foreground">
-              Limite cloud: 220 caractères par génération ({cloudTextLength}/220).
-            </p>
-          )}
+          <p className="text-[11px] text-muted-foreground">
+            Limite cloud: 220 caractères par génération ({cloudTextLength}/220).
+          </p>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs">
-              Vitesse ({rate.toFixed(1)}x)
-              <input
-                className="mt-1 w-full"
-                max={1.8}
-                min={0.6}
-                onChange={(event) => setRate(Number(event.target.value))}
-                step={0.1}
-                type="range"
-                value={rate}
-              />
-            </label>
-
-            <label className="text-xs">
-              Tonalité ({pitch.toFixed(1)})
-              <input
-                className="mt-1 w-full"
-                max={1.8}
-                min={0.4}
-                onChange={(event) => setPitch(Number(event.target.value))}
-                step={0.1}
-                type="range"
-                value={pitch}
-              />
-            </label>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              className={`rounded-lg border px-3 py-1 text-xs ${useCloudVoice ? "bg-black text-white" : "text-muted-foreground"}`}
-              onClick={() => setUseCloudVoice(true)}
-              type="button"
+          <label className="text-xs">
+            Langue
+            <select
+              className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+              onChange={(event) => setLanguage(event.target.value)}
+              value={language}
             >
-              Cloud public
-            </button>
-            <button
-              className={`rounded-lg border px-3 py-1 text-xs ${!useCloudVoice ? "bg-black text-white" : "text-muted-foreground"}`}
-              onClick={() => setUseCloudVoice(false)}
-              type="button"
-            >
-              Web Speech local
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {([
-              ["female", "Voix femme"],
-              ["male", "Voix homme"],
-            ] as const).map(([value, label]) => (
-              <button
-                className={`rounded-lg border px-3 py-1 text-xs ${
-                  voiceGender === value ? "bg-black text-white" : "text-muted-foreground"
-                }`}
-                key={value}
-                onClick={() => setVoiceGender(value)}
-                type="button"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {!useCloudVoice && (
-            <p className="text-xs text-muted-foreground">
-              Voix locale détectée : {browserVoices[0]?.name ?? "par défaut navigateur"}
-            </p>
-          )}
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+              <option value="it">Italiano</option>
+            </select>
+          </label>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs text-white"
-              onClick={useCloudVoice ? generateCloudAudio : playBrowserSpeech}
+              className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs text-white disabled:opacity-60"
+              disabled={isGenerating}
+              onClick={generateCloudAudio}
               type="button"
             >
-              {isGenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-              {useCloudVoice ? "Générer audio" : "Lire"}
+              {isGenerating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Play className="size-3.5" />
+              )}
+              Générer audio cloud
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
               onClick={() => {
-                window.speechSynthesis.pause();
                 audioRef.current?.pause();
-                setIsPlaying(false);
-              }}
-              type="button"
-            >
-              <Pause className="size-3.5" />
-              Pause
-            </button>
-            <button
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
-              onClick={() => {
-                window.speechSynthesis.cancel();
-                if (audioRef.current) {
-                  audioRef.current.pause();
-                  audioRef.current.currentTime = 0;
-                }
                 setIsPlaying(false);
               }}
               type="button"
@@ -345,21 +224,39 @@ export default function SpeakyPage() {
             ))}
           </div>
 
-          <p>{isGenerating ? "Génération en cours..." : isPlaying ? "Lecture en cours" : "Prêt"}</p>
+          <p>
+            {isGenerating
+              ? "Génération en cours..."
+              : isPlaying
+                ? "Lecture en cours"
+                : "Prêt"}
+          </p>
           {estimatedDuration ? (
-            <p className="mt-1 text-[11px]">Durée estimée : ~{estimatedDuration}s</p>
+            <p className="mt-1 text-[11px]">
+              Durée estimée : ~{estimatedDuration}s
+            </p>
           ) : null}
 
           {audioUrl ? (
             <>
               <audio
+                autoPlay
                 className="mt-3 w-full"
                 controls
+                onEnded={() => setIsPlaying(false)}
                 onPause={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
                 ref={audioRef}
                 src={audioUrl}
-              />
+              >
+                <track
+                  default
+                  kind="captions"
+                  label="Transcription automatique indisponible"
+                  src="data:text/vtt,WEBVTT"
+                  srcLang={language}
+                />
+              </audio>
 
               <div className="mt-3 grid gap-2">
                 <button
@@ -381,7 +278,9 @@ export default function SpeakyPage() {
               </div>
             </>
           ) : (
-            <p className="mt-3 text-[11px]">Générez un audio pour activer l'aperçu et le téléchargement.</p>
+            <p className="mt-3 text-[11px]">
+              Générez un audio pour activer l'aperçu et le téléchargement.
+            </p>
           )}
         </aside>
       </div>

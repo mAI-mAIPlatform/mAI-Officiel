@@ -2,15 +2,15 @@
 
 import {
   BarChart3,
+  FileSpreadsheet,
   Play,
   SquareTerminal,
   Table,
   Upload,
-  FileSpreadsheet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-type Runtime = "python" | "javascript";
+type Runtime = "python" | "javascript" | "bash";
 
 type RuntimeFile = {
   contentBase64: string;
@@ -28,12 +28,16 @@ type ExecutionResponse = {
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import csv\nfrom pathlib import Path\n\nrows = []\nfile = Path("data.csv")\nif file.exists():\n    with file.open() as f:\n        reader = csv.DictReader(f)\n        rows = list(reader)\n    print(f"Rows: {len(rows)}")\n    print(rows[:3])\nelse:\n    values = [2, 4, 6, 8]\n    print("Mean:", sum(values) / len(values))`,
   javascript: `import fs from "node:fs";\n\nif (fs.existsSync("data.csv")) {\n  const raw = fs.readFileSync("data.csv", "utf8");\n  const lines = raw.trim().split("\\n");\n  console.log("Rows:", Math.max(lines.length - 1, 0));\n  console.log(lines.slice(0, 3));\n} else {\n  const values = [2, 4, 6, 8];\n  const mean = values.reduce((acc, value) => acc + value, 0) / values.length;\n  console.log("Mean:", mean);\n}`,
+  bash: `#!/usr/bin/env bash\nset -euo pipefail\n\necho "Sandbox ready"\nif [[ -f "data.csv" ]]; then\n  echo "File data.csv detected"\n  head -n 5 data.csv\nelse\n  echo "No data.csv file found"\n  printf "2\\n4\\n6\\n8\\n" | awk '{sum+=$1; count+=1} END {printf "Mean: %.2f\\n", sum/count}'\nfi`,
 };
 
 async function toRuntimeFile(file: File): Promise<RuntimeFile> {
   const buffer = await file.arrayBuffer();
   const contentBase64 = btoa(
-    new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
+    new Uint8Array(buffer).reduce(
+      (acc, byte) => acc + String.fromCharCode(byte),
+      ""
+    )
   );
 
   return {
@@ -92,15 +96,17 @@ export default function InterpreterPage() {
         <div>
           <h1 className="text-2xl font-semibold">Code Interpreter</h1>
           <p className="text-sm text-muted-foreground">
-            Sandbox isolé Python / JavaScript, exécutable en un clic.
+            Sandbox isolé Python / JavaScript / Bash, exécutable en un clic.
           </p>
         </div>
 
         <div className="liquid-panel flex items-center gap-2 rounded-xl px-2 py-1">
-          {(["python", "javascript"] as Runtime[]).map((item) => (
+          {(["python", "javascript", "bash"] as Runtime[]).map((item) => (
             <button
               className={`rounded-lg px-3 py-1 text-xs ${
-                runtime === item ? "bg-black text-white" : "text-muted-foreground"
+                runtime === item
+                  ? "bg-black text-white"
+                  : "text-muted-foreground"
               }`}
               key={item}
               onClick={() => {
@@ -109,7 +115,11 @@ export default function InterpreterPage() {
               }}
               type="button"
             >
-              {item === "python" ? "Python" : "JavaScript"}
+              {item === "python"
+                ? "Python"
+                : item === "javascript"
+                  ? "JavaScript"
+                  : "Bash"}
             </button>
           ))}
         </div>
@@ -130,13 +140,17 @@ export default function InterpreterPage() {
               accept=".csv,.xlsx,.xls,.txt,.json"
               className="hidden"
               multiple
-              onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+              onChange={(event) =>
+                setFiles(Array.from(event.target.files ?? []))
+              }
               type="file"
             />
           </label>
 
           {files.length > 0 ? (
-            <p className="text-xs text-muted-foreground">Fichiers: {files.map((item) => item.name).join(", ")}</p>
+            <p className="text-xs text-muted-foreground">
+              Fichiers: {files.map((item) => item.name).join(", ")}
+            </p>
           ) : null}
 
           <button
@@ -154,25 +168,36 @@ export default function InterpreterPage() {
           <h2 className="mb-2 text-sm font-medium">Output</h2>
           <div className="space-y-2 text-xs">
             {result?.logs?.length ? (
-              <pre className="rounded-xl bg-background/80 p-2">{result.logs.join("\n")}</pre>
+              <pre className="rounded-xl bg-background/80 p-2">
+                {result.logs.join("\n")}
+              </pre>
             ) : null}
             {result?.output ? (
-              <pre className="rounded-xl bg-emerald-500/10 p-2">{result.output}</pre>
+              <pre className="rounded-xl bg-emerald-500/10 p-2">
+                {result.output}
+              </pre>
             ) : null}
             {result?.error ? (
-              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">{result.error}</pre>
+              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
+                {result.error}
+              </pre>
             ) : null}
             {typeof result?.exitCode !== "undefined" ? (
               <p>Code retour: {String(result.exitCode)}</p>
             ) : null}
-            {!result ? (
-              <p className="text-muted-foreground">Aucun résultat pour le moment.</p>
-            ) : null}
+            {result ? null : (
+              <p className="text-muted-foreground">
+                Aucun résultat pour le moment.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 grid gap-2">
             {features.map((item) => (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground" key={item.label}>
+              <div
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                key={item.label}
+              >
                 <item.icon className="size-3.5" />
                 <span>{item.label}</span>
               </div>
