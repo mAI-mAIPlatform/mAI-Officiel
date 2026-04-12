@@ -108,7 +108,7 @@ export default function SpeakyPage() {
     null
   );
   const [provider, setProvider] = useState<string | null>(null);
-  const [useWebSpeech, setUseWebSpeech] = useState(true);
+  const [isUsingWebSpeech, setIsUsingWebSpeech] = useState(true);
   const [selectedWebVoice, setSelectedWebVoice] = useState<string | null>(null);
 
   const { state: speechState, speak, stop: stopSpeech, getVoicesByLanguage } = useWebSpeech();
@@ -132,7 +132,7 @@ export default function SpeakyPage() {
 
   const speechSettings = useMemo(() => {
     const styleMod = getStyleModifiers(voiceStyle);
-    const selectedVoice = webVoices.find((v) => v.name === selectedWebVoice) || webVoices[0] || null;
+    const selectedVoice = webVoices.find((v: SpeechSynthesisVoice) => v.name === selectedWebVoice) || webVoices[0] || null;
 
     return {
       rate: Math.max(0.5, Math.min(2, effectiveRate * styleMod.rate)),
@@ -427,7 +427,7 @@ export default function SpeakyPage() {
                  value={selectedWebVoice || ""}
                >
                  <option value="">Sélectionner une voix système</option>
-                 {webVoices.map((v) => (
+                 {webVoices.map((v: SpeechSynthesisVoice) => (
                    <option key={v.name} value={v.name}>
                      {v.name} ({v.localService ? "Local" : "Cloud"}) {v.default ? "✓ Défaut" : ""}
                    </option>
@@ -470,8 +470,8 @@ export default function SpeakyPage() {
              <label className="inline-flex items-center gap-2 px-2 py-2 text-xs">
                <input
                  type="checkbox"
-                 checked={useWebSpeech}
-                 onChange={(e) => setUseWebSpeech(e.target.checked)}
+                  checked={isUsingWebSpeech}
+                  onChange={(e) => setIsUsingWebSpeech(e.target.checked)}
                />
                Utiliser Web Speech API en priorité
              </label>
