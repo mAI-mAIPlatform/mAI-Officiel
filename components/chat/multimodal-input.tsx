@@ -559,6 +559,11 @@ ${extractedFileContext}`
 
       if (isGhostModeEnabled && typeof window !== "undefined") {
         localStorage.setItem("mai.ghost-mode", "false");
+        window.dispatchEvent(
+          new CustomEvent("mai:ghost-mode-changed", {
+            detail: { enabled: false },
+          })
+        );
       }
 
       setAttachments([]);

@@ -6,7 +6,7 @@ import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
-import { Greeting } from "./greeting";
+import { GhostGreeting, Greeting } from "./greeting";
 import { PreviewMessage, ThinkingMessage } from "./message";
 
 type MessagesProps = {
@@ -19,6 +19,7 @@ type MessagesProps = {
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
   isReadonly: boolean;
   isArtifactVisible: boolean;
+  isGhostModeEnabled: boolean;
   isLoading?: boolean;
   selectedModelId: string;
   onEditMessage?: (message: ChatMessage) => void;
@@ -34,6 +35,7 @@ function PureMessages({
   regenerate,
   isReadonly,
   isArtifactVisible,
+  isGhostModeEnabled,
   isLoading,
   selectedModelId: _selectedModelId,
   onEditMessage,
@@ -63,7 +65,7 @@ function PureMessages({
     <div className="relative flex-1 bg-background">
       {messages.length === 0 && !isLoading && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <Greeting />
+          {isGhostModeEnabled ? <GhostGreeting /> : <Greeting />}
         </div>
       )}
       <div

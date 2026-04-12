@@ -67,3 +67,34 @@ export const Greeting = () => {
     </div>
   );
 };
+
+export const GhostGreeting = () => {
+  return (
+    <div className="pointer-events-auto flex flex-col items-center px-4">
+      <motion.div
+        animate={{ opacity: 1, scale: 1 }}
+        className="liquid-glass mb-3 inline-flex items-center rounded-full border border-purple-500/35 bg-purple-500/15 px-3 py-1 font-medium text-[11px] text-purple-100"
+        initial={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      >
+        👻 Mode Fantôme
+      </motion.div>
+      <motion.h2
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center font-semibold text-2xl tracking-tight text-foreground md:text-3xl"
+        initial={{ opacity: 0, y: 12 }}
+        transition={{ delay: 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        Conversation privée activée
+      </motion.h2>
+      <motion.p
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-3 max-w-xl text-center text-muted-foreground/85 text-sm"
+        initial={{ opacity: 0, y: 12 }}
+        transition={{ delay: 0.14, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      >
+        Le prochain envoi ne sera pas ajouté à l&apos;historique.
+      </motion.p>
+    </div>
+  );
+};

@@ -57,6 +57,7 @@ export function ChatShell() {
     null
   );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isGhostModeEnabled, setIsGhostModeEnabled] = useState(false);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
   const { setArtifact } = useArtifact();
 
@@ -73,6 +74,22 @@ export function ChatShell() {
       setAttachments([]);
     }
   }, [chatId, setArtifact]);
+
+  useEffect(() => {
+    setIsGhostModeEnabled(localStorage.getItem("mai.ghost-mode") === "true");
+    const ghostHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ enabled?: boolean }>;
+      const eventValue = customEvent.detail?.enabled;
+      setIsGhostModeEnabled(
+        typeof eventValue === "boolean"
+          ? eventValue
+          : localStorage.getItem("mai.ghost-mode") === "true"
+      );
+    };
+    window.addEventListener("mai:ghost-mode-changed", ghostHandler);
+    return () =>
+      window.removeEventListener("mai:ghost-mode-changed", ghostHandler);
+  }, []);
 
   useEffect(() => {
     const normalize = (value: string) =>
@@ -201,6 +218,7 @@ export function ChatShell() {
               addToolApprovalResponse={addToolApprovalResponse}
               chatId={chatId}
               isArtifactVisible={isArtifactVisible}
+              isGhostModeEnabled={isGhostModeEnabled}
               isLoading={isLoading}
               isReadonly={isReadonly}
               messages={messages}
