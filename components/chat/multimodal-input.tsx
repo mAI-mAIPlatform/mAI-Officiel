@@ -957,6 +957,7 @@ function PureMultimodalInput({
           ) : (
             <div className="flex items-center gap-1">
               <Button
+                aria-label={isRecording ? "Stop dictation" : "Start dictation"}
                 className="h-7 w-7 rounded-full transition-colors"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1186,6 +1187,7 @@ function PureContextualActionsMenu({
       <div className="flex items-center gap-1.5">
         <PopoverTrigger asChild>
           <Button
+            aria-label="Contextual actions"
             className="flex h-7 w-7 items-center justify-center rounded-full border border-border/40 bg-secondary/50 p-1 text-foreground shadow-sm transition-colors hover:bg-secondary"
             data-testid="context-actions-button"
             disabled={status !== "ready"}
@@ -1703,6 +1705,7 @@ function PureStopButton({
 }) {
   return (
     <Button
+      aria-label="Stop generation"
       className="h-7 w-7 rounded-xl bg-foreground p-1 text-background transition-all duration-200 hover:opacity-85 active:scale-95 disabled:bg-muted disabled:text-muted-foreground/25 disabled:cursor-not-allowed"
       data-testid="stop-button"
       onClick={(event) => {
