@@ -57,9 +57,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -1605,12 +1602,17 @@ function PureContextualActionsMenu({
           Canevas
         </Button>
 
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal">
-            <Puzzle className="text-muted-foreground" size={16} />
-            Plugins
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-60">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
+              variant="ghost"
+            >
+              <Puzzle className="text-muted-foreground" size={16} />
+              Plugins
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60" sideOffset={4}>
             {[
               "none",
               "interpreter.python",
@@ -1628,8 +1630,8 @@ function PureContextualActionsMenu({
                 {pluginId === "none" ? "Aucun plugin" : pluginId}
               </DropdownMenuItem>
             ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Button
           className={cn(
