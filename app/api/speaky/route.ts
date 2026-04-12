@@ -31,14 +31,11 @@ const SpeakyRequestSchema = z.object({
 
 function resolveVoice(language: string, requestedVoice?: string) {
   const normalizedLanguage = language.toLowerCase().slice(0, 2);
-  const voices =
-    VOICE_BY_LANGUAGE[normalizedLanguage as keyof typeof VOICE_BY_LANGUAGE] ??
-    VOICE_BY_LANGUAGE.fr;
+  const voices = (VOICE_BY_LANGUAGE[
+    normalizedLanguage as keyof typeof VOICE_BY_LANGUAGE
+  ] ?? VOICE_BY_LANGUAGE.fr) as readonly string[];
 
-  if (
-    requestedVoice &&
-    voices.includes(requestedVoice as (typeof voices)[number])
-  ) {
+  if (requestedVoice && voices.includes(requestedVoice)) {
     return requestedVoice;
   }
 

@@ -105,7 +105,6 @@ export default function SpeakyPage() {
     }
 
     audioRef.current.playbackRate = effectiveRate;
-    // @ts-expect-error Non-standard but supported in major Chromium/WebKit engines.
     audioRef.current.preservesPitch = false;
   }, [effectiveRate]);
 
