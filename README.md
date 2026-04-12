@@ -5,6 +5,57 @@ Ce dépôt contient l’application officielle **mAI** : interface conversationn
 
 ---
 
+## 📋 Prérequis
+
+Avant de commencer, assurez-vous d'avoir installé sur votre système:
+- **Node.js 20+** (recommandé: version LTS)
+- **pnpm** (gestionnaire de paquets)
+- **PostgreSQL** (version 15+)
+
+---
+
+## 🚀 Démarrage rapide
+
+Suivez ces étapes pour lancer le projet en local:
+
+1.  **Cloner le dépôt**
+    ```bash
+    git clone https://github.com/<votre-organisation>/mai.git
+    cd mai
+    ```
+
+2.  **Installer les dépendances**
+    ```bash
+    pnpm install
+    ```
+
+3.  **Configurer les variables d'environnement**
+    ```bash
+    cp .env.example .env
+    ```
+    Editez ensuite le fichier `.env` avec vos propres valeurs.
+
+4.  **Lancer les migrations base de données**
+    ```bash
+    pnpm db:migrate
+    ```
+
+5.  **Lancer le serveur de développement**
+    ```bash
+    pnpm dev
+    ```
+
+L'application sera accessible à l'adresse: `http://localhost:3000`
+
+---
+
+## 🔧 Variables d'environnement
+
+La configuration complète des variables d'environnement est détaillée dans le fichier:
+👉 [docs/environment.md](docs/environment.md)
+
+---
+
 ## 📚 Documentation détaillée
 
 Pour comprendre en profondeur l'architecture et le fonctionnement du projet, veuillez consulter les fichiers de documentation suivants :
