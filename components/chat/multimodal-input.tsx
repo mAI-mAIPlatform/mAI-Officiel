@@ -1086,6 +1086,7 @@ function PureContextualActionsMenu({
   const { plan } = useSubscriptionPlan();
   const [quizTopic, setQuizTopic] = useState("culture générale");
   const [quizQuestionCount, setQuizQuestionCount] = useState(5);
+  const [quizTimerMinutes, setQuizTimerMinutes] = useState(10);
   const selectedActions: string[] = [];
 
   if (isReasoningEnabled) {
@@ -1477,18 +1478,36 @@ function PureContextualActionsMenu({
               <span className="text-muted-foreground">Questions</span>
               <input
                 className="h-9 rounded-md border border-border/50 bg-background px-3 text-sm outline-none"
-                max={20}
-                min={1}
+                max={30}
+                min={2}
                 onChange={(event) => {
                   const parsedValue = Number.parseInt(event.target.value, 10);
                   setQuizQuestionCount(
                     Number.isNaN(parsedValue)
                       ? 5
-                      : Math.min(20, Math.max(1, parsedValue))
+                      : Math.min(30, Math.max(2, parsedValue))
                   );
                 }}
                 type="number"
                 value={quizQuestionCount}
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="text-muted-foreground">Minuteur (minutes)</span>
+              <input
+                className="h-9 rounded-md border border-border/50 bg-background px-3 text-sm outline-none"
+                max={120}
+                min={1}
+                onChange={(event) => {
+                  const parsedValue = Number.parseInt(event.target.value, 10);
+                  setQuizTimerMinutes(
+                    Number.isNaN(parsedValue)
+                      ? 10
+                      : Math.min(120, Math.max(1, parsedValue))
+                  );
+                }}
+                type="number"
+                value={quizTimerMinutes}
               />
             </label>
             <label className="grid gap-1 text-sm">
@@ -1501,6 +1520,7 @@ function PureContextualActionsMenu({
                 <option value="facile">Facile</option>
                 <option value="moyen">Moyen</option>
                 <option value="difficile">Difficile</option>
+                <option value="expert">Expert</option>
               </select>
             </label>
           </div>
@@ -1511,7 +1531,7 @@ function PureContextualActionsMenu({
             <Button
               onClick={() => {
                 onInsertTemplate(
-                  `Crée un quiz interactif de difficulté ${quizDifficulty} sur le sujet « ${quizTopic.trim() || "culture générale"} » avec ${quizQuestionCount} questions. Pour chaque question, propose 4 choix, indique la bonne réponse, puis ajoute une explication courte.`
+                  `Crée un quiz interactif de difficulté ${quizDifficulty} sur le sujet « ${quizTopic.trim() || "culture générale"} » avec ${quizQuestionCount} questions. Ajoute un minuteur global de ${quizTimerMinutes} minutes et une estimation du temps recommandé par question. Pour chaque question, propose 4 choix, indique la bonne réponse, puis ajoute une explication courte et un feedback immédiat.`
                 );
                 setIsQuizDialogOpen(false);
               }}

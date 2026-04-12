@@ -19,9 +19,17 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  DownloadIcon,
+  PencilIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import {
   createContext,
+  type MouseEvent,
   memo,
   useCallback,
   useContext,
@@ -321,17 +329,151 @@ export const MessageBranchPage = ({
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
+const streamdownControls = {
+  code: true,
+  table: true,
+  mermaid: {
+    copy: true,
+    download: true,
+    fullscreen: true,
+    panZoom: true,
+  },
+} as const;
+
+const detectLanguageFromSnippet = (snippet: string) => {
+  const source = snippet.toLowerCase();
+
+  if (source.includes("def ") || source.includes("import ") || source.includes("print(")) return "python";
+  if (source.includes("interface ") || source.includes("const ") || source.includes("=>")) return "typescript";
+  if (source.includes("#include") || source.includes("std::")) return "cpp";
+  if (source.includes("select ") || source.includes("from ")) return "sql";
+  if (source.includes("<html") || source.includes("<div")) return "html";
+
+  return "text";
+};
+
+const enrichMarkdownFences = (content?: string) => {
+  if (!content) return content;
+
+  return content.replace(/```([\t ]*)\n([\s\S]*?)```/g, (_match, spaces, codeSnippet) => {
+    const inferredLanguage = detectLanguageFromSnippet(codeSnippet);
+    return `\`\`\`${spaces}${inferredLanguage}\n${codeSnippet}\`\`\``;
+  });
+};
+
+const CodeOrTableToolbar = ({
+  targetType,
+  onCopy,
+  onDownload,
+  onEdit,
+  onRedo,
+}: {
+  targetType: "code" | "table";
+  onCopy: () => void;
+  onDownload: () => void;
+  onEdit: () => void;
+  onRedo: () => void;
+}) => (
+  <div className="liquid-panel pointer-events-none absolute top-2 right-2 z-10 flex gap-1 rounded-lg border border-white/30 bg-white/70 p-1 opacity-0 backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 dark:border-white/10 dark:bg-black/35">
+    <button className="toolbar-btn" onClick={onEdit} type="button">
+      <PencilIcon size={12} /> Modifier
+    </button>
+    <button className="toolbar-btn" onClick={onRedo} type="button">
+      <RefreshCwIcon size={12} /> Refaire
+    </button>
+    <button className="toolbar-btn" onClick={onDownload} type="button">
+      <DownloadIcon size={12} /> Télécharger
+    </button>
+    <button className="toolbar-btn" onClick={onCopy} type="button">
+      <CopyIcon size={12} /> Copier
+    </button>
+    <span className="sr-only">{`Actions ${targetType}`}</span>
+  </div>
+);
+
+const RenderWithToolbar = ({
+  tag,
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLPreElement | HTMLTableElement> & {
+  tag: "pre" | "table";
+}) => {
+  const handleEvent = useCallback(
+    (eventName: string) => {
+      if (typeof window === "undefined") return;
+      window.dispatchEvent(new CustomEvent(eventName, { detail: { target: tag } }));
+    },
+    [tag]
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const textContent = (props as { children?: unknown }).children?.toString() ?? "";
+    await navigator.clipboard.writeText(textContent);
+    handleEvent("mai.block.copy");
+  }, [handleEvent, props]);
+
+  const handleDownload = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const blob = new Blob([(props as { children?: unknown }).children?.toString() ?? ""], {
+      type: "text/plain;charset=utf-8",
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = tag === "pre" ? "code.txt" : "table.md";
+    link.click();
+    URL.revokeObjectURL(link.href);
+    handleEvent("mai.block.download");
+  }, [handleEvent, props, tag]);
+
+  const handleWrapperClick = (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  };
+
+  const Element = tag;
+
+  return (
+    <div className="group relative my-2" onClick={handleWrapperClick}>
+      <CodeOrTableToolbar
+        onCopy={handleCopy}
+        onDownload={handleDownload}
+        onEdit={() => handleEvent("mai.block.edit")}
+        onRedo={() => handleEvent("mai.block.redo")}
+        targetType={tag === "pre" ? "code" : "table"}
+      />
+      <Element className={className} {...props}>
+        {children}
+      </Element>
+    </div>
+  );
+};
 
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
+  ({ className, children, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
+      components={{
+        pre: ({ children: preChildren, ...preProps }) => (
+          <RenderWithToolbar tag="pre" {...preProps}>
+            {preChildren}
+          </RenderWithToolbar>
+        ),
+        table: ({ children: tableChildren, ...tableProps }) => (
+          <RenderWithToolbar tag="table" {...tableProps}>
+            {tableChildren}
+          </RenderWithToolbar>
+        ),
+      }}
+      controls={streamdownControls}
       plugins={streamdownPlugins}
       {...props}
-    />
+    >
+      {enrichMarkdownFences(children?.toString())}
+    </Streamdown>
   ),
   (prevProps, nextProps) => prevProps.children === nextProps.children
 );
