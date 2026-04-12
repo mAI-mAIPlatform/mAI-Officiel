@@ -92,6 +92,14 @@ import type { VisibilityType } from "./visibility-selector";
 type UploadSource = "device" | "mai-library";
 type ReflectionLevel = "light" | "moderate" | "deep" | "very-deep";
 type ProjectItem = { id: string; name: string };
+type MentionItem =
+  | { id: string; label: string; type: "project" }
+  | {
+      description: string;
+      id: string;
+      label: string;
+      type: "tool";
+    };
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const GHOST_CHAT_ID_STORAGE_KEY = "mai.ghost-chat-id";
 const MAX_PERSISTENT_MEMORY_CHARS = 4000;
@@ -100,6 +108,33 @@ const reflectionLevels: ReflectionLevel[] = [
   "moderate",
   "deep",
   "very-deep",
+];
+
+const toolMentionItems: MentionItem[] = [
+  {
+    id: "interpreter.python",
+    label: "@interpreter.python",
+    description: "Active l'interpréteur Python pour ce message.",
+    type: "tool",
+  },
+  {
+    id: "interpreter.javascript",
+    label: "@interpreter.javascript",
+    description: "Active l'interpréteur JavaScript pour ce message.",
+    type: "tool",
+  },
+  {
+    id: "plugin.audio-generator",
+    label: "@plugin.audio-generator",
+    description: "Active le plugin de génération audio.",
+    type: "tool",
+  },
+  {
+    id: "plugin.password-generator",
+    label: "@plugin.password-generator",
+    description: "Active le plugin de génération de mot de passe.",
+    type: "tool",
+  },
 ];
 
 function getPersistentMemoryFromLocalStorage(): string | undefined {
@@ -267,13 +302,27 @@ function PureMultimodalInput({
     }
   };
 
-  const handleProjectMentionSelect = (project: ProjectItem) => {
-    const updatedInput = input.replace(/(?:^|\s)@([^\s@]*)$/, " ").trimStart();
-    setInput(updatedInput);
-    setProjectMentionOpen(false);
-    router.replace(`${window.location.pathname}?projectId=${project.id}`);
-    toast.success(`Projet sélectionné : ${project.name}`);
-  };
+  const replaceLastMention = useCallback(
+    (value: string) => value.replace(/(?:^|\s)@([^\s@]*)$/, " ").trimStart(),
+    []
+  );
+
+  const handleMentionSelect = useCallback(
+    (item: MentionItem) => {
+      if (item.type === "project") {
+        setInput((current) => replaceLastMention(current));
+        setProjectMentionOpen(false);
+        router.replace(`${window.location.pathname}?projectId=${item.id}`);
+        toast.success(`Projet sélectionné : ${item.label.replace(/^@/, "")}`);
+        return;
+      }
+
+      setInput((current) => `${replaceLastMention(current)}${item.label} `);
+      setProjectMentionOpen(false);
+      toast.success(`Outil activé : ${item.label}`);
+    },
+    [replaceLastMention, router, setInput]
+  );
 
   const handleSlashSelect = (cmd: SlashCommand) => {
     setSlashOpen(false);
@@ -369,6 +418,16 @@ function PureMultimodalInput({
   );
   const filteredProjects = (projectsData ?? []).filter((project) =>
     project.name.toLowerCase().includes(projectMentionQuery.toLowerCase())
+  );
+  const mentionItems: MentionItem[] = [
+    ...filteredProjects.map((project) => ({
+      id: project.id,
+      label: `@${project.name}`,
+      type: "project" as const,
+    })),
+    ...toolMentionItems,
+  ].filter((item) =>
+    item.label.toLowerCase().includes(`@${projectMentionQuery.toLowerCase()}`)
   );
   const [geolocationPos, setGeolocationPos] = useState<{
     latitude: number;
@@ -548,6 +607,28 @@ function PureMultimodalInput({
         .join("\n\n")
         .trim();
 
+      const mentionMatches = Array.from(
+        prompt.matchAll(
+          /@(?:interpreter\.(python|javascript)|plugin\.(audio-generator|password-generator))/g
+        )
+      ).map((match) => match[0]);
+      const uniqueMentionMatches = [...new Set(mentionMatches)];
+      const toolContextBlock =
+        uniqueMentionMatches.length > 0
+          ? [
+              "[Outils activés via @]",
+              ...uniqueMentionMatches.map((mention) => `- ${mention}`),
+              "Applique ces outils uniquement à ce message.",
+            ].join("\n")
+          : "";
+      const promptWithoutToolMentions = prompt
+        .replace(
+          /@(?:interpreter\.(python|javascript)|plugin\.(audio-generator|password-generator))/g,
+          ""
+        )
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
       sendMessage({
         role: "user",
         parts: [
@@ -560,11 +641,15 @@ function PureMultimodalInput({
           {
             type: "text",
             text: extractedFileContext
-              ? `${prompt}
+              ? `${toolContextBlock ? `${toolContextBlock}\n\n` : ""}${
+                  promptWithoutToolMentions || prompt
+                }
 
 [Contexte extrait des fichiers]
 ${extractedFileContext}`
-              : prompt,
+              : `${toolContextBlock ? `${toolContextBlock}\n\n` : ""}${
+                  promptWithoutToolMentions || prompt
+                }`,
           },
         ],
         // @ts-expect-error - appending to experimental body to be picked up by useChat
@@ -960,7 +1045,7 @@ ${extractedFileContext}`
               if (e.key === "ArrowDown") {
                 e.preventDefault();
                 setProjectMentionIndex((index) =>
-                  Math.min(index + 1, filteredProjects.length - 1)
+                  Math.min(index + 1, mentionItems.length - 1)
                 );
                 return;
               }
@@ -971,12 +1056,12 @@ ${extractedFileContext}`
               }
               if (
                 (e.key === "Enter" || e.key === "Tab") &&
-                filteredProjects.length > 0
+                mentionItems.length > 0
               ) {
                 e.preventDefault();
-                const selectedProject = filteredProjects[projectMentionIndex];
-                if (selectedProject) {
-                  handleProjectMentionSelect(selectedProject);
+                const selectedMention = mentionItems[projectMentionIndex];
+                if (selectedMention) {
+                  handleMentionSelect(selectedMention);
                 }
                 return;
               }
@@ -996,13 +1081,13 @@ ${extractedFileContext}`
         />
         {projectMentionOpen && (
           <div className="mx-3 mb-2 rounded-xl border border-border/60 bg-background/90 p-2 shadow-lg backdrop-blur-xl">
-            {filteredProjects.length === 0 ? (
+            {mentionItems.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Aucun projet trouvé pour cette mention.
+                Aucun projet/plugin/interpréteur trouvé pour cette mention.
               </p>
             ) : (
               <div className="space-y-1">
-                {filteredProjects.slice(0, 6).map((project, index) => (
+                {mentionItems.slice(0, 8).map((item, index) => (
                   <button
                     className={cn(
                       "flex w-full items-center rounded-lg px-2 py-1.5 text-left text-xs transition",
@@ -1010,11 +1095,16 @@ ${extractedFileContext}`
                         ? "bg-primary/15 text-primary"
                         : "hover:bg-muted"
                     )}
-                    key={project.id}
-                    onClick={() => handleProjectMentionSelect(project)}
+                    key={`${item.type}-${item.id}`}
+                    onClick={() => handleMentionSelect(item)}
                     type="button"
                   >
-                    @{project.name}
+                    <span>{item.label}</span>
+                    {"description" in item && (
+                      <span className="ml-2 text-[10px] text-muted-foreground">
+                        {item.description}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
