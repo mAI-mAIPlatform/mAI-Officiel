@@ -128,18 +128,31 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       .filter((item) => item !== undefined);
   }, []);
 
-  const openApplicationsMenu = () => {
+  const clearApplicationsCloseTimeout = () => {
     if (closeApplicationsTimeout.current !== null) {
       window.clearTimeout(closeApplicationsTimeout.current);
       closeApplicationsTimeout.current = null;
     }
+  };
+
+  const isWithinApplicationsMenu = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    return (
+      target.closest("[data-applications-trigger='true']") !== null ||
+      target.closest("[data-slot='dropdown-menu-content']") !== null
+    );
+  };
+
+  const openApplicationsMenu = () => {
+    clearApplicationsCloseTimeout();
     setIsApplicationsOpen(true);
   };
 
   const closeApplicationsMenu = () => {
-    if (closeApplicationsTimeout.current !== null) {
-      window.clearTimeout(closeApplicationsTimeout.current);
-    }
+    clearApplicationsCloseTimeout();
     closeApplicationsTimeout.current = window.setTimeout(() => {
       setIsApplicationsOpen(false);
     }, 140);
@@ -248,14 +261,25 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 ))}
                 <SidebarMenuItem>
                   <DropdownMenu
-                    onOpenChange={setIsApplicationsOpen}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        clearApplicationsCloseTimeout();
+                      }
+                      setIsApplicationsOpen(open);
+                    }}
                     open={isApplicationsOpen}
                   >
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
+                        data-applications-trigger="true"
                         className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] text-sidebar-foreground/85 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                         onMouseEnter={openApplicationsMenu}
-                        onMouseLeave={closeApplicationsMenu}
+                        onMouseLeave={(event) => {
+                          if (isWithinApplicationsMenu(event.relatedTarget)) {
+                            return;
+                          }
+                          closeApplicationsMenu();
+                        }}
                         tooltip="Applications"
                       >
                         <LayoutGridIcon className="size-3.5" />
@@ -266,13 +290,24 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       align="start"
                       className="w-56"
                       onMouseEnter={openApplicationsMenu}
-                      onMouseLeave={closeApplicationsMenu}
+                      onMouseLeave={(event) => {
+                        if (isWithinApplicationsMenu(event.relatedTarget)) {
+                          return;
+                        }
+                        closeApplicationsMenu();
+                      }}
                       side="right"
                       sideOffset={10}
                     >
                       {APPLICATION_LINKS.map((item) => (
                         <DropdownMenuItem asChild key={`app-${item.href}`}>
-                          <Link href={item.href} onClick={closeMobileSidebar}>
+                          <Link
+                            href={item.href}
+                            onClick={() => {
+                              setIsApplicationsOpen(false);
+                              closeMobileSidebar();
+                            }}
+                          >
                             <item.icon className="mr-2 size-3.5" />
                             {item.label}
                           </Link>
