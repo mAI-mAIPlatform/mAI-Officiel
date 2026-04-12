@@ -265,6 +265,10 @@ textarea:focus-visible {
       --background-end-rgb: 0, 0, 0;
     }
   }
+
+  .toolbar-btn {
+    @apply inline-flex items-center gap-1 rounded-md border border-white/35 bg-white/70 px-2 py-1 font-medium text-[10px] text-foreground transition hover:bg-white dark:border-white/15 dark:bg-black/30 dark:hover:bg-black/45;
+  }
 }
 
 .skeleton {

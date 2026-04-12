@@ -21,6 +21,15 @@ import { useArtifact } from "@/hooks/use-artifact";
 import type { Document, Vote } from "@/lib/db/schema";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { fetcher } from "@/lib/utils";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import { useSidebar } from "../ui/sidebar";
 import { ArtifactActions } from "./artifact-actions";
 import { ArtifactCloseButton } from "./artifact-close-button";
@@ -258,6 +267,7 @@ function PureArtifact({
   };
 
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
+  const [isCanvasSummaryOpen, setIsCanvasSummaryOpen] = useState(false);
 
   const isCurrentVersion =
     documents && documents.length > 0
@@ -340,6 +350,14 @@ function PureArtifact({
                     v{currentVersionIndex + 1}/{documents.length}
                   </div>
                 )}
+                <Button
+                  className="h-6 rounded-full border border-border/50 px-2 text-[10px]"
+                  onClick={() => setIsCanvasSummaryOpen(true)}
+                  size="sm"
+                  variant="ghost"
+                >
+                  Résumé
+                </Button>
               </div>
             </div>
           </div>
@@ -419,6 +437,69 @@ function PureArtifact({
           />
         )}
       </AnimatePresence>
+      <Dialog onOpenChange={setIsCanvasSummaryOpen} open={isCanvasSummaryOpen}>
+        <DialogContent className="liquid-panel border-white/25 bg-white/85 backdrop-blur-2xl dark:bg-black/45">
+          <DialogHeader>
+            <DialogTitle>Résumé du Canvas</DialogTitle>
+            <DialogDescription>
+              Génération rapide du résumé via GPT-5.4-nano avec options de longueur.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 text-xs">
+            <Button
+              onClick={() => {
+                sendMessage({
+                  role: "user",
+                  parts: [
+                    {
+                      type: "text",
+                      text: `Résume ce canvas de façon concise en français. Contenu:\n\n${artifact.content}`,
+                    },
+                  ],
+                });
+                setIsCanvasSummaryOpen(false);
+              }}
+              variant="secondary"
+            >
+              Plus concis
+            </Button>
+            <Button
+              onClick={() => {
+                sendMessage({
+                  role: "user",
+                  parts: [
+                    {
+                      type: "text",
+                      text: `Fais un résumé détaillé et structuré de ce canvas en français. Contenu:\n\n${artifact.content}`,
+                    },
+                  ],
+                });
+                setIsCanvasSummaryOpen(false);
+              }}
+              variant="secondary"
+            >
+              Plus allongé
+            </Button>
+            <Button
+              onClick={() => {
+                sendMessage({
+                  role: "user",
+                  parts: [{ type: "text", text: "Refais le résumé du canvas avec un angle différent." }],
+                });
+                setIsCanvasSummaryOpen(false);
+              }}
+              variant="secondary"
+            >
+              Refaire
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsCanvasSummaryOpen(false)} variant="ghost">
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
