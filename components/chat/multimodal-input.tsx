@@ -1735,7 +1735,7 @@ function PureContextualActionsMenu({
                         : "Activer dans le catalogue"}
                     </button>
                     <p className="text-[10px] text-muted-foreground">
-                      {plugin.category} • {plugin.isNew ? "Nouveau module ✨" : "Module"}
+                      Catégorie: {plugin.category}
                     </p>
                   </div>
                 </DropdownMenuContent>

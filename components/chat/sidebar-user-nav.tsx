@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronUp } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { User } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -35,6 +35,7 @@ const avatarGradientsById: Record<string, string> = {
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
@@ -48,6 +49,9 @@ export function SidebarUserNav({ user }: { user: User }) {
     const syncProfile = () => {
       const raw = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
       if (!raw) {
+        setCustomDisplayName(null);
+        setCustomAvatarDataUrl(null);
+        setCustomAvatarId("aurora");
         return;
       }
 
@@ -70,11 +74,13 @@ export function SidebarUserNav({ user }: { user: User }) {
     syncProfile();
     window.addEventListener("storage", syncProfile);
     window.addEventListener("focus", syncProfile);
+    window.document.addEventListener("visibilitychange", syncProfile);
     return () => {
       window.removeEventListener("storage", syncProfile);
       window.removeEventListener("focus", syncProfile);
+      window.document.removeEventListener("visibilitychange", syncProfile);
     };
-  }, []);
+  }, [pathname]);
 
   const isGuest = guestRegex.test(data?.user?.email ?? user.email ?? "");
   const displayName =
