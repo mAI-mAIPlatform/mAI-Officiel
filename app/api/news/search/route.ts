@@ -43,11 +43,13 @@ export async function POST(request: Request) {
     const response = await fetch(
       `https://serpapi.com/search.json?${params.toString()}`
     );
-    const data = await response.json();
+    const data = (await response.json()) as {
+      organic_results?: SerpApiOrganicResult[];
+    };
 
     const organicResults = (data.organic_results ?? [])
       .slice(0, 8)
-      .map((item: SerpApiOrganicResult) => ({
+      .map((item) => ({
         link: item.link,
         snippet: item.snippet,
         source: item.source,
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
 
     const report = organicResults
       .map(
-        (result: SerpApiOrganicResult, index: number) =>
+        (result, index) =>
           `${index + 1}. ${result.title}\nSource: ${result.source ?? "Web"}\nRésumé: ${result.snippet ?? "Aucun extrait disponible."}`
       )
       .join("\n\n");
