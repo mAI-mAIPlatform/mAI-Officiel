@@ -23,10 +23,17 @@ test("cn (tailwind-merge + clsx)", () => {
 });
 
 test("generateUUID", () => {
-  const uuid1 = generateUUID();
-  const uuid2 = generateUUID();
-  assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid1));
-  assert.notEqual(uuid1, uuid2);
+  const numToGenerate = 10000;
+  const uuids = new Set();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  for (let i = 0; i < numToGenerate; i++) {
+    const uuid = generateUUID();
+    assert.ok(uuidRegex.test(uuid), `Invalid UUID format: ${uuid}`);
+    uuids.add(uuid);
+  }
+
+  assert.equal(uuids.size, numToGenerate, "Collisions detected in generated UUIDs");
 });
 
 test("sanitizeText", () => {
