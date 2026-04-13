@@ -39,7 +39,11 @@ export async function GET(_req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Export error:", error);
+    console.error({
+      message: "Export error",
+      userId: session.user.id,
+      error,
+    });
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
