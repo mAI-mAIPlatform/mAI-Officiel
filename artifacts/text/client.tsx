@@ -10,6 +10,7 @@ import {
   RedoIcon,
   UndoIcon,
 } from "@/components/chat/icons";
+import { DocumentCanvas } from "@/components/chat/document-canvas";
 import { Editor } from "@/components/chat/text-editor";
 import type { Suggestion } from "@/lib/db/schema";
 import { getSuggestions } from "../actions";
@@ -83,19 +84,26 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
     }
 
     return (
-      <div className="flex flex-row px-4 py-8 md:px-16 md:py-12 lg:px-20">
-        <Editor
+      <div className="flex flex-col gap-4 px-4 py-8 md:px-16 md:py-12 lg:px-20">
+        <DocumentCanvas
           content={content}
-          currentVersionIndex={currentVersionIndex}
-          isCurrentVersion={isCurrentVersion}
           onSaveContent={onSaveContent}
           status={status}
-          suggestions={isCurrentVersion && metadata ? metadata.suggestions : []}
         />
+        <div className="flex flex-row">
+          <Editor
+            content={content}
+            currentVersionIndex={currentVersionIndex}
+            isCurrentVersion={isCurrentVersion}
+            onSaveContent={onSaveContent}
+            status={status}
+            suggestions={isCurrentVersion && metadata ? metadata.suggestions : []}
+          />
 
-        {metadata?.suggestions && metadata.suggestions.length > 0 ? (
-          <div className="h-dvh w-12 shrink-0 md:hidden" />
-        ) : null}
+          {metadata?.suggestions && metadata.suggestions.length > 0 ? (
+            <div className="h-dvh w-12 shrink-0 md:hidden" />
+          ) : null}
+        </div>
       </div>
     );
   },

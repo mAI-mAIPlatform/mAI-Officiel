@@ -72,6 +72,7 @@ import {
   DEFAULT_CHAT_MODEL,
 } from "@/lib/ai/models";
 import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
+import { pluginRegistry } from "@/lib/plugins/registry";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
@@ -109,6 +110,7 @@ const GHOST_CHAT_ID_STORAGE_KEY = "mai.ghost-chat-id";
 const MAX_PERSISTENT_MEMORY_CHARS = 4000;
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
 const PLUGIN_MODE_STORAGE_KEY = "mai.plugin-mode";
+const PLUGIN_ENABLED_STORAGE_KEY = "mai.plugins.enabled.v1";
 const reflectionLevels: ReflectionLevel[] = [
   "light",
   "moderate",
@@ -1306,6 +1308,12 @@ function PureContextualActionsMenu({
     PLUGIN_MODE_STORAGE_KEY,
     "none"
   );
+  const [enabledPluginIds, setEnabledPluginIds] = useLocalStorage<string[]>(
+    PLUGIN_ENABLED_STORAGE_KEY,
+    pluginRegistry
+      .filter((plugin) => plugin.enabledByDefault)
+      .map((plugin) => plugin.id)
+  );
   const [isQuizDialogOpen, setIsQuizDialogOpen] = useState(false);
   const [quizDifficulty, setQuizDifficulty] = useState("moyen");
   const [reasoningLevel, setReasoningLevel] = useLocalStorage<ReflectionLevel>(
@@ -1317,6 +1325,10 @@ function PureContextualActionsMenu({
   const [quizQuestionCount, setQuizQuestionCount] = useState(5);
   const [quizTimerMinutes, setQuizTimerMinutes] = useState(10);
   const selectedActions: string[] = [];
+  const enabledPluginsSet = useMemo(
+    () => new Set(enabledPluginIds),
+    [enabledPluginIds]
+  );
 
   if (isReasoningEnabled) {
     const reflectionLabel: Record<ReflectionLevel, string> = {
@@ -1337,7 +1349,10 @@ function PureContextualActionsMenu({
     selectedActions.push("Apprentissage");
   }
   if (selectedPlugin !== "none") {
-    selectedActions.push(`Plugin: ${selectedPlugin}`);
+    const pluginLabel =
+      pluginRegistry.find((plugin) => plugin.id === selectedPlugin)?.name ??
+      selectedPlugin;
+    selectedActions.push(`Plugin: ${pluginLabel}`);
   }
 
   const canUseDeepReflection = plan === "pro" || plan === "max";
@@ -1397,6 +1412,19 @@ function PureContextualActionsMenu({
         Number(b.pinned) - Number(a.pinned) ||
         +new Date(b.createdAt) - +new Date(a.createdAt)
     );
+
+  const pluginsByCategory = useMemo(() => {
+    return pluginRegistry.reduce<Record<string, typeof pluginRegistry>>(
+      (acc, plugin) => {
+        if (!acc[plugin.category]) {
+          acc[plugin.category] = [];
+        }
+        acc[plugin.category].push(plugin);
+        return acc;
+      },
+      {}
+    );
+  }, []);
 
   const attachFromLibrary = (asset: {
     name: string;
@@ -1630,24 +1658,91 @@ function PureContextualActionsMenu({
               Plugins
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60" sideOffset={4}>
-            {[
-              "none",
-              "interpreter.python",
-              "interpreter.javascript",
-              "plugin.audio-generator",
-              "plugin.password-generator",
-            ].map((pluginId) => (
-              <DropdownMenuItem
-                key={pluginId}
-                onClick={() => {
-                  setSelectedPlugin(pluginId);
-                  setOpen(false);
-                }}
-              >
-                {pluginId === "none" ? "Aucun plugin" : pluginId}
-              </DropdownMenuItem>
-            ))}
+          <DropdownMenuContent
+            align="start"
+            className="liquid-panel w-[420px] border-white/25 bg-white/90 p-2 backdrop-blur-2xl"
+            sideOffset={4}
+          >
+            <div className="grid grid-cols-[180px_1fr] gap-2">
+              <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+                  Plugin actif
+                </p>
+                <DropdownMenuItem
+                  className={cn(
+                    "rounded-lg text-xs",
+                    selectedPlugin === "none" && "bg-primary/10 text-primary"
+                  )}
+                  onClick={() => {
+                    setSelectedPlugin("none");
+                    setOpen(false);
+                  }}
+                >
+                  Aucun plugin
+                </DropdownMenuItem>
+                {pluginRegistry.map((plugin) => (
+                  <DropdownMenuItem
+                    className={cn(
+                      "mt-1 rounded-lg text-xs",
+                      selectedPlugin === plugin.id && "bg-primary/10 text-primary"
+                    )}
+                    key={plugin.id}
+                    onClick={() => {
+                      setSelectedPlugin(plugin.id);
+                      setOpen(false);
+                    }}
+                  >
+                    {plugin.name}
+                  </DropdownMenuItem>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+                  Catalogue (panneau droit)
+                </p>
+                <div className="max-h-56 space-y-2 overflow-auto pr-1">
+                  {Object.entries(pluginsByCategory).map(([category, plugins]) => (
+                    <div key={category}>
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {category}
+                      </p>
+                      <div className="space-y-1">
+                        {plugins.map((plugin) => {
+                          const isEnabled = enabledPluginsSet.has(plugin.id);
+                          return (
+                            <button
+                              className={cn(
+                                "flex w-full items-start justify-between rounded-lg border px-2 py-1.5 text-left text-[11px]",
+                                isEnabled
+                                  ? "border-primary/30 bg-primary/10"
+                                  : "border-border/60 bg-background/80"
+                              )}
+                              key={plugin.id}
+                              onClick={() => {
+                                setEnabledPluginIds((current) =>
+                                  current.includes(plugin.id)
+                                    ? current.filter((id) => id !== plugin.id)
+                                    : [...current, plugin.id]
+                                );
+                              }}
+                              type="button"
+                            >
+                              <span className="pr-2">
+                                {plugin.name} {plugin.isNew ? "✨" : ""}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {isEnabled ? "Actif" : "Off"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
 

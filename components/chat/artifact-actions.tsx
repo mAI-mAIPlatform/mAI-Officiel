@@ -1,9 +1,11 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { artifactDefinitions, type UIArtifact } from "./artifact";
 import type { ArtifactActionContext } from "./create-artifact";
+
+const exportFormats = ["pdf", "doc", "pptx", "xlsx"] as const;
 
 type ArtifactActionsProps = {
   artifact: UIArtifact;
@@ -33,6 +35,53 @@ function PureArtifactActions({
   if (!artifactDefinition) {
     throw new Error("Artifact definition not found!");
   }
+
+
+  const availableExportFormats = useMemo<(typeof exportFormats)[number][]>(() => {
+    if (artifact.kind === "image") {
+      return [];
+    }
+
+    if (artifact.kind === "sheet") {
+      return ["xlsx", "pdf"];
+    }
+
+    return [...exportFormats];
+  }, [artifact.kind]);
+
+  const handleExport = async (format: (typeof exportFormats)[number]) => {
+    try {
+      const query = new URLSearchParams({
+        id: artifact.documentId,
+        format,
+      });
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/document/export?${query.toString()}`
+      );
+
+      if (!response.ok) {
+        throw new Error("export_failed");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition");
+      const maybeName = disposition?.match(/filename="([^"]+)"/i)?.[1];
+      const fileName = maybeName ?? `${artifact.title}.${format}`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Export ${format.toUpperCase()} généré.`);
+    } catch {
+      toast.error("Échec de l'export. Réessayez dans quelques secondes.");
+    }
+  };
 
   const actionContext: ArtifactActionContext = {
     content: artifact.content,
@@ -91,6 +140,29 @@ function PureArtifactActions({
           </Tooltip>
         );
       })}
+      {availableExportFormats.length > 0 ? (
+        <div className="mt-2 flex flex-col items-center gap-1.5 rounded-full border border-border/60 bg-background/70 p-1.5">
+          {availableExportFormats.map((format) => (
+            <Tooltip key={format}>
+              <TooltipTrigger asChild>
+                <button
+                  className="rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  disabled={artifact.status === "streaming"}
+                  onClick={() => {
+                    void handleExport(format);
+                  }}
+                  type="button"
+                >
+                  {format.toUpperCase()}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" sideOffset={8}>
+                Exporter en {format.toUpperCase()}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

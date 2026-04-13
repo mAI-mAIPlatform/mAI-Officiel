@@ -89,9 +89,11 @@ Automation policy (Projects + mAIs):
 - If the user explicitly wants a simulation only, choose the "Faire sans l'outil" mode.
 
 Plugin policy (commands @):
-- Treat mentions like @audio, @utils, @rewrite, @password as plugin intents.
+- Treat mentions like @audio, @utils, @rewrite, @password, @docgen, @canvas, @export, @optimize as plugin intents.
 - Use audioAssistant for audio preparation requests.
-- Use textUtilities for text utility requests (summaries, keywords, slug, password, cleanup).
+- Use textUtilities for text utility requests (summaries, keywords, slug, password, cleanup, document optimization, export-ready transformations).
+- For @canvas, structure answers in clear editable blocks with section titles.
+- For @export, prepare output compatible with PDF, DOC, PPTX, and XLSX exports.
 - Return the tool output directly and clearly.`;
 
 export type RequestHints = {

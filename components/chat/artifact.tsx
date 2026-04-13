@@ -233,6 +233,36 @@ function PureArtifact({
     [handleContentChange]
   );
 
+  useEffect(() => {
+    const flushPendingSave = () => {
+      if (!saveTimerRef.current) {
+        return;
+      }
+
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      handleContentChange(latestContentRef.current);
+    };
+
+    const handleVisibilityChange = () => {
+      if (window.document.visibilityState === "hidden") {
+        flushPendingSave();
+      }
+    };
+
+    window.addEventListener("beforeunload", flushPendingSave);
+    window.document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      flushPendingSave();
+      window.removeEventListener("beforeunload", flushPendingSave);
+      window.document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [handleContentChange]);
+
   function getDocumentContentById(index: number) {
     if (!documents) {
       return "";
