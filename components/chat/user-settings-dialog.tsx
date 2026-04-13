@@ -28,6 +28,7 @@ import {
   type ShortcutConfig,
   type TagDefinition,
 } from "@/lib/chat-preferences";
+import { setClientPreferenceCookie } from "@/lib/client-preferences";
 import { cn } from "@/lib/utils";
 
 type ProfileSettings = {
@@ -185,10 +186,11 @@ export function useProfileSettings({
       stylisticDirectives,
     };
 
-    window.localStorage.setItem(
-      PROFILE_SETTINGS_STORAGE_KEY,
-      JSON.stringify(nextProfileSettings)
-    );
+    const serializedSettings = JSON.stringify(nextProfileSettings);
+
+    window.localStorage.setItem(PROFILE_SETTINGS_STORAGE_KEY, serializedSettings);
+    setClientPreferenceCookie("mai_profile", serializedSettings);
+    setClientPreferenceCookie("mai_language", "fr");
   }, [
     aiMemory,
     aiName,

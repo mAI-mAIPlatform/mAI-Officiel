@@ -546,6 +546,8 @@ function PureMultimodalInput({
     }
   };
 
+  const isSendingRef = useRef(false);
+
   const handleInsertTemplate = useCallback(
     (templateText: string) => {
       const normalizedTemplate = templateText.trim();
@@ -579,6 +581,17 @@ function PureMultimodalInput({
       if (!prompt.trim() && promptAttachments.length === 0) {
         return;
       }
+
+      if (status !== "ready" && status !== "error") {
+        toast.error("Veuillez attendre la fin de la réponse du modèle.");
+        return;
+      }
+
+      if (isSendingRef.current) {
+        return;
+      }
+
+      isSendingRef.current = true;
 
       window.history.pushState(
         {},
@@ -708,6 +721,10 @@ ${extractedFileContext}`
       if (width && width > 768) {
         textareaRef.current?.focus();
       }
+
+      window.setTimeout(() => {
+        isSendingRef.current = false;
+      }, 250);
     },
     [
       chatId,
@@ -715,6 +732,7 @@ ${extractedFileContext}`
       geolocationPos,
       sendMessage,
       setAttachments,
+      status,
       setInput,
       setLocalStorageInput,
       uploadSource,

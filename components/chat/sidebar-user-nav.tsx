@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { setClientPreferenceCookie } from "@/lib/client-preferences";
 import { guestRegex } from "@/lib/constants";
 import { LoaderIcon } from "./icons";
 import { toast } from "./toast";
@@ -74,9 +75,11 @@ export function SidebarUserNav({ user }: { user: User }) {
             <DropdownMenuItem
               className="cursor-pointer text-[13px]"
               data-testid="user-nav-item-theme"
-              onSelect={() =>
-                setTheme(resolvedTheme === "dark" ? "light" : "dark")
-              }
+              onSelect={() => {
+                const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+                setTheme(nextTheme);
+                setClientPreferenceCookie("mai_theme", nextTheme);
+              }}
             >
               {`Basculer en mode ${resolvedTheme === "light" ? "sombre" : "clair"}`}
             </DropdownMenuItem>

@@ -20,17 +20,17 @@ export function useAutoResume({
 }: UseAutoResumeParams) {
   const { dataStream } = useDataStream();
 
+  const mostRecentMessage = initialMessages.at(-1);
+
   useEffect(() => {
     if (!autoResume) {
       return;
     }
 
-    const mostRecentMessage = initialMessages.at(-1);
-
     if (mostRecentMessage?.role === "user") {
       resumeStream();
     }
-  }, [autoResume, initialMessages.at, resumeStream]);
+  }, [autoResume, mostRecentMessage?.id, mostRecentMessage?.role, resumeStream]);
 
   useEffect(() => {
     if (!dataStream) {

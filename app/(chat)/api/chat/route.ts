@@ -12,6 +12,7 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
+import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
 import {
   isExternalTextModel,
   runExternalTextModel,
@@ -253,14 +254,27 @@ export async function POST(request: Request) {
         .join("\n")
         .trim() ?? "";
 
+    const sanitizedLatestUserText = normalizePromptInput(latestUserText);
+    const safety = validatePromptSafety(sanitizedLatestUserText);
+
+    if (safety.blocked) {
+      return Response.json(
+        {
+          error:
+            "Votre requête a été bloquée par les garde-fous de sécurité (contenu sensible, dangereux ou incohérent).",
+        },
+        { status: 400 }
+      );
+    }
+
     if (isExternalTextModel(chatModel)) {
-      if (!latestUserText) {
+      if (!sanitizedLatestUserText) {
         return new ChatbotError("bad_request:api").toResponse();
       }
 
       const externalResult = await runExternalTextModel(
         chatModel,
-        latestUserText,
+        sanitizedLatestUserText,
         {
           systemInstruction:
             'Reply in the same language as the user\'s latest message. For health topics, include the exact disclaimer: "mAIHealth ne remplace pas un professionnel de santé".',

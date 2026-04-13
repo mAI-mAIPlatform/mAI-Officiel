@@ -1,5 +1,40 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
+
+const DEFAULT_ALLOWED_WEB_SEARCH_DOMAINS = [
+  "wikipedia.org",
+  "who.int",
+  "education.gouv.fr",
+  "service-public.fr",
+  "gouv.fr",
+  "legifrance.gouv.fr",
+  "cnil.fr",
+  "insee.fr",
+  "data.gouv.fr",
+  "openai.com",
+  "nextjs.org",
+  "supabase.com",
+  "vercel.com",
+] as const;
+
+const allowedDomains = (
+  process.env.WEB_SEARCH_ALLOWED_DOMAINS
+    ?.split(",")
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean) ?? [...DEFAULT_ALLOWED_WEB_SEARCH_DOMAINS]
+) as string[];
+
+function isAllowedDomain(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return allowedDomains.some(
+      (domain) => host === domain || host.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
 
 export const webSearch = tool({
   description:
@@ -16,6 +51,16 @@ export const webSearch = tool({
         return { error: "Clé API Tavily non configurée." };
       }
 
+      const sanitizedQuery = normalizePromptInput(input.query);
+      const safety = validatePromptSafety(sanitizedQuery);
+
+      if (safety.blocked) {
+        return {
+          error:
+            "Requête bloquée par la politique de sécurité (contenu sensible ou dangereux).",
+        };
+      }
+
       const response = await fetch("https://api.tavily.com/search", {
         method: "POST",
         headers: {
@@ -23,7 +68,7 @@ export const webSearch = tool({
         },
         body: JSON.stringify({
           api_key: apiKey,
-          query: input.query,
+          query: sanitizedQuery,
           max_results: 20,
           include_answer: true,
           include_raw_content: false,
@@ -46,7 +91,11 @@ export const webSearch = tool({
         }>;
       };
 
-      const results = (data.results ?? []).slice(0, 20).map((result) => ({
+      const filteredResults = (data.results ?? []).filter((result) =>
+        result.url ? isAllowedDomain(result.url) : false
+      );
+
+      const results = filteredResults.slice(0, 12).map((result) => ({
         score: result.score ?? 0,
         snippet: result.content ?? "",
         title: result.title ?? "Sans titre",
@@ -55,7 +104,8 @@ export const webSearch = tool({
 
       return {
         answer: data.answer ?? "",
-        query: data.query ?? input.query,
+        query: data.query ?? sanitizedQuery,
+        rejectedResultsCount: Math.max((data.results?.length ?? 0) - results.length, 0),
         results,
       };
     } catch (error) {
