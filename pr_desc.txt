@@ -1,0 +1,10 @@
+🎯 **What:** The testing gap addressed
+This PR addresses missing edge case tests for the `safeInterval` calculation in the `computeNextDueDate` function. Specifically, the fallback condition `const safeInterval = repeatInterval && repeatInterval > 0 ? repeatInterval : 1;` was not explicitly tested for scenarios where `repeatInterval` is `0`, a negative number, or `undefined`.
+
+📊 **Coverage:** What scenarios are now tested
+- Tested `0` as `repeatInterval` for a "daily" repeat task (validates fallback to `1` day).
+- Tested `-5` as `repeatInterval` for a "weekly" repeat task (validates fallback to `1` week).
+- Tested `undefined` as `repeatInterval` for a "monthly" repeat task (validates fallback to `1` month).
+
+✨ **Result:** The improvement in test coverage
+The unit test suite now properly covers these edge conditions, increasing overall reliability and coverage, and ensuring date math calculation does not yield unexpected outcomes for invalid or absent `repeatInterval` arguments.
