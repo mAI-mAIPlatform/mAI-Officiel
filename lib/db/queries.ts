@@ -321,6 +321,23 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   }
 }
 
+
+
+export async function getMessagesByChatIds({ ids }: { ids: string[] }) {
+  if (!ids || ids.length === 0) return [];
+  try {
+    return await db
+      .select()
+      .from(message)
+      .where(inArray(message.chatId, ids))
+      .orderBy(asc(message.createdAt));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get messages by chat ids"
+    );
+  }
+}
 export async function voteMessage({
   chatId,
   messageId,
