@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { getChatsByUserId, getMessagesByChatId } from "@/lib/db/queries";
+import { type Chat, type DBMessage } from "@/lib/db/schema";
 
 export async function GET(_req: NextRequest) {
   const session = await auth();
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest) {
 
     const exportData = {
       user: session.user,
-      chats: [] as any[],
+      chats: [] as Array<Chat & { messages: DBMessage[] }>,
     };
 
     for (const chat of chats.chats) {
