@@ -14,9 +14,11 @@ import {
   LockIcon,
   MicIcon,
   Paperclip,
+  PanelRightIcon,
   PlusIcon,
   Puzzle,
   SearchIcon,
+  SparklesIcon,
   Square,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -64,6 +66,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import {
@@ -1050,10 +1059,13 @@ ${extractedFileContext}`
         )}
         <PromptInputTextarea
           className={cn(
-            "text-[13px] leading-relaxed placeholder:text-muted-foreground/35",
-            chatBarSize === "compact" && "min-h-20 px-3.5 pt-2.5 pb-1.5",
-            chatBarSize === "standard" && "min-h-24 px-4 pt-3.5 pb-1.5",
-            chatBarSize === "large" && "min-h-28 px-4.5 pt-4 pb-2"
+            "text-[13px] leading-relaxed placeholder:text-muted-foreground/35 sm:text-[13px]",
+            chatBarSize === "compact" &&
+              "min-h-24 px-3 pt-2.5 pb-1.5 sm:min-h-20 sm:px-3.5",
+            chatBarSize === "standard" &&
+              "min-h-28 px-3.5 pt-3 pb-1.5 sm:min-h-24 sm:px-4",
+            chatBarSize === "large" &&
+              "min-h-32 px-4 pt-3.5 pb-2 sm:min-h-28 sm:px-4.5"
           )}
           data-testid="multimodal-input"
           onChange={handleInput}
@@ -1155,7 +1167,7 @@ ${extractedFileContext}`
             )}
           </div>
         )}
-        <PromptInputFooter className="px-3 pb-3">
+        <PromptInputFooter className="px-2.5 pb-2.5 sm:px-3 sm:pb-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <PromptInputTools>
             <ContextualActionsMenu
@@ -1315,6 +1327,7 @@ function PureContextualActionsMenu({
       .map((plugin) => plugin.id)
   );
   const [isQuizDialogOpen, setIsQuizDialogOpen] = useState(false);
+  const [isPluginPanelOpen, setIsPluginPanelOpen] = useState(false);
   const [quizDifficulty, setQuizDifficulty] = useState("moyen");
   const [reasoningLevel, setReasoningLevel] = useLocalStorage<ReflectionLevel>(
     "mai-reasoning-level",
@@ -1328,6 +1341,13 @@ function PureContextualActionsMenu({
   const enabledPluginsSet = useMemo(
     () => new Set(enabledPluginIds),
     [enabledPluginIds]
+  );
+  const sortedPlugins = useMemo(
+    () =>
+      [...pluginRegistry].sort((left, right) =>
+        left.name.localeCompare(right.name, "fr", { sensitivity: "base" })
+      ),
+    []
   );
 
   if (isReasoningEnabled) {
@@ -1397,6 +1417,22 @@ function PureContextualActionsMenu({
     }
   }, [isLibraryDialogOpen]);
 
+  useEffect(() => {
+    if (selectedPlugin !== "none" && !enabledPluginsSet.has(selectedPlugin)) {
+      setSelectedPlugin("none");
+    }
+  }, [enabledPluginsSet, selectedPlugin, setSelectedPlugin]);
+
+  useEffect(() => {
+    if (enabledPluginIds.length === 0) {
+      setEnabledPluginIds(
+        pluginRegistry
+          .filter((plugin) => plugin.enabledByDefault)
+          .map((plugin) => plugin.id)
+      );
+    }
+  }, [enabledPluginIds, setEnabledPluginIds]);
+
   const filteredLibraryAssets = libraryAssets
     .filter((asset) =>
       asset.name.toLowerCase().includes(librarySearch.trim().toLowerCase())
@@ -1461,7 +1497,7 @@ function PureContextualActionsMenu({
       </div>
       <PopoverContent
         align="start"
-        className="flex w-72 flex-col gap-1 rounded-xl bg-white p-2 text-black shadow-lg"
+        className="liquid-panel flex w-[min(88vw,19rem)] flex-col gap-1 rounded-2xl border-white/35 bg-white/88 p-2 text-black shadow-[var(--glass-shadow)] backdrop-blur-2xl"
         sideOffset={8}
       >
         <DropdownMenu>
@@ -1656,97 +1692,111 @@ function PureContextualActionsMenu({
           Apprendre & Étudier
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
-              variant="ghost"
-            >
-              <Puzzle className="text-muted-foreground" size={16} />
-              Plugins
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="liquid-panel w-56 border-white/25 bg-white/92 p-1.5 backdrop-blur-2xl"
-            side="right"
-            sideOffset={8}
-          >
-            <DropdownMenuItem
-              className={cn(
-                "rounded-lg text-xs",
-                selectedPlugin === "none" && "bg-primary/10 text-primary"
-              )}
-              onClick={() => {
-                setSelectedPlugin("none");
-                setOpen(false);
-              }}
-            >
-              Aucun plugin
-            </DropdownMenuItem>
-            {pluginRegistry.map((plugin) => (
-              <DropdownMenu key={plugin.id}>
-                <DropdownMenuTrigger asChild>
-                  <DropdownMenuItem
-                    className={cn(
-                      "mt-1 rounded-lg text-xs",
-                      selectedPlugin === plugin.id && "bg-primary/10 text-primary"
-                    )}
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    <span className="flex w-full items-center justify-between">
-                      {plugin.name}
-                      <span className="text-[10px] text-muted-foreground">▸</span>
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="liquid-panel w-[260px] border-white/25 bg-white/92 p-2 backdrop-blur-2xl"
-                  side="right"
-                  sideOffset={8}
-                >
-                  <div className="space-y-2">
-                    <button
-                      className="w-full rounded-lg border border-border/60 px-2 py-1.5 text-left text-xs hover:border-primary/40 hover:bg-primary/5"
-                      onClick={() => {
-                        setSelectedPlugin(plugin.id);
-                        setOpen(false);
-                      }}
-                      type="button"
-                    >
-                      Activer {plugin.name}
-                    </button>
-                    <button
-                      className={cn(
-                        "w-full rounded-lg border px-2 py-1.5 text-left text-xs",
-                        enabledPluginsSet.has(plugin.id)
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-border/60"
-                      )}
-                      onClick={() => {
-                        setEnabledPluginIds((current) =>
-                          current.includes(plugin.id)
-                            ? current.filter((id) => id !== plugin.id)
-                            : [...current, plugin.id]
-                        );
-                      }}
-                      type="button"
-                    >
-                      {enabledPluginsSet.has(plugin.id)
-                        ? "Désactiver dans le catalogue"
-                        : "Activer dans le catalogue"}
-                    </button>
-                    <p className="text-[10px] text-muted-foreground">
-                      Catégorie: {plugin.category}
-                    </p>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          className="flex h-8 w-full items-center justify-between gap-2 text-xs font-normal"
+          onClick={() => {
+            setIsPluginPanelOpen(true);
+            setOpen(false);
+          }}
+          variant="ghost"
+        >
+          <span className="inline-flex items-center gap-2">
+            <Puzzle className="text-muted-foreground" size={16} />
+            Plugins
+          </span>
+          <PanelRightIcon className="size-3.5 text-muted-foreground" />
+        </Button>
       </PopoverContent>
+      <Sheet onOpenChange={setIsPluginPanelOpen} open={isPluginPanelOpen}>
+        <SheetContent
+          className="liquid-panel w-[min(94vw,27rem)] border-l border-white/30 bg-white/88 p-0 backdrop-blur-2xl dark:bg-zinc-950/80"
+          side="right"
+        >
+          <SheetHeader className="border-b border-border/50 pb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <Puzzle className="size-4" />
+              Plugins
+            </SheetTitle>
+            <SheetDescription>
+              Activez/désactivez les extensions et choisissez le plugin utilisé
+              pour la prochaine requête.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-2 overflow-y-auto px-4 pb-4">
+            <button
+              className={cn(
+                "mt-2 w-full rounded-xl border px-3 py-2 text-left text-xs transition",
+                selectedPlugin === "none"
+                  ? "border-primary/45 bg-primary/10 text-primary"
+                  : "border-border/60 hover:border-primary/35 hover:bg-primary/5"
+              )}
+              onClick={() => setSelectedPlugin("none")}
+              type="button"
+            >
+              Aucun plugin actif
+            </button>
+            {sortedPlugins.map((plugin) => (
+              <article
+                className="liquid-panel rounded-xl border border-border/60 bg-background/60 p-3"
+                key={plugin.id}
+              >
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">
+                    {plugin.name}
+                    {plugin.isNew ? (
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary">
+                        <SparklesIcon className="size-2.5" />
+                        NEW
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {plugin.description}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/75">
+                    {plugin.command} · {plugin.category}
+                  </p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    className={cn(
+                      "rounded-lg border px-2 py-1.5 text-[11px] transition",
+                      selectedPlugin === plugin.id
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border/60 hover:border-primary/35"
+                    )}
+                    disabled={!enabledPluginsSet.has(plugin.id)}
+                    onClick={() => setSelectedPlugin(plugin.id)}
+                    type="button"
+                  >
+                    Utiliser
+                  </button>
+                  <button
+                    className={cn(
+                      "rounded-lg border px-2 py-1.5 text-[11px] transition",
+                      enabledPluginsSet.has(plugin.id)
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border/60 hover:border-primary/35"
+                    )}
+                    onClick={() =>
+                      setEnabledPluginIds((current) =>
+                        current.includes(plugin.id)
+                          ? current.filter((id) => id !== plugin.id)
+                          : [...current, plugin.id]
+                      )
+                    }
+                    type="button"
+                  >
+                    {enabledPluginsSet.has(plugin.id)
+                      ? "Désactiver"
+                      : "Activer"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
       <Dialog onOpenChange={setIsLibraryDialogOpen} open={isLibraryDialogOpen}>
         <DialogContent className="liquid-panel max-w-2xl border-white/30 bg-white/85 backdrop-blur-2xl">
           <DialogHeader>

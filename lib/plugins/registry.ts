@@ -93,4 +93,55 @@ export const pluginRegistry: MaiPlugin[] = [
     category: "content",
     isNew: true,
   },
+  {
+    id: "productivity-boost",
+    command: "@productivity",
+    name: "Productivité+",
+    description:
+      "Active des raccourcis avancés pour reformulation, actions et suivi rapide.",
+    targetTool: "textUtilities",
+    category: "automation",
+    enabledByDefault: true,
+    isNew: true,
+  },
+  {
+    id: "smart-search-pro",
+    command: "@smartsearch",
+    name: "Recherche intelligente",
+    description:
+      "Optimise la recherche contextuelle pour trouver plus vite les informations clés.",
+    targetTool: "textUtilities",
+    category: "content",
+    isNew: true,
+  },
+  {
+    id: "auto-summary-plus",
+    command: "@autosummary",
+    name: "Résumé automatique+",
+    description:
+      "Produit des résumés structurés avec points clés, décisions et actions.",
+    targetTool: "textUtilities",
+    category: "content",
+    isNew: true,
+  },
+  {
+    id: "text-cleanup-rewriter",
+    command: "@cleanup",
+    name: "Nettoyage & reformulation",
+    description:
+      "Corrige, nettoie et reformule le texte pour un rendu pro et cohérent.",
+    targetTool: "textUtilities",
+    category: "content",
+    isNew: true,
+  },
+  {
+    id: "quick-ai-actions",
+    command: "@quickactions",
+    name: "Outils rapides IA",
+    description:
+      "Déclenche des actions contextuelles rapides depuis le menu et les commandes.",
+    targetTool: "textUtilities",
+    category: "automation",
+    isNew: true,
+  },
 ];
