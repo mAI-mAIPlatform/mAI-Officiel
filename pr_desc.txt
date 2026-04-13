@@ -1,10 +1,13 @@
 🎯 **What:** The testing gap addressed
-This PR addresses missing edge case tests for the `safeInterval` calculation in the `computeNextDueDate` function. Specifically, the fallback condition `const safeInterval = repeatInterval && repeatInterval > 0 ? repeatInterval : 1;` was not explicitly tested for scenarios where `repeatInterval` is `0`, a negative number, or `undefined`.
+The file `lib/notifications.ts` handles storing and retrieving notifications from `window.localStorage` and dispatching custom events, but its logic wasn't fully tested. This PR adds a global mock for the `window` environment to correctly test these CRUD and notification methods.
 
 📊 **Coverage:** What scenarios are now tested
-- Tested `0` as `repeatInterval` for a "daily" repeat task (validates fallback to `1` day).
-- Tested `-5` as `repeatInterval` for a "weekly" repeat task (validates fallback to `1` week).
-- Tested `undefined` as `repeatInterval` for a "monthly" repeat task (validates fallback to `1` month).
+- `getNotificationHistory`: Empty state, valid array, and max element capping.
+- `createNotification`: Creating events, setting default title, saving correctly, and dispatching events.
+- `createAiResponseNotification`: Handling `started`, `completed`, and `error` phases and message template mapping.
+- `markNotificationRead` & `markAllNotificationsRead`: Marking specific and all items as read correctly.
+- `clearNotifications`: Correctly deleting stored notifications.
+- `subscribeNotifications`: Subscribing and unsubscribing from event listener successfully.
 
 ✨ **Result:** The improvement in test coverage
-The unit test suite now properly covers these edge conditions, increasing overall reliability and coverage, and ensuring date math calculation does not yield unexpected outcomes for invalid or absent `repeatInterval` arguments.
+The previously untested core logic of the client-side notification module (`lib/notifications.ts`) is now rigorously covered under unit testing using an emulated DOM strategy, preventing regressions in future refactors.

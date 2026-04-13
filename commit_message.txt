@@ -1,9 +1,1 @@
-🧪 Add missing tests for fetchWithErrorHandlers error paths
-
-🎯 **What:** The testing gap in `fetchWithErrorHandlers` was addressed. Previously, it didn't verify the error paths. Two new test cases were added to ensure the `navigator` condition is verified, and to make sure exceptions coming out of the non-ok `response.json()` check are re-thrown properly if they aren't chatbot errors.
-
-📊 **Coverage:** The scenarios now tested are:
--   `typeof navigator === 'undefined'` (the node.js / non-browser environment) when fetch fails.
--   `response.json()` throwing a non-JSON exception on a non-ok fetch response.
-
-✨ **Result:** Test coverage for `utils.ts` is now 100%.
+🧪 add tests for lib/notifications.ts CRUD methods
