@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
+import { useEffect, useMemo, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,14 +24,72 @@ import { guestRegex } from "@/lib/constants";
 import { LoaderIcon } from "./icons";
 import { toast } from "./toast";
 
+const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+
+const avatarGradientsById: Record<string, string> = {
+  aurora: "linear-gradient(135deg, oklch(0.72 0.19 248), oklch(0.66 0.15 168))",
+  sunset: "linear-gradient(135deg, oklch(0.72 0.2 25), oklch(0.72 0.19 338))",
+  ocean: "linear-gradient(135deg, oklch(0.62 0.14 222), oklch(0.66 0.13 190))",
+  forest: "linear-gradient(135deg, oklch(0.56 0.11 154), oklch(0.68 0.13 110))",
+};
+
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(
+    null
+  );
+  const [customAvatarId, setCustomAvatarId] = useState<string>("aurora");
+
+  useEffect(() => {
+    const syncProfile = () => {
+      const raw = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(raw) as {
+          displayName?: string;
+          avatarDataUrl?: string;
+          avatarId?: string;
+        };
+        setCustomDisplayName(parsed.displayName?.trim() || null);
+        setCustomAvatarDataUrl(parsed.avatarDataUrl || null);
+        setCustomAvatarId(parsed.avatarId || "aurora");
+      } catch {
+        setCustomDisplayName(null);
+        setCustomAvatarDataUrl(null);
+        setCustomAvatarId("aurora");
+      }
+    };
+
+    syncProfile();
+    window.addEventListener("storage", syncProfile);
+    window.addEventListener("focus", syncProfile);
+    return () => {
+      window.removeEventListener("storage", syncProfile);
+      window.removeEventListener("focus", syncProfile);
+    };
+  }, []);
 
   const isGuest = guestRegex.test(data?.user?.email ?? user.email ?? "");
-  const displayName = user.email?.split("@")[0] || "Utilisateur";
+  const displayName =
+    customDisplayName ||
+    data?.user?.name?.trim() ||
+    user.name?.trim() ||
+    user.email?.split("@")[0] ||
+    "Utilisateur";
+  const avatarBackground = useMemo(() => {
+    if (customAvatarDataUrl) {
+      return `url(${customAvatarDataUrl})`;
+    }
+
+    return avatarGradientsById[customAvatarId] ?? avatarGradientsById.aurora;
+  }, [customAvatarDataUrl, customAvatarId]);
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -59,7 +118,10 @@ export function SidebarUserNav({ user }: { user: User }) {
                 className="h-8 rounded-lg bg-transparent px-2 text-sidebar-foreground/70 transition-colors duration-150 hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 data-testid="user-nav-button"
               >
-                <div className="size-5 shrink-0 rounded-full bg-sidebar-accent ring-1 ring-sidebar-border/50" />
+                <div
+                  className="size-5 shrink-0 rounded-full bg-sidebar-accent bg-cover bg-center ring-1 ring-sidebar-border/50"
+                  style={{ backgroundImage: avatarBackground }}
+                />
                 <span className="truncate text-[13px]" data-testid="user-email">
                   {displayName}
                 </span>

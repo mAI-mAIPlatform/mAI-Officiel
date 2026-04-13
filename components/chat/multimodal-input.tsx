@@ -1413,19 +1413,6 @@ function PureContextualActionsMenu({
         +new Date(b.createdAt) - +new Date(a.createdAt)
     );
 
-  const pluginsByCategory = useMemo(() => {
-    return pluginRegistry.reduce<Record<string, typeof pluginRegistry>>(
-      (acc, plugin) => {
-        if (!acc[plugin.category]) {
-          acc[plugin.category] = [];
-        }
-        acc[plugin.category].push(plugin);
-        return acc;
-      },
-      {}
-    );
-  }, []);
-
   const attachFromLibrary = (asset: {
     name: string;
     type: "image" | "document";
@@ -1648,104 +1635,6 @@ function PureContextualActionsMenu({
           Canevas
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
-              variant="ghost"
-            >
-              <Puzzle className="text-muted-foreground" size={16} />
-              Plugins
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="liquid-panel w-[420px] border-white/25 bg-white/90 p-2 backdrop-blur-2xl"
-            sideOffset={4}
-          >
-            <div className="grid grid-cols-[180px_1fr] gap-2">
-              <div className="rounded-xl border border-border/60 bg-background/70 p-2">
-                <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
-                  Plugin actif
-                </p>
-                <DropdownMenuItem
-                  className={cn(
-                    "rounded-lg text-xs",
-                    selectedPlugin === "none" && "bg-primary/10 text-primary"
-                  )}
-                  onClick={() => {
-                    setSelectedPlugin("none");
-                    setOpen(false);
-                  }}
-                >
-                  Aucun plugin
-                </DropdownMenuItem>
-                {pluginRegistry.map((plugin) => (
-                  <DropdownMenuItem
-                    className={cn(
-                      "mt-1 rounded-lg text-xs",
-                      selectedPlugin === plugin.id && "bg-primary/10 text-primary"
-                    )}
-                    key={plugin.id}
-                    onClick={() => {
-                      setSelectedPlugin(plugin.id);
-                      setOpen(false);
-                    }}
-                  >
-                    {plugin.name}
-                  </DropdownMenuItem>
-                ))}
-              </div>
-
-              <div className="rounded-xl border border-border/60 bg-background/70 p-2">
-                <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
-                  Catalogue (panneau droit)
-                </p>
-                <div className="max-h-56 space-y-2 overflow-auto pr-1">
-                  {Object.entries(pluginsByCategory).map(([category, plugins]) => (
-                    <div key={category}>
-                      <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {category}
-                      </p>
-                      <div className="space-y-1">
-                        {plugins.map((plugin) => {
-                          const isEnabled = enabledPluginsSet.has(plugin.id);
-                          return (
-                            <button
-                              className={cn(
-                                "flex w-full items-start justify-between rounded-lg border px-2 py-1.5 text-left text-[11px]",
-                                isEnabled
-                                  ? "border-primary/30 bg-primary/10"
-                                  : "border-border/60 bg-background/80"
-                              )}
-                              key={plugin.id}
-                              onClick={() => {
-                                setEnabledPluginIds((current) =>
-                                  current.includes(plugin.id)
-                                    ? current.filter((id) => id !== plugin.id)
-                                    : [...current, plugin.id]
-                                );
-                              }}
-                              type="button"
-                            >
-                              <span className="pr-2">
-                                {plugin.name} {plugin.isNew ? "✨" : ""}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {isEnabled ? "Actif" : "Off"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <Button
           className={cn(
             "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
@@ -1763,6 +1652,97 @@ function PureContextualActionsMenu({
           />
           Apprendre & Étudier
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
+              variant="ghost"
+            >
+              <Puzzle className="text-muted-foreground" size={16} />
+              Plugins
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="liquid-panel w-56 border-white/25 bg-white/92 p-1.5 backdrop-blur-2xl"
+            side="right"
+            sideOffset={8}
+          >
+            <DropdownMenuItem
+              className={cn(
+                "rounded-lg text-xs",
+                selectedPlugin === "none" && "bg-primary/10 text-primary"
+              )}
+              onClick={() => {
+                setSelectedPlugin("none");
+                setOpen(false);
+              }}
+            >
+              Aucun plugin
+            </DropdownMenuItem>
+            {pluginRegistry.map((plugin) => (
+              <DropdownMenu key={plugin.id}>
+                <DropdownMenuTrigger asChild>
+                  <DropdownMenuItem
+                    className={cn(
+                      "mt-1 rounded-lg text-xs",
+                      selectedPlugin === plugin.id && "bg-primary/10 text-primary"
+                    )}
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    <span className="flex w-full items-center justify-between">
+                      {plugin.name}
+                      <span className="text-[10px] text-muted-foreground">▸</span>
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="liquid-panel w-[260px] border-white/25 bg-white/92 p-2 backdrop-blur-2xl"
+                  side="right"
+                  sideOffset={8}
+                >
+                  <div className="space-y-2">
+                    <button
+                      className="w-full rounded-lg border border-border/60 px-2 py-1.5 text-left text-xs hover:border-primary/40 hover:bg-primary/5"
+                      onClick={() => {
+                        setSelectedPlugin(plugin.id);
+                        setOpen(false);
+                      }}
+                      type="button"
+                    >
+                      Activer {plugin.name}
+                    </button>
+                    <button
+                      className={cn(
+                        "w-full rounded-lg border px-2 py-1.5 text-left text-xs",
+                        enabledPluginsSet.has(plugin.id)
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border/60"
+                      )}
+                      onClick={() => {
+                        setEnabledPluginIds((current) =>
+                          current.includes(plugin.id)
+                            ? current.filter((id) => id !== plugin.id)
+                            : [...current, plugin.id]
+                        );
+                      }}
+                      type="button"
+                    >
+                      {enabledPluginsSet.has(plugin.id)
+                        ? "Désactiver dans le catalogue"
+                        : "Activer dans le catalogue"}
+                    </button>
+                    <p className="text-[10px] text-muted-foreground">
+                      {plugin.category} • {plugin.isNew ? "Nouveau module ✨" : "Module"}
+                    </p>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PopoverContent>
       <Dialog onOpenChange={setIsLibraryDialogOpen} open={isLibraryDialogOpen}>
         <DialogContent className="liquid-panel max-w-2xl border-white/30 bg-white/85 backdrop-blur-2xl">

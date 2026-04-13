@@ -49,15 +49,14 @@ export function DocumentCanvas({
   );
 
   const updateBlock = (id: string, nextText: string) => {
-    setBlocks((current) =>
-      current.map((block) => (block.id === id ? { ...block, text: nextText } : block))
-    );
-
-    const nextBlocks = blocks.map((block) =>
-      block.id === id ? { ...block, text: nextText } : block
-    );
-    const nextContent = nextBlocks.map((block) => block.text.trim()).join("\n\n");
-    onSaveContent(nextContent, true);
+    setBlocks((current) => {
+      const nextBlocks = current.map((block) =>
+        block.id === id ? { ...block, text: nextText } : block
+      );
+      const nextContent = nextBlocks.map((block) => block.text.trim()).join("\n\n");
+      onSaveContent(nextContent, true);
+      return nextBlocks;
+    });
   };
 
   return (
@@ -140,7 +139,14 @@ export function DocumentCanvas({
             onClick={() =>
               setBlocks((current) => [
                 ...current,
-                { id: `block-${crypto.randomUUID()}`, text: "" },
+                {
+                  id: `block-${
+                    typeof crypto !== "undefined" && "randomUUID" in crypto
+                      ? crypto.randomUUID()
+                      : Date.now()
+                  }`,
+                  text: "",
+                },
               ])
             }
             type="button"

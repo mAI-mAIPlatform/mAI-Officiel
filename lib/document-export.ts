@@ -12,6 +12,94 @@ const sanitizeLines = (content: string) =>
     .split("\n")
     .map((line) => line.trimEnd());
 
+const chunkText = (text: string, maxLen = 1200) => {
+  if (text.length <= maxLen) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > maxLen) {
+    const candidate = remaining.slice(0, maxLen);
+    const breakIndex = Math.max(
+      candidate.lastIndexOf("\n"),
+      candidate.lastIndexOf(". "),
+      candidate.lastIndexOf(" ")
+    );
+    const splitAt = breakIndex > maxLen * 0.6 ? breakIndex : maxLen;
+    chunks.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trimStart();
+  }
+
+  if (remaining.length > 0) {
+    chunks.push(remaining);
+  }
+
+  return chunks;
+};
+
+const parseMarkdownLike = (content: string) => {
+  const lines = sanitizeLines(content);
+  const blocks: Array<
+    | { type: "heading"; level: number; text: string }
+    | { type: "bullet"; text: string }
+    | { type: "paragraph"; text: string }
+  > = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
+      blocks.push({
+        type: "heading",
+        level: headingMatch[1].length,
+        text: headingMatch[2],
+      });
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      blocks.push({
+        type: "bullet",
+        text: line.replace(/^[-*]\s+/, ""),
+      });
+      continue;
+    }
+
+    blocks.push({ type: "paragraph", text: line });
+  }
+
+  return blocks.length > 0 ? blocks : [{ type: "paragraph" as const, text: content }];
+};
+
+const extractTableRows = (content: string) => {
+  const rows = sanitizeLines(content)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.includes("|")) {
+        return line
+          .split("|")
+          .map((cell) => cell.trim())
+          .filter((cell) => cell.length > 0);
+      }
+      if (line.includes(";")) {
+        return line.split(";").map((cell) => cell.trim());
+      }
+      if (line.includes(",")) {
+        return line.split(",").map((cell) => cell.trim());
+      }
+      return [line];
+    });
+
+  return rows;
+};
+
 export async function exportContentAsBuffer(
   title: string,
   content: string,
@@ -19,7 +107,7 @@ export async function exportContentAsBuffer(
 ): Promise<Buffer> {
   switch (format) {
     case "doc": {
-      const lines = sanitizeLines(content);
+      const blocks = parseMarkdownLike(content);
       const doc = new Document({
         sections: [
           {
@@ -28,12 +116,30 @@ export async function exportContentAsBuffer(
                 heading: "Heading1",
                 children: [new TextRun({ text: title, bold: true })],
               }),
-              ...lines.map(
-                (line) =>
-                  new Paragraph({
-                    children: [new TextRun(line.length > 0 ? line : " ")],
-                  })
-              ),
+              ...blocks.map((block) => {
+                if (block.type === "heading") {
+                  return new Paragraph({
+                    heading:
+                      block.level === 1
+                        ? "Heading2"
+                        : block.level === 2
+                          ? "Heading3"
+                          : "Heading4",
+                    children: [new TextRun({ text: block.text, bold: true })],
+                  });
+                }
+
+                if (block.type === "bullet") {
+                  return new Paragraph({
+                    bullet: { level: 0 },
+                    children: [new TextRun(block.text)],
+                  });
+                }
+
+                return new Paragraph({
+                  children: [new TextRun(block.text.length > 0 ? block.text : " ")],
+                });
+              }),
             ],
           },
         ],
@@ -72,9 +178,16 @@ export async function exportContentAsBuffer(
       writeLine(title, 16, true);
       y -= 4;
 
-      for (const rawLine of sanitizeLines(content)) {
-        const line = rawLine.length > 0 ? rawLine : " ";
-        writeLine(line);
+      for (const block of parseMarkdownLike(content)) {
+        if (block.type === "heading") {
+          writeLine(block.text, 13, true);
+          continue;
+        }
+
+        const prefix = block.type === "bullet" ? "• " : "";
+        for (const lineChunk of chunkText(`${prefix}${block.text}`, 90)) {
+          writeLine(lineChunk, 11);
+        }
       }
 
       return Buffer.from(await pdf.save());
@@ -84,10 +197,11 @@ export async function exportContentAsBuffer(
       const pptx = new PptxGenJS();
       pptx.layout = "LAYOUT_STANDARD";
 
-      const blocks = content
+      const sections = content
         .split(/\n\n+/)
         .map((block) => block.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .flatMap((section) => chunkText(section, 750));
 
       const firstSlide = pptx.addSlide();
       firstSlide.addText(title, {
@@ -100,7 +214,7 @@ export async function exportContentAsBuffer(
         color: "202938",
       });
 
-      blocks.forEach((block, index) => {
+      sections.forEach((section, index) => {
         const slide = index === 0 ? firstSlide : pptx.addSlide();
         if (index !== 0) {
           slide.addText(title, {
@@ -114,7 +228,7 @@ export async function exportContentAsBuffer(
           });
         }
 
-        slide.addText(block.slice(0, 1200), {
+        slide.addText(section, {
           x: 0.8,
           y: index === 0 ? 1.8 : 1.4,
           w: 11.5,
@@ -131,11 +245,24 @@ export async function exportContentAsBuffer(
     }
 
     case "xlsx": {
-      const rows = sanitizeLines(content).map((line, index) => ({
-        Ligne: index + 1,
-        Contenu: line,
-      }));
-      const worksheet = utils.json_to_sheet(rows.length > 0 ? rows : [{ Ligne: 1, Contenu: "" }]);
+      const tableRows = extractTableRows(content);
+      const normalizedRows =
+        tableRows.length > 0
+          ? tableRows
+          : [["Ligne", "Contenu"], ["1", content.trim()]];
+      const worksheet = utils.aoa_to_sheet(normalizedRows);
+      const range = utils.decode_range(worksheet["!ref"] ?? "A1:A1");
+      const maxWidthByColumn: number[] = [];
+
+      for (let row = range.s.r; row <= range.e.r; row++) {
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cell = worksheet[utils.encode_cell({ r: row, c: col })];
+          const value = String(cell?.v ?? "");
+          maxWidthByColumn[col] = Math.max(maxWidthByColumn[col] ?? 10, value.length + 2);
+        }
+      }
+
+      worksheet["!cols"] = maxWidthByColumn.map((width) => ({ wch: Math.min(width, 60) }));
       const workbook = utils.book_new();
       utils.book_append_sheet(workbook, worksheet, "Document");
 
