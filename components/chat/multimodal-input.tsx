@@ -96,9 +96,11 @@ import { Button } from "../ui/button";
 import { StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import {
+  defaultSlashCommands,
+  filterSlashCommands,
+  getActiveSlashCommands,
   type SlashCommand,
   SlashCommandMenu,
-  slashCommands,
 } from "./slash-commands";
 import { SuggestedActions } from "./suggested-actions";
 import type { VisibilityType } from "./visibility-selector";
@@ -390,6 +392,28 @@ function PureMultimodalInput({
           },
         });
         break;
+      case "resume":
+        setInput(
+          "Résume les points clés de notre conversation en 5 puces actionnables."
+        );
+        break;
+      case "code":
+        setInput(
+          "Réponds en mode code: propose une solution TypeScript stricte, avec explication courte."
+        );
+        break;
+      case "quiz":
+        setInput(
+          "Crée un quiz interactif (5 questions, difficulté moyenne) sur le sujet de notre conversation."
+        );
+        break;
+      case "template":
+        setInput((current) =>
+          current.trim()
+            ? `${current}\n/${cmd.name}`
+            : `/${cmd.name} `
+        );
+        break;
       default:
         break;
     }
@@ -414,6 +438,19 @@ function PureMultimodalInput({
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
+  const [availableSlashCommands, setAvailableSlashCommands] = useState<
+    SlashCommand[]
+  >(defaultSlashCommands);
+  const filteredSlashCommands = useMemo(
+    () => filterSlashCommands(availableSlashCommands, slashQuery),
+    [availableSlashCommands, slashQuery]
+  );
+  useEffect(() => {
+    if (slashIndex < filteredSlashCommands.length) {
+      return;
+    }
+    setSlashIndex(0);
+  }, [filteredSlashCommands.length, slashIndex]);
   const [projectMentionOpen, setProjectMentionOpen] = useState(false);
   const [projectMentionQuery, setProjectMentionQuery] = useState("");
   const [projectMentionIndex, setProjectMentionIndex] = useState(0);
@@ -756,6 +793,10 @@ ${extractedFileContext}`
   }, [attachments, input, sendPrompt]);
 
   useEffect(() => {
+    setAvailableSlashCommands(getActiveSlashCommands());
+  }, []);
+
+  useEffect(() => {
     const handleInlineSuggestion = (event: Event) => {
       if (status !== "ready" && status !== "error") {
         toast.error("Veuillez attendre la fin de la réponse du modèle.");
@@ -967,6 +1008,7 @@ ${extractedFileContext}`
       <div className="relative">
         {slashOpen && (
           <SlashCommandMenu
+            commands={availableSlashCommands}
             onClose={() => setSlashOpen(false)}
             onSelect={handleSlashSelect}
             query={slashQuery}
@@ -995,7 +1037,7 @@ ${extractedFileContext}`
         onSubmit={() => {
           if (input.startsWith("/")) {
             const query = input.slice(1).trim();
-            const cmd = slashCommands.find((c) => c.name === query);
+            const cmd = availableSlashCommands.find((c) => c.name === query);
             if (cmd) {
               handleSlashSelect(cmd);
             }
@@ -1071,12 +1113,11 @@ ${extractedFileContext}`
           onChange={handleInput}
           onKeyDown={(e) => {
             if (slashOpen) {
-              const filtered = slashCommands.filter((cmd) =>
-                cmd.name.startsWith(slashQuery.toLowerCase())
-              );
               if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setSlashIndex((i) => Math.min(i + 1, filtered.length - 1));
+                setSlashIndex((i) =>
+                  Math.min(i + 1, filteredSlashCommands.length - 1)
+                );
                 return;
               }
               if (e.key === "ArrowUp") {
@@ -1086,8 +1127,8 @@ ${extractedFileContext}`
               }
               if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
-                if (filtered[slashIndex]) {
-                  handleSlashSelect(filtered[slashIndex]);
+                if (filteredSlashCommands[slashIndex]) {
+                  handleSlashSelect(filteredSlashCommands[slashIndex]);
                 }
                 return;
               }
@@ -1352,10 +1393,10 @@ function PureContextualActionsMenu({
 
   if (isReasoningEnabled) {
     const reflectionLabel: Record<ReflectionLevel, string> = {
-      light: "Léger",
-      moderate: "Modéré",
+      light: "Rapide",
+      moderate: "Standard",
       deep: "Approfondi",
-      "very-deep": "Très approfondi",
+      "very-deep": "Extrême",
     };
     selectedActions.push(`Réflexion: ${reflectionLabel[reasoningLevel]}`);
   }
@@ -1560,17 +1601,17 @@ function PureContextualActionsMenu({
             </p>
             <div className="grid gap-1">
               {[
-                { id: "light", label: "Léger" },
-                { id: "moderate", label: "Modéré" },
+                { id: "light", label: "⚡ Rapide" },
+                { id: "moderate", label: "⚖️ Standard" },
                 {
                   id: "deep",
-                  label: "Approfondi",
+                  label: "🔥 Approfondi",
                   helper: "Inclus avec le forfait Pro",
                   disabled: !canUseDeepReflection,
                 },
                 {
                   id: "very-deep",
-                  label: "Très approfondi",
+                  label: "🚀 Extrême",
                   helper: "Inclus avec le forfait Max",
                   disabled: !canUseVeryDeepReflection,
                 },

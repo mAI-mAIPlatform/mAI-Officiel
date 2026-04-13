@@ -20,7 +20,7 @@ export type SlashCommand = {
   shortcut?: string;
 };
 
-export const slashCommands: SlashCommand[] = [
+export const defaultSlashCommands: SlashCommand[] = [
   {
     name: "new",
     description: "Créer une nouvelle discussion",
@@ -58,6 +58,24 @@ export const slashCommands: SlashCommand[] = [
     action: "delete",
   },
   {
+    name: "résume",
+    description: "Résumer le dernier échange",
+    icon: <ListIcon className="size-3.5" />,
+    action: "resume",
+  },
+  {
+    name: "code",
+    description: "Demander une réponse orientée code",
+    icon: <PenLineIcon className="size-3.5" />,
+    action: "code",
+  },
+  {
+    name: "quiz",
+    description: "Créer un quiz interactif",
+    icon: <ListIcon className="size-3.5" />,
+    action: "quiz",
+  },
+  {
     name: "purge",
     description: "Supprimer toutes les discussions",
     icon: <BombIcon className="size-3.5" />,
@@ -65,7 +83,91 @@ export const slashCommands: SlashCommand[] = [
   },
 ];
 
+const CUSTOM_SLASH_COMMANDS_KEY = "mai.custom-slash-commands";
+const MAX_CUSTOM_SLASH_COMMANDS = 8;
+
+const normalizeSlashToken = (value: string) =>
+  value
+    .normalize("NFD")
+    .replaceAll(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+const parseCustomSlashCommands = (): SlashCommand[] => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_SLASH_COMMANDS_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .slice(0, MAX_CUSTOM_SLASH_COMMANDS)
+      .filter(
+        (item): item is { action?: string; description?: string; name: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof item.name === "string" &&
+          item.name.trim().length > 0
+      )
+      .map((item) => ({
+        name: item.name.trim().replace(/^\//, "").slice(0, 20),
+        description:
+          typeof item.description === "string" && item.description.trim()
+            ? item.description.trim().slice(0, 80)
+            : "Commande personnalisée",
+        action:
+          typeof item.action === "string" && item.action.trim()
+            ? item.action.trim()
+            : "template",
+        icon: <PenSquareIcon className="size-3.5" />,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+export const getActiveSlashCommands = (): SlashCommand[] => {
+  const customCommands = parseCustomSlashCommands();
+  const existing = new Set(defaultSlashCommands.map((command) => command.name));
+  const deduplicatedCustom = customCommands.filter((command) => {
+    if (existing.has(command.name)) {
+      return false;
+    }
+    existing.add(command.name);
+    return true;
+  });
+
+  return [...defaultSlashCommands, ...deduplicatedCustom];
+};
+
+export const filterSlashCommands = (
+  commands: SlashCommand[],
+  query: string
+): SlashCommand[] => {
+  const normalizedQuery = normalizeSlashToken(query.trim());
+  if (!normalizedQuery) {
+    return commands;
+  }
+
+  return commands.filter((command) => {
+    const normalizedName = normalizeSlashToken(command.name);
+    return normalizedName.startsWith(normalizedQuery) ||
+      normalizedName.includes(normalizedQuery)
+      ? true
+      : normalizeSlashToken(command.description).includes(normalizedQuery);
+  });
+};
+
 type SlashCommandMenuProps = {
+  commands: SlashCommand[];
   query: string;
   onSelect: (command: SlashCommand) => void;
   onClose: () => void;
@@ -73,15 +175,14 @@ type SlashCommandMenuProps = {
 };
 
 export function SlashCommandMenu({
+  commands,
   query,
   onSelect,
   onClose: _onClose,
   selectedIndex,
 }: SlashCommandMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const filtered = slashCommands.filter((cmd) =>
-    cmd.name.startsWith(query.toLowerCase())
-  );
+  const filtered = filterSlashCommands(commands, query);
 
   useEffect(() => {
     const selected = menuRef.current?.querySelector("[data-selected='true']");
@@ -96,7 +197,7 @@ export function SlashCommandMenu({
 
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-xl border border-border/50 bg-card/95 shadow-[var(--shadow-float)] backdrop-blur-xl"
+      className="liquid-panel absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-xl border border-white/30 bg-white/85 text-black shadow-[var(--glass-shadow)] backdrop-blur-2xl dark:border-white/10 dark:bg-black/60 dark:text-white"
       ref={menuRef}
     >
       <div className="px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
