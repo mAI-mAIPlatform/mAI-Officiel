@@ -1,0 +1,13 @@
+## 🧪 Add Unit Tests for `getMessageByErrorCode`
+
+🎯 **What:**
+Added dedicated unit tests for the pure function `getMessageByErrorCode` in `lib/errors.ts` which lacked test coverage.
+
+📊 **Coverage:**
+The new test suite `tests/unit/errors.test.ts` thoroughly covers:
+- Dynamic branch for database errors (`errorCode.includes("database")`)
+- All specific mapped cases matching the exact error codes string (`api`, `auth`, `chat`, `document`, and `activate_gateway` surfaces)
+- Fallback/default cases when the error code format is unrecognized
+
+✨ **Result:**
+Improved testing coverage for our error message resolution logic, ensuring no regressions when error codes or messages are added, updated, or refactored. The pure function is now fully covered with deterministic assertions utilizing the Node.js native test runner.
