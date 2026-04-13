@@ -237,53 +237,59 @@ export function runExternalTextModel(
 
     const modelCandidates = getGeminiCandidateModelIds(modelId);
     const geminiCalls = geminiKeys.map((apiKey, index) => async () => {
+      const abortController = new AbortController();
       let lastStatus: number | undefined;
 
-      for (const resolvedModelId of modelCandidates) {
-        const response = await fetch(
-          `${GEMINI_API_BASE_URL}/models/${resolvedModelId}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              ...(systemInstruction
-                ? {
-                    systemInstruction: { parts: [{ text: systemInstruction }] },
-                  }
-                : {}),
-              generationConfig: {
-                temperature: 0.5,
-                maxOutputTokens: 1024,
-              },
-            }),
-          }
+      try {
+        const result = await Promise.any(
+          modelCandidates.map(async (resolvedModelId) => {
+            const response = await fetch(
+              `${GEMINI_API_BASE_URL}/models/${resolvedModelId}:generateContent?key=${apiKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                signal: abortController.signal,
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  ...(systemInstruction
+                    ? {
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                      }
+                    : {}),
+                  generationConfig: {
+                    temperature: 0.5,
+                    maxOutputTokens: 1024,
+                  },
+                }),
+              }
+            );
+
+            if (!response.ok) {
+              lastStatus = response.status;
+              throw new Error(
+                `Gemini clé ${index + 1} a échoué (${response.status})`
+              );
+            }
+
+            const data = await response.json();
+            const text = extractTextFromGemini(data);
+
+            if (!text) {
+              throw new Error(`Gemini clé ${index + 1} a renvoyé une réponse vide`);
+            }
+
+            return { provider: `gemini-${index + 1}`, text };
+          })
         );
 
-        if (!response.ok) {
-          lastStatus = response.status;
-          // 404: on tente l'alias suivant pour éviter les cassures sur renommage.
-          if (response.status === 404) {
-            continue;
-          }
-          throw new Error(
-            `Gemini clé ${index + 1} a échoué (${response.status})`
-          );
-        }
-
-        const data = await response.json();
-        const text = extractTextFromGemini(data);
-
-        if (!text) {
-          throw new Error(`Gemini clé ${index + 1} a renvoyé une réponse vide`);
-        }
-
-        return { provider: `gemini-${index + 1}`, text };
+        // Abort the remaining requests once one has succeeded
+        abortController.abort();
+        return result;
+      } catch (aggregateError) {
+        throw new Error(
+          `Gemini clé ${index + 1} a échoué (${lastStatus ?? "status inconnu"})`
+        );
       }
-
-      throw new Error(
-        `Gemini clé ${index + 1} a échoué (${lastStatus ?? "status inconnu"})`
-      );
     });
 
     return withFallback(geminiCalls, "Échec fallback Gemini");
