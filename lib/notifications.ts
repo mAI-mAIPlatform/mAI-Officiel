@@ -24,7 +24,7 @@ type NotificationVariables = Record<
   string | number | boolean | null | undefined
 >;
 
-const interpolateTemplate = (
+export const interpolateTemplate = (
   template: string,
   variables?: NotificationVariables
 ) =>
