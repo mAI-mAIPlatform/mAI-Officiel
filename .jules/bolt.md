@@ -9,3 +9,7 @@
 ## 2025-02-23 - [Parallel Fallbacks and API Latency]
 **Learning:** Sequential queries over failover/fallback candidates inside loops dramatically increase overall latency when multiple candidates fail, causing user friction on stream generation. `fetch` inherently blocks in a `for...of` loop with `await`.
 **Action:** Instead of sequentially attempting fallbacks, perform concurrent requests with `Promise.any` paired with an `AbortController`. When the first request resolves, signal the `AbortController` to abort all remaining slower requests to preserve network bandwidth and API credits.
+## 2024-04-13 - N+1 Query in Export Route
+
+**Learning:** Fetching related database entities inside loops (e.g., getting messages for each chat) causes an N+1 query problem, severely degrading performance as the number of items increases. Drizzle's `inArray` can be used to query bulk data.
+**Action:** When querying related models for a list of items, extract the item IDs, perform a single batched query using `inArray`, group the results by the parent ID in memory, and then map them to their parent items.
