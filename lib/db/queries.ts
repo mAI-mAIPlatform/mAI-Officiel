@@ -950,6 +950,21 @@ export async function getSubtasksByTask(taskId: string): Promise<Subtask[]> {
   }
 }
 
+export async function getSubtasksByTaskIds(taskIds: string[]): Promise<Subtask[]> {
+  if (taskIds.length === 0) return [];
+
+  try {
+    return await db
+      .select()
+      .from(subtask)
+      .where(inArray(subtask.taskId, taskIds))
+      .orderBy(asc(subtask.createdAt));
+  } catch (error) {
+    console.error("Failed to get subtasks by task IDs:", error);
+    throw new Error("Failed to get subtasks");
+  }
+}
+
 export async function createSubtask(
   data: Pick<Subtask, "taskId" | "title"> &
     Partial<Omit<Subtask, "id" | "taskId" | "title">>

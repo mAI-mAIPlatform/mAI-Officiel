@@ -4,6 +4,7 @@ import { auth } from "@/app/(auth)/auth";
 import {
   createTask,
   getProjectById,
+  getSubtasksByTaskIds,
   getSubtasksByTask,
   getTasksByProject,
 } from "@/lib/db/queries";
@@ -56,27 +57,36 @@ export async function GET(
   }
 
   const tasks = await getTasksByProject(id);
-  const tasksWithSubtasks = await Promise.all(
-    tasks.map(async (task) => {
-      const subtasks = await getSubtasksByTask(task.id);
-      const completedSubtasks = subtasks.filter((subtask) => subtask.status === "done").length;
+  const taskIds = tasks.map((task) => task.id);
+  const allSubtasks = await getSubtasksByTaskIds(taskIds);
 
-      return {
-        ...task,
-        isOverdue:
-          task.dueDate !== null && task.status !== "done"
-            ? task.dueDate.getTime() < Date.now()
-            : false,
-        progression:
-          subtasks.length > 0
-            ? completedSubtasks / subtasks.length
-            : task.status === "done"
-              ? 1
-              : 0,
-        subtasks,
-      };
-    })
-  );
+  const subtasksByTaskId = allSubtasks.reduce((acc, subtask) => {
+    if (!acc[subtask.taskId]) {
+      acc[subtask.taskId] = [];
+    }
+    acc[subtask.taskId].push(subtask);
+    return acc;
+  }, {} as Record<string, typeof allSubtasks>);
+
+  const tasksWithSubtasks = tasks.map((task) => {
+    const subtasks = subtasksByTaskId[task.id] || [];
+    const completedSubtasks = subtasks.filter((subtask) => subtask.status === "done").length;
+
+    return {
+      ...task,
+      isOverdue:
+        task.dueDate !== null && task.status !== "done"
+          ? task.dueDate.getTime() < Date.now()
+          : false,
+      progression:
+        subtasks.length > 0
+          ? completedSubtasks / subtasks.length
+          : task.status === "done"
+            ? 1
+            : 0,
+      subtasks,
+    };
+  });
 
   const sorted = [...tasksWithSubtasks];
 

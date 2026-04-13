@@ -13,3 +13,6 @@
 
 **Learning:** Fetching related database entities inside loops (e.g., getting messages for each chat) causes an N+1 query problem, severely degrading performance as the number of items increases. Drizzle's `inArray` can be used to query bulk data.
 **Action:** When querying related models for a list of items, extract the item IDs, perform a single batched query using `inArray`, group the results by the parent ID in memory, and then map them to their parent items.
+## 2026-04-13 - Batched DB Queries for Subtasks
+**Learning:** Avoid N+1 queries when fetching related entities (e.g. subtasks for a list of tasks). Using Promise.all with db queries inside a .map() loop creates unnecessary database round-trips and connection overhead.
+**Action:** Use Drizzle ORM's inArray operator to fetch all related entities in a single batched query, then group them in-memory by their foreign key.
