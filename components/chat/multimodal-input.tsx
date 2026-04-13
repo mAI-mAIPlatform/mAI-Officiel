@@ -1312,7 +1312,7 @@ function PureContextualActionsMenu({
     "mai-reasoning-level",
     "moderate"
   );
-  const { plan } = useSubscriptionPlan();
+  const { plan, isHydrated } = useSubscriptionPlan();
   const [quizTopic, setQuizTopic] = useState("culture générale");
   const [quizQuestionCount, setQuizQuestionCount] = useState(5);
   const [quizTimerMinutes, setQuizTimerMinutes] = useState(10);
@@ -1344,6 +1344,8 @@ function PureContextualActionsMenu({
   const canUseVeryDeepReflection = plan === "max";
 
   useEffect(() => {
+    if (!isHydrated) return;
+
     // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
     if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
       setReasoningLevel(canUseDeepReflection ? "deep" : "moderate");
@@ -1358,6 +1360,7 @@ function PureContextualActionsMenu({
     canUseVeryDeepReflection,
     reasoningLevel,
     setReasoningLevel,
+    isHydrated,
   ]);
 
   useEffect(() => {
