@@ -34,19 +34,13 @@ export const extensionAiModelOptions: ExtensionModelOption[] = [
     strengths: "Très bon équilibre pour rédaction, analyse et raisonnement.",
   },
   {
-    id: "anthropic/claude-sonnet-4-6",
-    label: "Claude Sonnet 4.6",
-    monthlyCostProfile: "faible",
-    strengths: "Excellent sur synthèse et suivi d'instructions complexes.",
-  },
-  {
     id: "azure/deepseek-v3.2",
     label: "DeepSeek-V3.2",
     monthlyCostProfile: "très-faible",
     strengths: "Fort rapport qualité/prix pour tâches variées et code.",
   },
   {
-    id: "openrouter/openai/gpt-oss-120b",
+    id: "openai/gpt-oss-120b",
     label: "GPT-OSS-120b",
     monthlyCostProfile: "faible",
     strengths: "Open-source haut niveau pour assistants et automatisations.",

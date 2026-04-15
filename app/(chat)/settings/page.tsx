@@ -69,14 +69,10 @@ const schedulerModels = [
   "openai/gpt-5.2",
   "openai/gpt-5.1",
   "openai/gpt-5",
-  "openrouter/openai/gpt-oss-120b",
+  "openai/gpt-oss-120b",
   "azure/deepseek-v3.2",
   "azure/kimi-k2.5",
   "azure/mistral-large-3",
-  "anthropic/claude-opus-4-6",
-  "anthropic/claude-sonnet-4-20250514",
-  "anthropic/claude-sonnet-4-6",
-  "anthropic/claude-haiku-4-5",
 ] as const;
 const schedulerFrequencies = [
   "quotidienne",

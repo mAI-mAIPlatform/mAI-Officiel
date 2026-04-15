@@ -43,7 +43,7 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4-nano",
     name: "GPT-5.4 Nano",
     provider: "openai",
-    description: "Ultra-rapide et économique pour tâches courtes.",
+    description: "Ultra fast lightweight model.",
     reasoningEffort: "minimal",
   },
   {
@@ -71,7 +71,7 @@ export const chatModels: ChatModel[] = [
   {
     id: "azure/deepseek-v3.2",
     name: "DeepSeek-V3.2",
-    provider: "deepseek",
+    provider: "azure",
     description:
       "Latest frontier model with improvements across knowledge, reasoning and coding.",
     reasoningEffort: "medium",
@@ -79,55 +79,24 @@ export const chatModels: ChatModel[] = [
   {
     id: "azure/kimi-k2.5",
     name: "Kimi-K2.5",
-    provider: "kimi",
+    provider: "azure",
     description:
       "Open-source, multimodal model from Moonshot AI built for agentic workflows.",
   },
   {
-    id: "openrouter/openai/gpt-oss-120b",
+    id: "openai/gpt-oss-120b",
     name: "GPT-OSS-120b",
-    provider: "openrouter",
-    description: "Grand modèle open-source orienté raisonnement et code.",
+    provider: "openai",
+    description: "Open source large model.",
     reasoningEffort: "high",
   },
   {
     id: "azure/mistral-large-3",
     name: "Mistral-Large-3",
-    provider: "mistral",
+    provider: "azure",
     description:
       "Large Mistral model deployed on Azure OpenAI for advanced chat and reasoning tasks.",
     reasoningEffort: "medium",
-  },
-  {
-    id: "anthropic/claude-opus-4-6",
-    name: "Claude Opus 4.6",
-    provider: "anthropic",
-    description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
-    reasoningEffort: "high",
-  },
-  {
-    id: "anthropic/claude-sonnet-4-20250514",
-    name: "Claude Sonnet 4 (20250514)",
-    provider: "anthropic",
-    description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
-    reasoningEffort: "medium",
-  },
-  {
-    id: "anthropic/claude-sonnet-4-6",
-    name: "Claude Sonnet 4.6",
-    provider: "anthropic",
-    description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
-    reasoningEffort: "medium",
-  },
-  {
-    id: "anthropic/claude-haiku-4-5",
-    name: "Claude Haiku 4.5",
-    provider: "anthropic",
-    description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
   },
 ];
 

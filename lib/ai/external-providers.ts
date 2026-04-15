@@ -1,4 +1,5 @@
 import { affordableTextModels } from "@/lib/ai/affordable-models";
+import OpenAI from "openai";
 
 const COMET_API_BASE_URL =
   process.env.COMET_API_BASE_URL ?? "https://api.cometapi.com/v1";
@@ -14,21 +15,22 @@ const HUGGINGFACE_API_BASE_URL =
   "https://router.huggingface.co/v1/chat/completions";
 const FS_API_BASE_URL =
   process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1";
+const FS_TIMEOUT_MS = Number.parseInt(process.env.FS_API_TIMEOUT_MS ?? "10000", 10);
+const FS_MAX_RETRIES = Number.parseInt(process.env.FS_API_MAX_RETRIES ?? "2", 10);
+const RETRYABLE_FS_STATUS_CODES = new Set([401, 403, 408, 409, 429]);
 
 export const cometTextModels = new Set(["gpt-5.4-nano", "gpt-5.4-mini"]);
 const fsModelMapping: Record<string, string> = {
   "openai/gpt-5.4": "gpt-5.4",
   "openai/gpt-5.4-mini": "gpt-5.4-mini",
+  "openai/gpt-5.4-nano": "gpt-5.4-nano",
   "openai/gpt-5.2": "gpt-5.2",
   "openai/gpt-5.1": "gpt-5.1",
   "openai/gpt-5": "gpt-5",
+  "openai/gpt-oss-120b": "gpt-oss-120b",
   "azure/deepseek-v3.2": "DeepSeek-V3.2",
   "azure/kimi-k2.5": "Kimi-K2.5",
   "azure/mistral-large-3": "Mistral-Large-3",
-  "anthropic/claude-opus-4-6": "claude-opus-4-6",
-  "anthropic/claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
-  "anthropic/claude-sonnet-4-6": "claude-sonnet-4-6",
-  "anthropic/claude-haiku-4-5": "claude-haiku-4-5",
 };
 export const fsTextModels = new Set(Object.keys(fsModelMapping));
 export const cometImageModels = new Set([
@@ -74,7 +76,11 @@ const geminiKeys = [
 const cerebrasKeys = [process.env.CEREBRAS_API_KEY].filter(Boolean) as string[];
 const mistralKeys = [process.env.MISTRAL_API_KEY].filter(Boolean) as string[];
 const huggingFaceKeys = [process.env.HF_API_KEY].filter(Boolean) as string[];
-const fsKeys = [process.env.FS_API_KEY].filter(Boolean) as string[];
+const fsKeys = [
+  process.env.FS_API_KEY_1,
+  process.env.FS_API_KEY_2,
+  process.env.FS_API_KEY_3,
+].filter(Boolean) as string[];
 
 // Alias pour rester compatible avec des IDs "marketing"/preview selon les périodes.
 const geminiModelAliases: Record<string, string[]> = {
@@ -119,6 +125,160 @@ async function withFallback<T>(
   throw new Error(`${errorLabel}: ${message}`);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function extractErrorStatus(error: unknown): number | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+  ) {
+    return (error as { status: number }).status;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "cause" in error &&
+    typeof (error as { cause?: unknown }).cause === "object" &&
+    (error as { cause?: { status?: unknown } }).cause !== null &&
+    typeof (error as { cause?: { status?: unknown } }).cause?.status === "number"
+  ) {
+    return (error as { cause: { status: number } }).cause.status;
+  }
+
+  return undefined;
+}
+
+function isRetryableFsError(error: unknown): boolean {
+  const status = extractErrorStatus(error);
+  if (typeof status === "number") {
+    return RETRYABLE_FS_STATUS_CODES.has(status) || status >= 500;
+  }
+
+  if (error instanceof Error) {
+    return (
+      error.name === "AbortError" ||
+      error.message.toLowerCase().includes("timeout") ||
+      error.message.toLowerCase().includes("network")
+    );
+  }
+
+  return false;
+}
+
+export function createClientWithFallback(options?: {
+  timeoutMs?: number;
+  maxRetries?: number;
+}) {
+  const timeoutMs = options?.timeoutMs ?? FS_TIMEOUT_MS;
+  const maxRetries = options?.maxRetries ?? FS_MAX_RETRIES;
+
+  if (fsKeys.length === 0) {
+    throw new Error(
+      "Missing API keys: define FS_API_KEY_1, FS_API_KEY_2, or FS_API_KEY_3."
+    );
+  }
+
+  const clients = fsKeys.map((apiKey, index) => ({
+    keyIndex: index + 1,
+    client: new OpenAI({
+      apiKey,
+      baseURL: FS_API_BASE_URL,
+    }),
+  }));
+
+  return {
+    async execute<T>(
+      operation: (
+        client: OpenAI,
+        context: { keyIndex: number; signal: AbortSignal }
+      ) => Promise<T>
+    ): Promise<T> {
+      let lastError: unknown = null;
+
+      for (const { client, keyIndex } of clients) {
+        for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt += 1) {
+          const abortController = new AbortController();
+          const timeout = setTimeout(() => abortController.abort(), timeoutMs);
+
+          try {
+            const result = await operation(client, {
+              keyIndex,
+              signal: abortController.signal,
+            });
+            clearTimeout(timeout);
+            return result;
+          } catch (error) {
+            clearTimeout(timeout);
+            lastError = error;
+            const retryable = isRetryableFsError(error);
+            const hasRetry = retryAttempt < maxRetries;
+
+            if (retryable && hasRetry) {
+              const backoffMs = 500 * 2 ** retryAttempt;
+              console.warn(
+                `API KEY ${keyIndex} attempt ${retryAttempt + 1} failed, retrying in ${backoffMs}ms...`
+              );
+              await sleep(backoffMs);
+              continue;
+            }
+
+            if (keyIndex < clients.length) {
+              console.warn(`API KEY ${keyIndex} failed, switching...`);
+            }
+
+            break;
+          }
+        }
+      }
+
+      console.error("All API keys failed");
+      const details =
+        lastError instanceof Error ? lastError.message : "unknown provider error";
+      throw new Error(`All API keys failed: ${details}`);
+    },
+  };
+}
+
+export async function generateResponse(input: {
+  model: string;
+  prompt: string;
+  systemInstruction?: string;
+  timeoutMs?: number;
+}): Promise<{ provider: string; text: string }> {
+  const fallbackClient = createClientWithFallback({
+    timeoutMs: input.timeoutMs,
+  });
+
+  return fallbackClient.execute(async (client, { keyIndex, signal }) => {
+    const completion = await client.chat.completions.create(
+      {
+        model: input.model,
+        messages: [
+          ...(input.systemInstruction
+            ? [{ role: "developer" as const, content: input.systemInstruction }]
+            : []),
+          { role: "user" as const, content: input.prompt },
+        ],
+      },
+      { signal }
+    );
+
+    const text = extractTextFromChatCompletion(completion);
+    if (!text) {
+      throw new Error(`FranceStudent key ${keyIndex} returned an empty response`);
+    }
+
+    return { provider: `francestudent-${keyIndex}`, text };
+  });
+}
+
 interface GeminiCandidate {
   content?: {
     parts?: Array<{ text?: string }>;
@@ -138,7 +298,7 @@ function extractTextFromGemini(data: GeminiResponse | undefined | null): string 
 }
 
 interface ChatCompletionMessage {
-  content?: string | Array<{ text?: string }>;
+  content?: string | Array<{ text?: string }> | null;
 }
 
 interface ChatCompletionResponse {
@@ -324,53 +484,16 @@ export function runExternalTextModel(
   }
 
   if (fsTextModels.has(modelId)) {
-    if (fsKeys.length === 0) {
-      throw new Error("FS_API_KEY manquante");
-    }
-
     const providerModelId = fsModelMapping[modelId];
     if (!providerModelId) {
       throw new Error("Mapping modèle FranceStudent introuvable");
     }
 
-    const fsCalls = fsKeys.map((apiKey, index) => async () => {
-      const response = await fetch(`${FS_API_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: providerModelId,
-          messages: [
-            ...(systemInstruction
-              ? [{ role: "system", content: systemInstruction }]
-              : []),
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.5,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `FranceStudent clé ${index + 1} a échoué (${response.status})`
-        );
-      }
-
-      const data = await response.json();
-      const text = extractTextFromChatCompletion(data);
-
-      if (!text) {
-        throw new Error(
-          `FranceStudent clé ${index + 1} a renvoyé une réponse vide`
-        );
-      }
-
-      return { provider: `francestudent-${index + 1}`, text };
+    return generateResponse({
+      model: providerModelId,
+      prompt,
+      systemInstruction,
     });
-
-    return withFallback(fsCalls, "Échec fallback FranceStudent");
   }
 
   if (cerebrasCheapModels.has(modelId)) {
