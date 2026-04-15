@@ -17,9 +17,11 @@ export function SessionGuard() {
   const [pinValue, setPinValue] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const settingsRef = useRef(defaultSecuritySettings);
-  const lastActivityAtRef = useRef<number>(Date.now());
+  const lastActivityAtRef = useRef<number>(0);
 
   useEffect(() => {
+    lastActivityAtRef.current = Date.now();
+
     const loadSettings = () => {
       settingsRef.current = parseSecuritySettings(
         window.localStorage.getItem(SECURITY_SETTINGS_STORAGE_KEY)

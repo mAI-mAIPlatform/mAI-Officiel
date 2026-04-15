@@ -1,7 +1,4 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { customProvider, gateway } from "ai";
-import { createOllama } from "ollama-ai-provider";
 import { isTestEnvironment } from "../constants";
 import { titleModel } from "./models";
 
@@ -17,110 +14,9 @@ export const myProvider = isTestEnvironment
     })()
   : null;
 
-// Création des instances OpenRouter (Triple Sécurité)
-const or1 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_1 });
-const or2 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_2 });
-const or3 = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY_3 });
-
-// Instance Fireworks AI (API OpenAI-compatible)
-const fireworksProvider = createOpenAI({
-  apiKey: process.env.FIREWORKS_API_KEY,
-  baseURL:
-    process.env.FIREWORKS_BASE_URL ?? "https://api.fireworks.ai/inference/v1",
-});
-
-// Instance SambaNova Cloud (API OpenAI-compatible)
-const sambanovaProvider = createOpenAI({
-  apiKey: process.env.SAMBANOVA_API_KEY,
-  baseURL: process.env.SAMBANOVA_BASE_URL ?? "https://api.sambanova.ai/v1",
-});
-
-const cloudflareAccountId =
-  process.env.CLOUDFLARE_ACCOUNT_ID ?? process.env.CF_ACCOUNT_ID;
-
-// Instance Cloudflare Workers AI (API OpenAI-compatible)
-const cloudflareProvider = createOpenAI({
-  apiKey: process.env.CLOUDFLARE_API_KEY,
-  baseURL:
-    process.env.CLOUDFLARE_BASE_URL ??
-    (cloudflareAccountId
-      ? `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/ai/v1`
-      : undefined),
-});
-
-// Instance Ollama (token optionnel pour instance locale)
-const ollamaProvider = createOllama({
-  baseURL: process.env.OLLAMA_BASE_URL,
-  headers: process.env.OLLAMA_API_TOKEN
-    ? {
-        Authorization: `Bearer ${process.env.OLLAMA_API_TOKEN}`,
-      }
-    : undefined,
-});
-
 export function getLanguageModel(modelId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
-  }
-
-  if (isTestEnvironment) {
-    return gateway.languageModel(modelId);
-  }
-
-  // --- OPENROUTER FALLBACK ---
-  if (modelId.startsWith("openrouter/")) {
-    const cleanId = modelId.replace("openrouter/", "");
-
-    const fallbackFn = (() => {
-      try {
-        const ai = require("ai");
-        return ai.fallback || ai.experimental_fallback;
-      } catch (_e) {
-        return undefined;
-      }
-    })();
-
-    if (fallbackFn) {
-      return fallbackFn([or1(cleanId), or2(cleanId), or3(cleanId)]);
-    }
-
-    // fallback missing in this version
-    return or1(cleanId);
-  }
-
-  // --- OLLAMA ---
-  if (modelId.startsWith("ollama/")) {
-    return ollamaProvider(modelId.replace("ollama/", ""));
-  }
-
-  // --- FIREWORKS AI ---
-  if (modelId.startsWith("fireworks/")) {
-    return fireworksProvider(modelId.replace("fireworks/", ""));
-  }
-
-  // --- SAMBANOVA ---
-  if (modelId.startsWith("sambanova/")) {
-    if (!process.env.SAMBANOVA_API_KEY) {
-      throw new Error(
-        "SAMBANOVA_API_KEY manquante: impossible d'utiliser un modèle SambaNova."
-      );
-    }
-    return sambanovaProvider(modelId.replace("sambanova/", ""));
-  }
-
-  // --- CLOUDFLARE WORKERS AI ---
-  if (modelId.startsWith("cloudflare/")) {
-    if (!process.env.CLOUDFLARE_API_KEY) {
-      throw new Error(
-        "CLOUDFLARE_API_KEY manquante: impossible d'utiliser un modèle Cloudflare Workers AI."
-      );
-    }
-    if (!cloudflareAccountId && !process.env.CLOUDFLARE_BASE_URL) {
-      throw new Error(
-        "CLOUDFLARE_ACCOUNT_ID manquante (ou CLOUDFLARE_BASE_URL): impossible d'appeler Cloudflare Workers AI."
-      );
-    }
-    return cloudflareProvider(modelId.replace("cloudflare/", ""));
   }
 
   return gateway.languageModel(modelId);
