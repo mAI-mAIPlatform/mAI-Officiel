@@ -187,7 +187,7 @@ export async function generateResponse(input: {
   model: string;
   messages: Array<{ role: string; content: string }>;
   timeoutMs?: number;
-  reasoningEffort?: string;
+  reasoningEffort?: "low" | "medium" | "high";
 }): Promise<{ provider: string; text: string }> {
   const fallbackClient = createClientWithFallback({ timeoutMs: input.timeoutMs });
 
@@ -196,7 +196,7 @@ export async function generateResponse(input: {
       {
         model: input.model,
         messages: input.messages as any,
-        ...(input.reasoningEffort ? { reasoning_effort: input.reasoningEffort } : {}),
+        ...((input.reasoningEffort && ["low", "medium", "high"].includes(input.reasoningEffort)) ? { reasoning_effort: input.reasoningEffort as "low" | "medium" | "high" } : {}),
       },
       { signal }
     );
@@ -218,7 +218,7 @@ export function isExternalTextModel(modelId: string): boolean {
 export async function runExternalTextModel(
   modelId: string,
   messages: Array<{ role: string; content: string }>,
-  options?: { reasoningEffort?: string }
+  options?: { reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" }
 ): Promise<{ provider: string; text: string }> {
   const providerModelId = fsModelMapping[modelId];
 
@@ -229,7 +229,7 @@ export async function runExternalTextModel(
   return generateResponse({
     model: providerModelId,
     messages,
-    reasoningEffort: options?.reasoningEffort,
+    reasoningEffort: options?.reasoningEffort === "none" || options?.reasoningEffort === "minimal" ? undefined : options?.reasoningEffort,
   });
 }
 
