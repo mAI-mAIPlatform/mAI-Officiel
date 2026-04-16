@@ -4,7 +4,7 @@ export const titleModel = {
   id: "openai/gpt-5.4",
   name: "GPT-5.4",
   provider: "openai",
-  description: "Modèle principal pour la génération de titres",
+  description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
   gatewayOrder: ["openai"],
 };
 
@@ -30,14 +30,14 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4",
     name: "GPT-5.4",
     provider: "openai",
-    description: "Latest frontier agentic coding model.",
+    description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
     reasoningEffort: "high",
   },
   {
     id: "openai/gpt-5.4-mini",
     name: "GPT-5.4 Mini",
     provider: "openai",
-    description: "Smaller frontier agentic coding model.",
+    description: "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
     reasoningEffort: "medium",
   },
   {
@@ -45,7 +45,7 @@ export const chatModels: ChatModel[] = [
     name: "GPT-5.4 Nano",
     provider: "openai",
     description:
-      "Ultra-lightweight frontier model optimized for speed and efficiency.",
+      "Modèle ultra-léger de nouvelle génération, rigoureusement optimisé pour maximiser la vitesse d'exécution et l'efficacité des ressources informatiques.",
     reasoningEffort: "minimal",
   },
   {
@@ -53,21 +53,21 @@ export const chatModels: ChatModel[] = [
     name: "GPT-5.2",
     provider: "openai",
     description:
-      "Latest frontier model with improvements across knowledge, reasoning and coding.",
+      "Modèle avancé offrant des performances significativement améliorées dans les domaines de l'acquisition de connaissances, du raisonnement analytique et de la programmation.",
     reasoningEffort: "medium",
   },
   {
     id: "openai/gpt-5.1",
     name: "GPT-5.1",
     provider: "openai",
-    description: "Broad world knowledge with strong general reasoning.",
+    description: "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
     reasoningEffort: "medium",
   },
   {
     id: "openai/gpt-5",
     name: "GPT-5",
     provider: "openai",
-    description: "Broad world knowledge with strong general reasoning.",
+    description: "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
     reasoningEffort: "medium",
   },
   {
@@ -75,7 +75,7 @@ export const chatModels: ChatModel[] = [
     name: "GPT-OSS-120b",
     provider: "openai",
     description:
-      "OpenAI open-source 120B parameter model for high-performance reasoning tasks.",
+      "Modèle open-source de 120 milliards de paramètres développé par OpenAI, conçu exclusivement pour l'exécution de tâches de raisonnement à haute performance.",
     reasoningEffort: "high",
   },
 
@@ -85,7 +85,7 @@ export const chatModels: ChatModel[] = [
     name: "DeepSeek-V3.2",
     provider: "azure",
     description:
-      "Latest frontier model with improvements across knowledge, reasoning and coding.",
+      "Modèle de dernière génération intégrant des optimisations substantielles en matière de connaissances globales, d'analyse logique et de développement de code.",
     reasoningEffort: "medium",
   },
   {
@@ -93,24 +93,24 @@ export const chatModels: ChatModel[] = [
     name: "Kimi-K2.5",
     provider: "azure",
     description:
-      "Open-source, multimodal model from Moonshot AI built for agentic workflows.",
+      "Modèle multimodal open-source développé par Moonshot AI, architecturé spécifiquement pour l'élaboration et la gestion de flux de travail automatisés.",
   },
   {
     id: "azure/mistral-large-3",
     name: "Mistral-Large-3",
     provider: "azure",
     description:
-      "Large Mistral model deployed on Azure OpenAI for advanced chat and reasoning tasks.",
+      "Modèle de grande capacité développé par Mistral et déployé sur l'infrastructure Azure OpenAI, destiné aux interactions conversationnelles complexes et aux tâches d'analyse approfondie.",
     reasoningEffort: "medium",
   },
 
   // ── Anthropic / Claude ────────────────────────────────────────────────
   {
     id: "anthropic/claude-opus-4-6",
-    name: "Claude Opus 4-6",
+    name: "Claude Opus 4.6",
     provider: "anthropic",
     description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
+      "Modèle d'excellence d'Anthropic, accessible via l'API Messages sécurisée par OAuth, dédié à la résolution de requêtes complexes exigeant un niveau d'effort cognitif maximal.",
     reasoningEffort: "high",
   },
   {
@@ -118,23 +118,23 @@ export const chatModels: ChatModel[] = [
     name: "Claude Sonnet 4",
     provider: "claude",
     description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
+      "Modèle intermédiaire d'Anthropic, accessible via l'API Messages sécurisée par OAuth, offrant un équilibre optimal entre performance de raisonnement et rapidité d'exécution.",
     reasoningEffort: "medium",
   },
   {
     id: "anthropic/claude-sonnet-4-6",
-    name: "Claude Sonnet 4-6",
+    name: "Claude Sonnet 4.6",
     provider: "anthropic",
     description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
+      "Version actualisée du modèle intermédiaire d'Anthropic, accessible via l'API Messages sécurisée par OAuth, garantissant des performances équilibrées et efficientes.",
     reasoningEffort: "medium",
   },
   {
     id: "anthropic/claude-haiku-4-5",
-    name: "Claude Haiku 4-5",
+    name: "Claude Haiku 4.5",
     provider: "anthropic",
     description:
-      "Anthropic Claude model accessed through OAuth-backed Messages API.",
+      "Modèle compact d'Anthropic, accessible via l'API Messages sécurisée par OAuth, spécifiquement élaboré pour assurer une latence minimale et des temps de réponse ultra-rapides.",
     reasoningEffort: "low",
   },
 ];
