@@ -274,7 +274,7 @@ export async function POST(request: Request) {
 
       const externalResult = await runExternalTextModel(
         chatModel,
-        sanitizedLatestUserText,
+        modelMessages,
         {
           systemInstruction:
             'Reply in the same language as the user\'s latest message. For health topics, include the exact disclaimer: "mAIHealth ne remplace pas un professionnel de santé".',
@@ -309,9 +309,13 @@ export async function POST(request: Request) {
           writer.write({ type: "text-end", id: textPartId });
 
           if (titlePromise && !isGhostMode) {
-            const title = await titlePromise;
-            writer.write({ type: "data-chat-title", data: title });
-            await updateChatTitleById({ chatId: id, title });
+            try {
+              const title = await titlePromise;
+              writer.write({ type: "data-chat-title", data: title });
+              await updateChatTitleById({ chatId: id, title });
+            } catch (error) {
+              console.error("Failed to generate title for external model stream:", error);
+            }
           }
         },
       });
@@ -422,9 +426,13 @@ export async function POST(request: Request) {
         );
 
         if (titlePromise && !isGhostMode) {
-          const title = await titlePromise;
-          dataStream.write({ type: "data-chat-title", data: title });
-          updateChatTitleById({ chatId: id, title });
+          try {
+            const title = await titlePromise;
+            dataStream.write({ type: "data-chat-title", data: title });
+            updateChatTitleById({ chatId: id, title });
+          } catch (error) {
+            console.error("Failed to generate title for regular stream:", error);
+          }
         }
       },
       generateId: generateUUID,

@@ -25,18 +25,23 @@ export async function generateTitleFromUserMessage({
 }: {
   message: UIMessage;
 }) {
-  const { text } = await generateText({
-    model: getTitleModel(),
-    system: titlePrompt,
-    prompt: getTextFromMessage(message),
-    providerOptions: {
-      gateway: { order: titleModel.gatewayOrder },
-    },
-  });
-  return text
-    .replace(/^[#*"\s]+/, "")
-    .replace(/["]+$/, "")
-    .trim();
+  try {
+    const { text } = await generateText({
+      model: getTitleModel(),
+      system: titlePrompt,
+      prompt: getTextFromMessage(message),
+      providerOptions: {
+        gateway: { order: titleModel.gatewayOrder },
+      },
+    });
+    return text
+      .replace(/^[#*"\s]+/, "")
+      .replace(/["]+$/, "")
+      .trim();
+  } catch (error) {
+    console.error("Failed to generate title, returning fallback:", error);
+    return "Nouveau chat";
+  }
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {

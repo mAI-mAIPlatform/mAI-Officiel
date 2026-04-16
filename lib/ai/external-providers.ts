@@ -3,7 +3,7 @@ import OpenAI from "openai";
 const FS_API_BASE_URL =
   process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1";
 const FS_TIMEOUT_MS = Number.parseInt(
-  process.env.FS_API_TIMEOUT_MS ?? "10000",
+  process.env.FS_API_TIMEOUT_MS ?? "60000",
   10
 );
 const FS_MAX_RETRIES = Number.parseInt(
@@ -16,11 +16,7 @@ const RETRYABLE_FS_STATUS_CODES = new Set([401, 403, 408, 409, 429]);
 const fsModelMapping: Record<string, string> = {
   "openai/gpt-5.4": "gpt-5.4",
   "openai/gpt-5.4-mini": "gpt-5.4-mini",
-  "openai/gpt-5.4-nano": "gpt-5.4-nano",
-  "openai/gpt-5.2": "gpt-5.2",
-  "openai/gpt-5.1": "gpt-5.1",
-  "openai/gpt-5": "gpt-5",
-  "openai/gpt-oss-120b": "gpt-oss-120b",
+  "openai/gpt-5.4-nano": "gpt-5.4-nano",  "openai/gpt-oss-120b": "gpt-oss-120b",
   "azure/deepseek-v3.2": "DeepSeek-V3.2",
   "azure/kimi-k2.5": "Kimi-K2.5",
   "azure/mistral-large-3": "Mistral-Large-3",
@@ -188,22 +184,30 @@ export function createClientWithFallback(options?: {
 
 export async function generateResponse(input: {
   model: string;
-  prompt: string;
+  prompt?: string;
+  messages?: any[];
   systemInstruction?: string;
   timeoutMs?: number;
 }): Promise<{ provider: string; text: string }> {
   const fallbackClient = createClientWithFallback({ timeoutMs: input.timeoutMs });
 
   return fallbackClient.execute(async (client, { keyIndex, signal }) => {
+    const requestMessages: any[] = [
+      ...(input.systemInstruction
+        ? [{ role: "developer", content: input.systemInstruction }]
+        : []),
+    ];
+
+    if (input.messages && input.messages.length > 0) {
+      requestMessages.push(...input.messages);
+    } else if (input.prompt) {
+      requestMessages.push({ role: "user", content: input.prompt });
+    }
+
     const completion = await client.chat.completions.create(
       {
         model: input.model,
-        messages: [
-          ...(input.systemInstruction
-            ? [{ role: "developer" as const, content: input.systemInstruction }]
-            : []),
-          { role: "user" as const, content: input.prompt },
-        ],
+        messages: requestMessages,
       },
       { signal }
     );
@@ -224,7 +228,7 @@ export function isExternalTextModel(modelId: string): boolean {
 
 export async function runExternalTextModel(
   modelId: string,
-  prompt: string,
+  messagesOrPrompt: string | any[],
   options?: { systemInstruction?: string }
 ): Promise<{ provider: string; text: string }> {
   const providerModelId = fsModelMapping[modelId];
@@ -233,9 +237,11 @@ export async function runExternalTextModel(
     throw new Error("Unsupported external text model");
   }
 
+  const isMessagesArray = Array.isArray(messagesOrPrompt);
+
   return generateResponse({
     model: providerModelId,
-    prompt,
+    ...(isMessagesArray ? { messages: messagesOrPrompt } : { prompt: messagesOrPrompt }),
     systemInstruction: options?.systemInstruction?.trim(),
   });
 }

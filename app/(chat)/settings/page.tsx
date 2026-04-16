@@ -29,6 +29,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,11 +66,7 @@ const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
   "openai/gpt-5.4",
   "openai/gpt-5.4-mini",
-  "openai/gpt-5.4-nano",
-  "openai/gpt-5.2",
-  "openai/gpt-5.1",
-  "openai/gpt-5",
-  "openai/gpt-oss-120b",
+  "openai/gpt-5.4-nano",  "openai/gpt-oss-120b",
   "azure/deepseek-v3.2",
   "azure/kimi-k2.5",
   "azure/mistral-large-3",
@@ -423,6 +420,15 @@ export default function SettingsPage() {
     useState<MemorySortMode>("manual");
   const manualMemoryOrderRef = useRef<string[]>([]);
   const [aiName, setAiName] = useState("mAI");
+
+  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage(
+    "mai-reasoning-enabled",
+    false
+  );
+  const [reasoningLevel, setReasoningLevel] = useLocalStorage<
+    "light" | "moderate" | "deep" | "very-deep"
+  >("mai-reasoning-level", "moderate");
+
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
   const [positionEnabled, setPositionEnabled] = useState(false);
   const [positionLabel, setPositionLabel] = useState("");
@@ -1951,6 +1957,57 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
         </p>
+
+        <div className="mt-4 liquid-glass space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Réflexion par défaut</h3>
+              <p className="text-xs text-muted-foreground">
+                Activer la réflexion par défaut pour toutes les nouvelles requêtes.
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={isReasoningEnabled}
+                onChange={(e) => setIsReasoningEnabled(e.target.checked)}
+              />
+              <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 dark:border-gray-600 dark:bg-gray-700"></div>
+            </label>
+          </div>
+
+          {isReasoningEnabled && (
+            <div className="mt-2">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Niveau de réflexion</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { id: "light", label: "Rapide" },
+                  { id: "moderate", label: "Standard" },
+                  { id: "deep", label: "Approfondi" },
+                  { id: "very-deep", label: "Extrême" },
+                ].map((level) => (
+                  <Button
+                    key={level.id}
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-full",
+                      reasoningLevel === level.id && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    )}
+                    onClick={() =>
+                      setReasoningLevel(
+                        level.id as "light" | "moderate" | "deep" | "very-deep"
+                      )
+                    }
+                  >
+                    {level.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <div className="space-y-2">

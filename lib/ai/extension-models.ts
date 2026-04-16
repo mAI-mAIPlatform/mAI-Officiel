@@ -27,13 +27,7 @@ export const extensionAiModelOptions: ExtensionModelOption[] = [
     monthlyCostProfile: "très-faible",
     strengths: "Version nano à très faible coût pour actions fréquentes.",
   },
-  {
-    id: "openai/gpt-5.2",
-    label: "GPT-5.2",
-    monthlyCostProfile: "faible",
-    strengths: "Très bon équilibre pour rédaction, analyse et raisonnement.",
-  },
-  {
+    {
     id: "azure/deepseek-v3.2",
     label: "DeepSeek-V3.2",
     monthlyCostProfile: "très-faible",
