@@ -5,7 +5,6 @@ import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
   ArrowUpIcon,
-  BrainIcon,
   CircleHelpIcon,
   FilePenLineIcon,
   Ghost,
@@ -21,8 +20,8 @@ import {
   SparklesIcon,
   StarIcon,
   Square,
-  ZapIcon,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -81,6 +80,15 @@ import type { Attachment, ChatMessage } from "@/lib/types";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
 import {
+  areAllTierCreditsExhausted,
+  getFallbackTier,
+  getFirstModelForTier,
+  getTierForModelId,
+  getTierLabel,
+  getTierRemaining,
+} from "@/lib/ai/credits";
+import { createNotification } from "@/lib/notifications";
+import {
   PromptInput,
   PromptInputFooter,
   PromptInputSubmit,
@@ -113,6 +121,8 @@ type MentionItem =
     };
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const GHOST_CHAT_ID_STORAGE_KEY = "mai.ghost-chat-id";
+const GHOST_MODE_STORAGE_KEY = "mai.ghost-mode";
+const GHOST_MODE_UPDATED_EVENT = "mai:ghost-mode-updated";
 const MAX_PERSISTENT_MEMORY_CHARS = 4000;
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
 const PLUGIN_MODE_STORAGE_KEY = "mai.plugin-mode";
@@ -233,6 +243,11 @@ function PureMultimodalInput({
 }) {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
+  const { plan, isHydrated } = useSubscriptionPlan();
+  const { status: sessionStatus } = useSession();
+  const isAuthenticated = sessionStatus === "authenticated";
+  const allModelIds = useMemo(() => chatModels.map((model) => model.id), []);
+  const lastCreditRedirectKeyRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const hasAutoFocused = useRef(false);
@@ -262,6 +277,56 @@ function PureMultimodalInput({
   useEffect(() => {
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const currentTier = getTierForModelId(selectedModelId);
+    const currentRemaining = getTierRemaining(
+      currentTier,
+      plan,
+      isAuthenticated
+    ).remaining;
+
+    if (currentRemaining > 0) {
+      return;
+    }
+
+    const fallbackTier = getFallbackTier(currentTier, plan, isAuthenticated);
+    const fallbackModelId = fallbackTier
+      ? getFirstModelForTier(fallbackTier, allModelIds)
+      : null;
+
+    if (!fallbackTier || !fallbackModelId) {
+      return;
+    }
+
+    const redirectKey = `${selectedModelId}->${fallbackModelId}`;
+    if (lastCreditRedirectKeyRef.current === redirectKey) {
+      return;
+    }
+
+    lastCreditRedirectKeyRef.current = redirectKey;
+    onModelChange?.(fallbackModelId);
+    setCookie("chat-model", fallbackModelId);
+    const message = `${getTierLabel(currentTier)} épuisé. Modèle basculé vers ${getTierLabel(fallbackTier)}.`;
+    toast.warning(message);
+    createNotification({
+      level: "warning",
+      message,
+      source: "system",
+      title: "Crédits IA",
+    });
+  }, [
+    allModelIds,
+    isAuthenticated,
+    isHydrated,
+    onModelChange,
+    plan,
+    selectedModelId,
+  ]);
 
   useEffect(() => {
     const pendingKey = "mai.chat.pending-library-attachments";
@@ -521,7 +586,7 @@ function PureMultimodalInput({
     }
 
     const syncGhostState = () => {
-      setIsGhostModeArmed(localStorage.getItem("mai.ghost-mode") === "true");
+      setIsGhostModeArmed(localStorage.getItem(GHOST_MODE_STORAGE_KEY) === "true");
       setIsGhostConversation(
         sessionStorage.getItem(GHOST_CHAT_ID_STORAGE_KEY) === chatId
       );
@@ -530,10 +595,12 @@ function PureMultimodalInput({
     syncGhostState();
     window.addEventListener("storage", syncGhostState);
     window.addEventListener("focus", syncGhostState);
+    window.addEventListener(GHOST_MODE_UPDATED_EVENT, syncGhostState);
 
     return () => {
       window.removeEventListener("storage", syncGhostState);
       window.removeEventListener("focus", syncGhostState);
+      window.removeEventListener(GHOST_MODE_UPDATED_EVENT, syncGhostState);
     };
   }, [chatId]);
 
@@ -649,6 +716,49 @@ function PureMultimodalInput({
         return;
       }
 
+      const currentTier = getTierForModelId(selectedModelId);
+      const tierCreditState = getTierRemaining(currentTier, plan, isAuthenticated);
+      if (tierCreditState.remaining <= 0) {
+        const fallbackTier = getFallbackTier(currentTier, plan, isAuthenticated);
+        if (fallbackTier) {
+          const fallbackModelId = getFirstModelForTier(fallbackTier, allModelIds);
+          if (fallbackModelId) {
+            onModelChange?.(fallbackModelId);
+            setCookie("chat-model", fallbackModelId);
+            const message = `${getTierLabel(currentTier)} épuisé. Bascule automatique vers ${getTierLabel(fallbackTier)}.`;
+            toast.warning(message);
+            createNotification({
+              level: "warning",
+              message,
+              source: "system",
+              title: "Crédits IA",
+            });
+            return;
+          }
+        } else if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+          const message =
+            "Tous vos quotas IA sont épuisés pour aujourd'hui. Revenez après la réinitialisation des crédits.";
+          toast.error(message);
+          createNotification({
+            level: "error",
+            message,
+            source: "system",
+            title: "Crédits IA",
+          });
+          return;
+        } else {
+          const message = `${getTierLabel(currentTier)} épuisé pour aujourd'hui. Choisissez un autre modèle.`;
+          toast.error(message);
+          createNotification({
+            level: "error",
+            message,
+            source: "system",
+            title: "Crédits IA",
+          });
+          return;
+        }
+      }
+
       if (status !== "ready" && status !== "error") {
         toast.error("Veuillez attendre la fin de la réponse du modèle.");
         return;
@@ -696,7 +806,7 @@ function PureMultimodalInput({
       const isGhostModeEnabled =
         typeof window === "undefined"
           ? false
-          : localStorage.getItem("mai.ghost-mode") === "true";
+          : localStorage.getItem(GHOST_MODE_STORAGE_KEY) === "true";
       const persistentMemory = getPersistentMemoryFromLocalStorage();
 
       const extractedFileContext = extractedFiles
@@ -773,7 +883,8 @@ ${extractedFileContext}`
         // One-shot toggle: we consume the switch immediately but keep this chat
         // flagged as ghost to prevent any later persistence on follow-up requests.
         sessionStorage.setItem(GHOST_CHAT_ID_STORAGE_KEY, chatId);
-        localStorage.setItem("mai.ghost-mode", "false");
+        localStorage.setItem(GHOST_MODE_STORAGE_KEY, "false");
+        window.dispatchEvent(new Event(GHOST_MODE_UPDATED_EVENT));
         setIsGhostModeArmed(false);
         setIsGhostConversation(true);
       } else {
@@ -794,12 +905,17 @@ ${extractedFileContext}`
       }, 250);
     },
     [
+      allModelIds,
       chatId,
       extractedFiles,
       geolocationPos,
+      isAuthenticated,
+      onModelChange,
+      plan,
       sendMessage,
       setAttachments,
       status,
+      selectedModelId,
       setInput,
       setLocalStorageInput,
       uploadSource,
@@ -907,6 +1023,9 @@ ${extractedFileContext}`
         const successfullyUploadedAttachments = uploadedAttachments.filter(
           (attachment) => attachment !== undefined
         );
+        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+          consumeUsage("files", "day");
+        }
 
         setAttachments((currentAttachments) => [
           ...currentAttachments,
@@ -961,6 +1080,9 @@ ${extractedFileContext}`
             attachment.url !== undefined &&
             attachment.contentType !== undefined
         );
+        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+          consumeUsage("files", "day");
+        }
 
         setAttachments((curr) => [
           ...curr,
@@ -1360,10 +1482,7 @@ function PureContextualActionsMenu({
 
   // States to hold the toggled options (to pass to chat logic later)
   // For the moment, we just expose them or keep them in sync with local storage/context
-  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage(
-    "mai-reasoning-enabled",
-    false
-  );
+  const [isReasoningEnabled] = useLocalStorage("mai-reasoning-enabled", false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage(
     "mai-websearch-enabled",
     false
@@ -1422,15 +1541,6 @@ function PureContextualActionsMenu({
     []
   );
 
-  if (isReasoningEnabled) {
-    const reflectionLabel: Record<ReflectionLevel, string> = {
-      light: "Rapide",
-      moderate: "Standard",
-      deep: "Approfondi",
-      "very-deep": "Extrême",
-    };
-    selectedActions.push(`Réflexion: ${reflectionLabel[reasoningLevel]}`);
-  }
   if (isWebSearchEnabled) {
     selectedActions.push("Recherche");
   }
@@ -1447,24 +1557,32 @@ function PureContextualActionsMenu({
     selectedActions.push(`Plugin: ${pluginLabel}`);
   }
 
-  const canUseDeepReflection = plan === "pro" || plan === "max";
-  const canUseVeryDeepReflection = plan === "max";
+  const canUseDeepReflection = plan === "max";
+  const canUseVeryDeepReflection = false;
 
   useEffect(() => {
     if (!isHydrated) return;
 
     // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
     if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
-      setReasoningLevel(canUseDeepReflection ? "deep" : "moderate");
+      setReasoningLevel(
+        canUseDeepReflection ? "deep" : plan === "pro" ? "moderate" : "light"
+      );
       return;
     }
 
     if (reasoningLevel === "deep" && !canUseDeepReflection) {
-      setReasoningLevel("moderate");
+      setReasoningLevel(plan === "pro" ? "moderate" : "light");
+      return;
+    }
+
+    if (reasoningLevel === "moderate" && plan !== "pro" && plan !== "max") {
+      setReasoningLevel("light");
     }
   }, [
     canUseDeepReflection,
     canUseVeryDeepReflection,
+    plan,
     reasoningLevel,
     setReasoningLevel,
     isHydrated,
@@ -1636,99 +1754,6 @@ function PureContextualActionsMenu({
         </DropdownMenu>
 
         <div className="h-[1px] bg-border my-1 mx-2" />
-
-        <Button
-          className={cn(
-            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
-            isReasoningEnabled &&
-              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          )}
-          onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
-          variant="ghost"
-        >
-          <BrainIcon
-            className={
-              isReasoningEnabled ? "text-primary" : "text-muted-foreground"
-            }
-            size={16}
-          />
-          Réflexion
-        </Button>
-
-        {isReasoningEnabled && (
-          <div className="rounded-lg border border-border/50 bg-background/60 p-2">
-            <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-              Intensité de réflexion
-            </p>
-            <div className="grid gap-1">
-              {[
-                {
-                  id: "light",
-                  label: "Rapide",
-                  icon: <ZapIcon className="size-3.5" />,
-                },
-                {
-                  id: "moderate",
-                  label: "Standard",
-                  icon: <BrainIcon className="size-3.5" />,
-                },
-                {
-                  id: "deep",
-                  label: "Approfondi",
-                  icon: <SparklesIcon className="size-3.5" />,
-                  helper: "Inclus avec le forfait Pro",
-                  disabled: !canUseDeepReflection,
-                },
-                {
-                  id: "very-deep",
-                  label: "Extrême",
-                  icon: <BrainIcon className="size-3.5" />,
-                  helper: "Inclus avec le forfait Max",
-                  disabled: !canUseVeryDeepReflection,
-                },
-              ].map((option) => {
-                const isActive = reasoningLevel === option.id;
-                const isDisabled = option.disabled === true;
-
-                return (
-                  <button
-                    className={cn(
-                      "flex items-center justify-between rounded-md border px-2 py-1.5 text-left text-[11px] transition",
-                      isActive
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/60 text-foreground/90 hover:border-foreground/25",
-                      isDisabled &&
-                        "cursor-not-allowed border-dashed opacity-60 hover:border-border/60"
-                    )}
-                    disabled={isDisabled}
-                    key={option.id}
-                    onClick={() =>
-                      setReasoningLevel(option.id as ReflectionLevel)
-                    }
-                    type="button"
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          "rounded-md border border-border/60 bg-background/80 p-1",
-                          isActive && "border-primary/45 bg-primary/10"
-                        )}
-                      >
-                        {option.icon}
-                      </span>
-                      {option.label}
-                    </span>
-                    {option.helper ? (
-                      <span className="text-[10px] text-muted-foreground">
-                        {option.helper}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <Button
           className={cn(
@@ -2146,6 +2171,9 @@ function PureModelSelectorCompact({
   onModelChange?: (modelId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { plan } = useSubscriptionPlan();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const { data: modelsData } = useSWR(
     `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/models`,
     (url: string) => fetch(url).then((r) => r.json()),
@@ -2257,16 +2285,36 @@ function PureModelSelectorCompact({
                       )
                       .map(({ model, curated }) => {
                         const logoProvider = resolveModelLogoProvider(model);
+                        const tier = getTierForModelId(model.id);
+                        const tierState = getTierRemaining(
+                          tier,
+                          plan,
+                          isAuthenticated
+                        );
+                        const isExhausted = tierState.remaining <= 0;
                         return (
                           <ModelSelectorItem
                             className={cn(
                               "flex w-full",
                               model.id === selectedModel.id && "bg-muted/50",
-                              !curated && "opacity-40 cursor-default"
+                              (!curated || isExhausted) &&
+                                "cursor-not-allowed opacity-40"
                             )}
+                            disabled={!curated || isExhausted}
                             key={model.id}
                             onSelect={() => {
                               if (!curated) {
+                                return;
+                              }
+                              if (isExhausted) {
+                                const message = `${getTierLabel(tier)} épuisé : choisissez un modèle d'un tier inférieur.`;
+                                toast.error(message);
+                                createNotification({
+                                  level: "warning",
+                                  message,
+                                  source: "system",
+                                  title: "Crédits IA",
+                                });
                                 return;
                               }
                               onModelChange?.(model.id);
@@ -2287,6 +2335,11 @@ function PureModelSelectorCompact({
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />
+                              )}
+                              {isExhausted && curated && (
+                                <span className="rounded border border-border/50 px-1 py-0.5 text-[10px] text-muted-foreground">
+                                  Quota épuisé
+                                </span>
                               )}
                             </div>
                           </ModelSelectorItem>

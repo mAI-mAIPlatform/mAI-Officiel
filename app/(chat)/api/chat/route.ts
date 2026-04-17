@@ -59,6 +59,11 @@ import { generateTitleFromUserMessage } from "../../actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 export const maxDuration = 60;
+const MAX_CHAT_TITLE_LENGTH = 160;
+
+function normalizeChatTitle(title: string): string {
+  return title.trim().slice(0, MAX_CHAT_TITLE_LENGTH);
+}
 
 function getStreamContext() {
   try {
@@ -90,6 +95,7 @@ export async function POST(request: Request) {
       contextualActions,
       ghostMode,
       persistentMemory,
+      clientGeolocation,
       projectId,
     } = requestBody;
     const isGhostMode = ghostMode === true;
@@ -190,15 +196,9 @@ export async function POST(request: Request) {
 
     let { longitude, latitude, city, country } = geolocation(request);
 
-    // Check if body has client geolocation
-    try {
-      const clonedBody = await request.clone().json();
-      if (clonedBody.clientGeolocation) {
-        longitude = String(clonedBody.clientGeolocation.longitude);
-        latitude = String(clonedBody.clientGeolocation.latitude);
-      }
-    } catch (_e) {
-      // json parse failed, ignoring
+    if (clientGeolocation) {
+      longitude = String(clientGeolocation.longitude);
+      latitude = String(clientGeolocation.latitude);
     }
 
     const requestHints: RequestHints = {
@@ -274,7 +274,7 @@ export async function POST(request: Request) {
 
       const externalResult = await runExternalTextModel(
         chatModel,
-        sanitizedLatestUserText,
+        modelMessages,
         {
           systemInstruction:
             'Reply in the same language as the user\'s latest message. For health topics, include the exact disclaimer: "mAIHealth ne remplace pas un professionnel de santé".',
@@ -301,15 +301,19 @@ export async function POST(request: Request) {
       const stream = createUIMessageStream({
         execute: async ({ writer }) => {
           writer.write({ type: "text-start", id: textPartId });
-          writer.write({
-            type: "text-delta",
-            id: textPartId,
-            delta: externalResult.text,
-          });
+          const chunks = externalResult.text.split(/(\s+)/).filter(Boolean);
+          for (const chunk of chunks) {
+            writer.write({
+              type: "text-delta",
+              id: textPartId,
+              delta: chunk,
+            });
+            await new Promise((resolve) => setTimeout(resolve, 12));
+          }
           writer.write({ type: "text-end", id: textPartId });
 
           if (titlePromise && !isGhostMode) {
-            const title = await titlePromise;
+            const title = normalizeChatTitle(await titlePromise);
             writer.write({ type: "data-chat-title", data: title });
             await updateChatTitleById({ chatId: id, title });
           }
@@ -422,9 +426,9 @@ export async function POST(request: Request) {
         );
 
         if (titlePromise && !isGhostMode) {
-          const title = await titlePromise;
+          const title = normalizeChatTitle(await titlePromise);
           dataStream.write({ type: "data-chat-title", data: title });
-          updateChatTitleById({ chatId: id, title });
+          await updateChatTitleById({ chatId: id, title });
         }
       },
       generateId: generateUUID,
@@ -530,7 +534,11 @@ export async function DELETE(request: Request) {
 
   const chat = await getChatById({ id });
 
-  if (chat?.userId !== session.user.id) {
+  if (!chat) {
+    return new ChatbotError("not_found:chat").toResponse();
+  }
+
+  if (chat.userId !== session.user.id) {
     return new ChatbotError("forbidden:chat").toResponse();
   }
 
@@ -552,7 +560,13 @@ export async function PATCH(request: Request) {
       title?: string;
     };
 
-    if (!id || !title?.trim()) {
+    const trimmedTitle = title?.trim();
+
+    if (!id || !trimmedTitle) {
+      return new ChatbotError("bad_request:api").toResponse();
+    }
+
+    if (trimmedTitle.length > MAX_CHAT_TITLE_LENGTH) {
       return new ChatbotError("bad_request:api").toResponse();
     }
 
@@ -562,9 +576,15 @@ export async function PATCH(request: Request) {
       return new ChatbotError("forbidden:chat").toResponse();
     }
 
-    await updateChatTitleById({ chatId: id, title: title.trim() });
+    await updateChatTitleById({
+      chatId: id,
+      title: normalizeChatTitle(trimmedTitle),
+    });
 
-    return Response.json({ id, title: title.trim() }, { status: 200 });
+    return Response.json(
+      { id, title: normalizeChatTitle(trimmedTitle) },
+      { status: 200 }
+    );
   } catch {
     return new ChatbotError("bad_request:api").toResponse();
   }

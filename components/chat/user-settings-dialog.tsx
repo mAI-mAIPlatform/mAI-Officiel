@@ -356,14 +356,6 @@ export function UserSettingsDialog({
 
   useEffect(() => {
     window.dispatchEvent(
-      new CustomEvent("mai:voice-settings-updated", {
-        detail: voiceSettings,
-      })
-    );
-  }, [voiceSettings]);
-
-  useEffect(() => {
-    window.dispatchEvent(
       new CustomEvent("mai:language-updated", {
         detail: { language },
       })

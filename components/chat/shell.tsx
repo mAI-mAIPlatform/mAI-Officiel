@@ -22,6 +22,7 @@ import {
   SHORTCUTS_STORAGE_KEY,
   type ShortcutConfig,
 } from "@/lib/chat-preferences";
+import { consumeTierCredit, getTierForModelId } from "@/lib/ai/credits";
 import { createAiResponseNotification } from "@/lib/notifications";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -258,6 +259,8 @@ export function ChatShell() {
       latestAssistantMessage?.id &&
       latestAssistantMessage.id !== lastNotifiedAssistantIdRef.current
     ) {
+      const tier = getTierForModelId(currentModelId);
+      consumeTierCredit(tier);
       const isGhostConversation =
         sessionStorage.getItem("mai.ghost-chat-id") === chatId;
       if (!isGhostConversation) {

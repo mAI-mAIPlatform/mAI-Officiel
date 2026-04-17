@@ -42,7 +42,9 @@ export async function POST(request: Request) {
         );
       }
 
-      const result = await runExternalTextModel(body.model, prompt);
+      const result = await runExternalTextModel(body.model, [
+        { role: "user", content: prompt },
+      ]);
       return Response.json({ type: "text", ...result });
     }
 

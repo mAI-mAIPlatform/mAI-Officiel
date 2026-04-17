@@ -210,7 +210,7 @@ const PureChatItem = ({
       >
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate">{chat.title}</span>
+            <span className="truncate !text-black">{chat.title}</span>
             {isGenerating ? (
               <span
                 className="liquid-panel inline-flex size-3 items-center justify-center rounded-full"

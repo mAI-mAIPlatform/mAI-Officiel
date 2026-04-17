@@ -1,9 +1,10 @@
 import OpenAI from "openai";
+import type { ModelMessage } from "ai";
 
 const FS_API_BASE_URL =
   process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1";
 const FS_TIMEOUT_MS = Number.parseInt(
-  process.env.FS_API_TIMEOUT_MS ?? "10000",
+  process.env.FS_API_TIMEOUT_MS ?? "30000",
   10
 );
 const FS_MAX_RETRIES = Number.parseInt(
@@ -11,7 +12,7 @@ const FS_MAX_RETRIES = Number.parseInt(
   10
 );
 
-const RETRYABLE_FS_STATUS_CODES = new Set([401, 403, 408, 409, 429]);
+const RETRYABLE_FS_STATUS_CODES = new Set([408, 409, 429]);
 
 const fsModelMapping: Record<string, string> = {
   "openai/gpt-5.4": "gpt-5.4",
@@ -24,6 +25,8 @@ const fsModelMapping: Record<string, string> = {
   "azure/deepseek-v3.2": "DeepSeek-V3.2",
   "azure/kimi-k2.5": "Kimi-K2.5",
   "azure/mistral-large-3": "Mistral-Large-3",
+  // Note: les modèles Claude ne sont pas routés via FranceStudent ici.
+  // Ils passent volontairement par la couche provider/gateway standard.
 };
 
 export const fsTextModels = new Set(Object.keys(fsModelMapping));
@@ -142,7 +145,8 @@ export function createClientWithFallback(options?: {
     ): Promise<T> {
       let lastError: unknown = null;
 
-      for (const { client, keyIndex } of clients) {
+      for (const [clientPosition, { client, keyIndex }] of clients.entries()) {
+        const hasNextClient = clientPosition < clients.length - 1;
         for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt += 1) {
           const abortController = new AbortController();
           const timeout = setTimeout(() => abortController.abort(), timeoutMs);
@@ -169,7 +173,7 @@ export function createClientWithFallback(options?: {
               continue;
             }
 
-            if (keyIndex < clients.length) {
+            if (hasNextClient) {
               console.warn(`API KEY ${keyIndex} failed, switching...`);
             }
 
@@ -188,7 +192,7 @@ export function createClientWithFallback(options?: {
 
 export async function generateResponse(input: {
   model: string;
-  prompt: string;
+  messages: Array<{ role: "user" | "assistant" | "developer"; content: string }>;
   systemInstruction?: string;
   timeoutMs?: number;
 }): Promise<{ provider: string; text: string }> {
@@ -202,7 +206,7 @@ export async function generateResponse(input: {
           ...(input.systemInstruction
             ? [{ role: "developer" as const, content: input.systemInstruction }]
             : []),
-          { role: "user" as const, content: input.prompt },
+          ...input.messages,
         ],
       },
       { signal }
@@ -224,7 +228,7 @@ export function isExternalTextModel(modelId: string): boolean {
 
 export async function runExternalTextModel(
   modelId: string,
-  prompt: string,
+  modelMessages: ModelMessage[],
   options?: { systemInstruction?: string }
 ): Promise<{ provider: string; text: string }> {
   const providerModelId = fsModelMapping[modelId];
@@ -233,9 +237,55 @@ export async function runExternalTextModel(
     throw new Error("Unsupported external text model");
   }
 
+  const messages = modelMessages
+    .map((modelMessage) => {
+      const role =
+        modelMessage.role === "system"
+          ? "developer"
+          : modelMessage.role === "assistant"
+            ? "assistant"
+            : "user";
+      const content = (() => {
+        if (typeof modelMessage.content === "string") {
+          return modelMessage.content.trim();
+        }
+        if (Array.isArray(modelMessage.content)) {
+          return modelMessage.content
+            .map((part) => {
+              if (
+                typeof part === "object" &&
+                part !== null &&
+                "type" in part &&
+                part.type === "text" &&
+                "text" in part &&
+                typeof part.text === "string"
+              ) {
+                return part.text;
+              }
+              return "";
+            })
+            .join("\n")
+            .trim();
+        }
+        return "";
+      })();
+      if (!content) {
+        return null;
+      }
+      return { role, content };
+    })
+    .filter(
+      (message): message is { role: "user" | "assistant" | "developer"; content: string } =>
+        message !== null
+    );
+
+  if (messages.length === 0) {
+    throw new Error("External model requires at least one text message");
+  }
+
   return generateResponse({
     model: providerModelId,
-    prompt,
+    messages,
     systemInstruction: options?.systemInstruction?.trim(),
   });
 }

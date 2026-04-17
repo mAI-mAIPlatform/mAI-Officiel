@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CheckCheck, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type AppNotification,
@@ -53,11 +53,11 @@ export function HomeNotifications() {
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
           {unreadCount}
         </span>
-        {isOpen ? (
-          <ChevronUp className="size-4" />
-        ) : (
-          <ChevronDown className="size-4" />
-        )}
+        <span className="inline-flex h-4 w-4 items-center justify-center">
+          <ChevronDown
+            className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </span>
       </button>
 
       {isOpen && (

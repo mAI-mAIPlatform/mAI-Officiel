@@ -1,4 +1,12 @@
-export type UsageFeature = "news" | "health" | "meals" | "websearch";
+export type UsageFeature =
+  | "news"
+  | "health"
+  | "meals"
+  | "websearch"
+  | "files"
+  | "tier1"
+  | "tier2"
+  | "tier3";
 export type UsagePeriod = "hour" | "day" | "week" | "month";
 
 const USAGE_PREFIX = "mai.usage";
@@ -100,6 +108,11 @@ function writeSnapshot(feature: UsageFeature, snapshot: UsageSnapshot) {
   }
 
   window.localStorage.setItem(getStorageKey(feature), JSON.stringify(snapshot));
+  window.dispatchEvent(
+    new CustomEvent("mai:usage-updated", {
+      detail: { feature },
+    })
+  );
 }
 
 export function getUsageCount(

@@ -182,6 +182,9 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+          }}
           className="inset-y-0 left-0 h-dvh w-[min(88vw,var(--sidebar-width-mobile))] border-r border-white/10 bg-sidebar p-0 text-sidebar-foreground shadow-[var(--glass-shadow)] [&>button]:hidden"
           showCloseButton={false}
           side="left"

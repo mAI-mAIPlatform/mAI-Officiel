@@ -78,7 +78,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
   },
   max: {
     key: "max",
-    label: "mAIMax",
+    label: "Max",
     limits: {
       filesPerDay: 50,
       maxFileSizeMb: 200,

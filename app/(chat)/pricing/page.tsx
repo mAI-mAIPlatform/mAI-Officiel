@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { getTierQuota } from "@/lib/ai/credits";
 import { type PlanKey, planDefinitions } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
@@ -19,49 +20,44 @@ const planRank: Record<PlanKey, number> = {
 
 const planPrices: Record<PlanKey, { amount: string; subtitle: string }> = {
   free: { amount: "0", subtitle: "EUR / mois" },
-  plus: { amount: "23", subtitle: "EUR / mois" },
-  pro: { amount: "49", subtitle: "EUR / mois" },
-  max: { amount: "89", subtitle: "EUR / mois" },
+  plus: { amount: "7", subtitle: "EUR / mois" },
+  pro: { amount: "15", subtitle: "EUR / mois" },
+  max: { amount: "25", subtitle: "EUR / mois" },
 };
 
 const highlightsByPlan: Record<PlanKey, string[]> = {
   free: [
-    "20 messages / heure",
+    "Crédits tiers inclus (quotas / jour)",
     "Idéal pour découvrir mAI",
+    "Réflexion: Aucun ou Léger",
     "Quiz illimités",
     "Jusqu'à 5 fichiers / jour",
     "10 recherches web / jour",
   ],
   plus: [
-    "50 messages / heure",
+    "Crédits tiers étendus (quotas / jour)",
     "IA plus confortable au quotidien",
+    "Réflexion: Aucun ou Léger",
     "10 fichiers / jour",
     "Tâches planifiées avancées",
     "20 recherches web / jour",
   ],
   pro: [
-    "75 messages / heure",
+    "Crédits tiers pro (quotas / jour)",
     "Pour usage intensif et projets multi-modules",
+    "Réflexion: Aucun, Léger, Moyen",
     "20 fichiers / jour",
     "Mémoire IA renforcée",
     "35 recherches web / jour",
   ],
   max: [
-    "100 messages / heure",
+    "Crédits tiers max (quotas / jour)",
     "Pour équipes et usages professionnels continus",
+    "Réflexion: Aucun, Léger, Moyen, Approfondi",
     "50 fichiers / jour",
     "Capacité maximale mAI",
     "50 recherches web / jour",
   ],
-};
-
-const explainByPlan: Record<Exclude<PlanKey, "free">, string> = {
-  plus:
-    "GPT-5.4 Nano conseille Plus si vous utilisez l'IA chaque jour pour étude, rédaction, organisation et assistance générale. Vous obtenez un meilleur débit (50 msg/h) et plus de fichiers que Free.",
-  pro:
-    "GPT-5.4 Nano conseille Pro pour les analyses longues, la production régulière de contenu et les workflows techniques. Pro augmente le débit (75 msg/h), les fichiers/jour et la mémoire.",
-  max:
-    "GPT-5.4 Nano conseille mAIMax pour un usage professionnel soutenu, plusieurs sessions intensives et des besoins critiques en continuité. Max pousse toutes les limites au plus haut niveau.",
 };
 
 export default function PricingPage() {
@@ -73,9 +69,6 @@ export default function PricingPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
-  const [explainPlan, setExplainPlan] = useState<Exclude<PlanKey, "free"> | null>(
-    null
-  );
   const [activatePlan, setActivatePlan] = useState<Exclude<PlanKey, "free"> | null>(
     null
   );
@@ -164,8 +157,11 @@ export default function PricingPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-1 rounded-xl border border-border/50 bg-background/60 p-3 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1">
-                  <MessageCircle className="size-3.5" /> {planItem.limits.messagesPerHour}/h
+                  <MessageCircle className="size-3.5" /> Tier 1:{" "}
+                  {getTierQuota("tier1", planItem.key, true)}/jour
                 </p>
+                <p>Tier 2: {getTierQuota("tier2", planItem.key, true)}/jour</p>
+                <p>Tier 3: {getTierQuota("tier3", planItem.key, true)}/jour</p>
                 <p className="flex items-center gap-1">
                   <Brain className="size-3.5" /> Mémoire: {planItem.limits.memoryUnits}
                 </p>
@@ -180,28 +176,17 @@ export default function PricingPage() {
                     Votre forfait actuel
                   </Button>
                 ) : canUpgrade ? (
-                  <>
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        setActivatePlan(planItem.key as Exclude<PlanKey, "free">);
-                        setMessage(null);
-                      }}
-                    >
-                      {planItem.key === "plus"
-                        ? "Passer à mAI Plus"
-                        : `Passer à ${planItem.label}`}
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() =>
-                        setExplainPlan(planItem.key as Exclude<PlanKey, "free">)
-                      }
-                      variant="outline"
-                    >
-                      Expliquer
-                    </Button>
-                  </>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      setActivatePlan(planItem.key as Exclude<PlanKey, "free">);
+                      setMessage(null);
+                    }}
+                  >
+                    {planItem.key === "plus"
+                      ? "Passer à mAI Plus"
+                      : `Passer à ${planItem.label}`}
+                  </Button>
                 ) : (
                   <Button className="w-full" disabled variant="outline">
                     Forfait inférieur
@@ -212,20 +197,6 @@ export default function PricingPage() {
           );
         })}
       </section>
-
-      {explainPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-border/70 bg-white p-5 text-black shadow-2xl">
-            <h3 className="text-lg font-semibold">Pourquoi choisir {planDefinitions[explainPlan].label} ?</h3>
-            <p className="mt-3 text-sm leading-6 text-zinc-600">{explainByPlan[explainPlan]}</p>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={() => setExplainPlan(null)} type="button" variant="outline">
-                Fermer
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activatePlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">

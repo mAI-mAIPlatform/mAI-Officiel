@@ -33,6 +33,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import {
+  getTierRemaining,
+  getTierUsage,
+  type ModelTier,
+} from "@/lib/ai/credits";
 import { APP_VERSION } from "@/lib/app-version";
 import { LANGUAGE_STORAGE_KEY, resolveLanguage, setLanguageInStorage } from "@/lib/i18n";
 import {
@@ -122,7 +127,7 @@ type ProfileSettingsShape = {
   stylisticDirectives: string;
 };
 
-type MemorySortMode = "manual" | "alpha";
+type ReasoningPreference = "none" | "light" | "medium" | "high";
 
 type PersistedMemoryEntry = {
   content: string;
@@ -197,6 +202,33 @@ const defaultProfileSettings: ProfileSettingsShape = {
   projectTitle: "",
   stylisticDirectives: "",
 };
+
+const reasoningLevelByPreference: Record<
+  Exclude<ReasoningPreference, "none">,
+  "light" | "moderate" | "deep"
+> = {
+  light: "light",
+  medium: "moderate",
+  high: "deep",
+};
+
+function resolveReasoningPreferenceFromStorage(
+  enabled: string | null,
+  level: string | null
+): ReasoningPreference {
+  if (enabled !== "true") {
+    return "none";
+  }
+
+  // Compat: "very-deep" hérité doit rester mappé au niveau le plus proche.
+  if (level === "deep" || level === "very-deep") {
+    return "high";
+  }
+  if (level === "moderate") {
+    return "medium";
+  }
+  return "light";
+}
 
 function clampPercentage(value: number): number {
   if (!Number.isFinite(value)) {
@@ -410,6 +442,10 @@ export default function SettingsPage() {
   });
   const [aiPersonality, setAiPersonality] = useState("");
   const [personalContext, setPersonalContext] = useState("");
+  const [reasoningPreference, setReasoningPreference] =
+    useState<ReasoningPreference>("none");
+  const [isReasoningPreferenceHydrated, setIsReasoningPreferenceHydrated] =
+    useState(false);
   const [aiMemoryEntries, setAiMemoryEntries] = useState<string[]>([]);
   const [memoryEntryIds, setMemoryEntryIds] = useState<string[]>([]);
   const [isMemoryLoading, setIsMemoryLoading] = useState(false);
@@ -419,9 +455,6 @@ export default function SettingsPage() {
     null
   );
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [memorySortMode, setMemorySortMode] =
-    useState<MemorySortMode>("manual");
-  const manualMemoryOrderRef = useRef<string[]>([]);
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
   const [positionEnabled, setPositionEnabled] = useState(false);
@@ -446,7 +479,12 @@ export default function SettingsPage() {
     inputTokens: 0,
     outputTokens: 0,
   });
-  const [webSearchUsage, setWebSearchUsage] = useState(0);
+  const [fileUsageToday, setFileUsageToday] = useState(0);
+  const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
+    tier1: 0,
+    tier2: 0,
+    tier3: 0,
+  });
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [securitySettings, setSecuritySettings] =
@@ -461,6 +499,15 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
+  const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
+    if (plan === "max") {
+      return ["none", "light", "medium", "high"];
+    }
+    if (plan === "pro") {
+      return ["none", "light", "medium"];
+    }
+    return ["none", "light"];
+  }, [plan]);
 
   useEffect(() => {
     try {
@@ -488,18 +535,25 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const refreshWebSearchUsage = () => {
-      setWebSearchUsage(getUsageCount("websearch", "day"));
+    const refreshUsage = () => {
+      setFileUsageToday(getUsageCount("files", "day"));
+      setTierUsage({
+        tier1: getTierUsage("tier1"),
+        tier2: getTierUsage("tier2"),
+        tier3: getTierUsage("tier3"),
+      });
     };
-    refreshWebSearchUsage();
-    window.addEventListener("storage", refreshWebSearchUsage);
-    window.addEventListener("mai:websearch-usage-updated", refreshWebSearchUsage);
+    refreshUsage();
+    window.addEventListener("storage", refreshUsage);
+    window.addEventListener("mai:websearch-usage-updated", refreshUsage);
+    window.addEventListener("mai:usage-updated", refreshUsage);
     return () => {
-      window.removeEventListener("storage", refreshWebSearchUsage);
+      window.removeEventListener("storage", refreshUsage);
       window.removeEventListener(
         "mai:websearch-usage-updated",
-        refreshWebSearchUsage
+        refreshUsage
       );
+      window.removeEventListener("mai:usage-updated", refreshUsage);
     };
   }, []);
 
@@ -1071,6 +1125,13 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const enabled = window.localStorage.getItem("mai-reasoning-enabled");
+    const level = window.localStorage.getItem("mai-reasoning-level");
+    setReasoningPreference(resolveReasoningPreferenceFromStorage(enabled, level));
+    setIsReasoningPreferenceHydrated(true);
+  }, []);
+
+  useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
@@ -1079,6 +1140,35 @@ export default function SettingsPage() {
     return () =>
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   }, []);
+
+  useEffect(() => {
+    if (!isReasoningPreferenceHydrated) {
+      return;
+    }
+
+    if (!allowedReasoningPreferences.includes(reasoningPreference)) {
+      setReasoningPreference(
+        allowedReasoningPreferences[allowedReasoningPreferences.length - 1] ??
+          "none"
+      );
+      return;
+    }
+
+    if (reasoningPreference === "none") {
+      window.localStorage.setItem("mai-reasoning-enabled", "false");
+      return;
+    }
+
+    window.localStorage.setItem("mai-reasoning-enabled", "true");
+    window.localStorage.setItem(
+      "mai-reasoning-level",
+      reasoningLevelByPreference[reasoningPreference]
+    );
+  }, [
+    allowedReasoningPreferences,
+    isReasoningPreferenceHydrated,
+    reasoningPreference,
+  ]);
 
   useEffect(() => {
     // Évite d'écraser le stockage avant la première lecture locale.
@@ -1435,75 +1525,70 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSortSettings = () => {
-    setMemorySortMode((prevMode) => {
-      if (prevMode === "manual") {
-        manualMemoryOrderRef.current = [...memoryEntryIds];
-        const indexed = aiMemoryEntries.map((entry, index) => ({
-          entry,
-          id: memoryEntryIds[index] ?? `memory-${index}`,
-        }));
-        indexed.sort((left, right) =>
-          left.entry.localeCompare(right.entry, "fr")
-        );
-        setAiMemoryEntries(indexed.map((item) => item.entry));
-        setMemoryEntryIds(indexed.map((item) => item.id));
-        return "alpha";
-      }
-
-      if (manualMemoryOrderRef.current.length > 0) {
-        const entryById = new Map(
-          memoryEntryIds.map((id, index) => [id, aiMemoryEntries[index] ?? ""])
-        );
-        setMemoryEntryIds(manualMemoryOrderRef.current);
-        setAiMemoryEntries(
-          manualMemoryOrderRef.current
-            .map((id) => entryById.get(id) ?? "")
-            .filter(Boolean)
-        );
-      }
-
-      return "manual";
-    });
-  };
-
   const creditMetrics = useMemo<CreditMetric[]>(() => {
     if (!isHydrated) {
       return [];
     }
 
-    // Le suivi local est prêt pour messages/fichiers/quiz/tâches.
+    const tier1 = getTierRemaining("tier1", plan, isAuthenticated);
+    const tier2 = getTierRemaining("tier2", plan, isAuthenticated);
+    const tier3 = getTierRemaining("tier3", plan, isAuthenticated);
+
     return [
       {
-        key: "messages",
-        limit: currentPlanDefinition.limits.messagesPerHour,
-        period: "hour",
-        title: "Messages",
-        used: 0,
+        key: "tier1",
+        limit: tier1.limit,
+        period: "day",
+        title: "Tier 1",
+        used: tierUsage.tier1,
+      },
+      {
+        key: "tier2",
+        limit: tier2.limit,
+        period: "day",
+        title: "Tier 2",
+        used: tierUsage.tier2,
+      },
+      {
+        key: "tier3",
+        limit: tier3.limit,
+        period: "day",
+        title: "Tier 3",
+        used: tierUsage.tier3,
       },
       {
         key: "files",
         limit: currentPlanDefinition.limits.filesPerDay,
         period: "day",
         title: "Fichiers",
-        used: 0,
+        used: fileUsageToday,
       },
       {
         key: "tasks",
         limit: currentPlanDefinition.limits.taskSchedules,
         period: "month",
-        title: "Tâches planifiées",
+        title: "Tâches",
         used: tasks.length,
       },
       {
-        key: "websearch",
-        limit: currentPlanDefinition.limits.webSearchesPerDay,
+        key: "quiz",
+        limit: -1,
         period: "day",
-        title: "Recherche web",
-        used: webSearchUsage,
+        title: "Quiz",
+        used: 0,
       },
     ];
-  }, [currentPlanDefinition, isHydrated, tasks.length, webSearchUsage]);
+  }, [
+    currentPlanDefinition,
+    fileUsageToday,
+    isAuthenticated,
+    isHydrated,
+    plan,
+    tasks.length,
+    tierUsage.tier1,
+    tierUsage.tier2,
+    tierUsage.tier3,
+  ]);
 
   const settingsSections = [
     { href: "#compte", key: "compte", label: "Compte" },
@@ -1717,7 +1802,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
             {isHydrated
-              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.filesPerDay} fichiers/jour • Quiz illimités`
+              ? `${getTierRemaining("tier1", plan, isAuthenticated).limit} Tier 1/j • ${getTierRemaining("tier2", plan, isAuthenticated).limit} Tier 2/j • ${getTierRemaining("tier3", plan, isAuthenticated).limit} Tier 3/j • Quiz illimités`
               : "Chargement du forfait..."}
           </p>
 
@@ -1937,16 +2022,6 @@ export default function SettingsPage() {
             <UserCircle2 className="size-4 text-primary" />
             Personnalisation
           </h2>
-          <Button
-            className="rounded-full"
-            onClick={handleSortSettings}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <ListPlus className="mr-1 size-4" />
-            Trier les paramètres
-          </Button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
@@ -1978,6 +2053,66 @@ export default function SettingsPage() {
               placeholder="Ex: Ton rassurant, structuré, orienté solution et pédagogie."
               value={aiPersonality}
             />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <p className="text-xs text-muted-foreground">Réflexion</p>
+            <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground">
+                Disponible selon votre forfait : Free/Plus (Aucun, Léger), Pro
+                (+ Moyen), Max (+ Approfondi).
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    id: "none" as const,
+                    label: "Aucun",
+                    helper: "Par défaut",
+                  },
+                  {
+                    id: "light" as const,
+                    label: "Léger",
+                    helper: "Forfaits Free et +",
+                  },
+                  {
+                    id: "medium" as const,
+                    label: "Moyen",
+                    helper: "Forfaits Pro et Max",
+                  },
+                  {
+                    id: "high" as const,
+                    label: "Approfondi",
+                    helper: "Forfait Max",
+                  },
+                ].map((option) => {
+                  const isActive = reasoningPreference === option.id;
+                  const disabled = !allowedReasoningPreferences.includes(
+                    option.id
+                  );
+
+                  return (
+                    <button
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-left text-xs transition",
+                        isActive
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border/50 bg-background/60",
+                        disabled &&
+                          "cursor-not-allowed border-dashed opacity-60"
+                      )}
+                      disabled={disabled}
+                      key={option.id}
+                      onClick={() => setReasoningPreference(option.id)}
+                      type="button"
+                    >
+                      <p className="font-medium">{option.label}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {option.helper}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div className="liquid-glass space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4 md:col-span-2">
             <h3 className="text-base font-semibold">
@@ -2067,9 +2202,6 @@ export default function SettingsPage() {
                   <ListPlus className="mr-1 size-4" />
                   Ouvrir la mémoire
                 </Button>
-                <Badge variant="secondary">
-                  Tri : {memorySortMode === "alpha" ? "A-Z" : "Manuel"}
-                </Badge>
               </div>
             </div>
           </div>
@@ -2845,19 +2977,23 @@ export default function SettingsPage() {
       >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Gauge className="size-5" />
-          Consommation & quotas globaux
+          Crédits
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Suivi de toutes les limites avec date de réinitialisation automatique
-          selon la période de quota.
+          Suivi des crédits IA par tier, des tâches et des fichiers.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {creditMetrics.map((metric) => {
-            const consumed = Math.min(metric.used, metric.limit);
-            const remaining = Math.max(metric.limit - consumed, 0);
+            const isUnlimited = metric.limit < 0;
+            const consumed = isUnlimited
+              ? 0
+              : Math.min(metric.used, metric.limit);
+            const remaining = isUnlimited ? Number.POSITIVE_INFINITY : Math.max(metric.limit - consumed, 0);
             const remainingRatio =
-              metric.limit === 0 ? 0 : remaining / metric.limit;
+              metric.limit <= 0 || !Number.isFinite(remaining)
+                ? 1
+                : remaining / metric.limit;
             const resetDate = formatDateTime(getNextResetDate(metric.period));
 
             return (
@@ -2872,14 +3008,27 @@ export default function SettingsPage() {
                     getCreditBadgeColor(remainingRatio)
                   )}
                 >
-                  {remaining}/{metric.limit}
+                  {isUnlimited ? "Illimité" : `${remaining}/${metric.limit}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Consommé: {consumed} • Réinitialisation: {resetDate}
+                  {isUnlimited
+                    ? "Accès sans limite"
+                    : `Consommé: ${consumed} • Réinitialisation: ${resetDate}`}
                 </p>
               </article>
             );
           })}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
+          <h3 className="text-sm font-semibold">Infos</h3>
+          <p className="mt-2 text-xs leading-6 text-muted-foreground">
+            Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2,
+            Mistral Large 3 tandis que le Tier 2 comporte GPT-5.1, GPT-5,
+            Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek 3.2, Kimi K2.5 et que
+            le Tier 3 ont les modèles les moins performants, GPT-5.4 Mini,
+            GPT-5.4 Nano, Claude Haïku 4.5.
+          </p>
         </div>
       </section>
 
