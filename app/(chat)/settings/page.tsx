@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Bell,
   CalendarClock,
   Camera,
   Clock3,
@@ -13,7 +12,6 @@ import {
   ListPlus,
   Lock,
   Mail,
-  MessageCircle,
   PencilLine,
   PlusCircle,
   Puzzle,
@@ -39,7 +37,12 @@ import {
   type ModelTier,
 } from "@/lib/ai/credits";
 import { APP_VERSION } from "@/lib/app-version";
-import { LANGUAGE_STORAGE_KEY, resolveLanguage, setLanguageInStorage } from "@/lib/i18n";
+import {
+  type AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  resolveLanguage,
+  setLanguageInStorage,
+} from "@/lib/i18n";
 import {
   CHAT_TAGS_STORAGE_KEY,
   TAG_DEFINITIONS_STORAGE_KEY,
@@ -47,6 +50,10 @@ import {
   type TagDefinition,
 } from "@/lib/chat-preferences";
 import { createNotification } from "@/lib/notifications";
+import { AproposSection } from "./sections/apropos-section";
+import { CompteSection } from "./sections/compte-section";
+import { CreditsSection } from "./sections/credits-section";
+import { NotificationsSection } from "./sections/notifications-section";
 import {
   defaultSecuritySettings,
   hashPinCode,
@@ -85,6 +92,45 @@ const schedulerFrequencies = [
   "mensuelle",
   "ponctuelle",
 ] as const;
+
+const settingsLabels = {
+  en: {
+    about: "About",
+    account: "Account",
+    credits: "Credits",
+    data: "Data",
+    navigation: "Settings navigation",
+    notifications: "Notifications",
+    parental: "Parental control",
+    personalization: "AI customization",
+    settings: "Settings",
+    tasks: "Tasks",
+  },
+  es: {
+    about: "Acerca de",
+    account: "Cuenta",
+    credits: "Créditos",
+    data: "Datos",
+    navigation: "Navegación de ajustes",
+    notifications: "Notificaciones",
+    parental: "Control parental",
+    personalization: "Personalización IA",
+    settings: "Ajustes",
+    tasks: "Tareas",
+  },
+  fr: {
+    about: "À propos",
+    account: "Compte",
+    credits: "Crédits",
+    data: "Données",
+    navigation: "Navigation des paramètres",
+    notifications: "Notifications",
+    parental: "Contrôle parental",
+    personalization: "Personnalisation IA",
+    settings: "Paramètres",
+    tasks: "Tâches",
+  },
+} as const;
 
 type ScheduledTask = {
   createdAt: string;
@@ -152,6 +198,7 @@ type ParentalSettings = {
   enabled: boolean;
   extensions: Record<ExtensionKey, boolean>;
   lockCodeHash: string;
+  maxCreditsPerDay: number;
   sessionUnlockedUntil: number;
   usageMinutes: number;
 };
@@ -170,6 +217,7 @@ const defaultParentalSettings: ParentalSettings = {
     translation: true,
   },
   lockCodeHash: "",
+  maxCreditsPerDay: 0,
   sessionUnlockedUntil: 0,
   usageMinutes: 0,
 };
@@ -429,7 +477,7 @@ export default function SettingsPage() {
     "compact" | "standard" | "large"
   >("compact");
   const [showWordCounter, setShowWordCounter] = useState(false);
-  const [interfaceLanguage, setInterfaceLanguage] = useState("fr");
+  const [interfaceLanguage, setInterfaceLanguage] = useState<AppLanguage>("fr");
   const [profileName, setProfileName] = useState("");
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
@@ -487,8 +535,13 @@ export default function SettingsPage() {
   });
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
   const [securitySettings, setSecuritySettings] =
     useState<SecuritySettings>(defaultSecuritySettings);
+  const [currentSecurityPinDraft, setCurrentSecurityPinDraft] = useState("");
   const [securityPinDraft, setSecurityPinDraft] = useState("");
   const [securityPinConfirmDraft, setSecurityPinConfirmDraft] = useState("");
   const [securityFeedback, setSecurityFeedback] = useState<{
@@ -499,6 +552,7 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
+  const uiLabels = settingsLabels[interfaceLanguage];
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
       return ["none", "light", "medium", "high"];
@@ -953,6 +1007,11 @@ export default function SettingsPage() {
         },
         lockCodeHash:
           typeof parsed.lockCodeHash === "string" ? parsed.lockCodeHash : "",
+        maxCreditsPerDay:
+          typeof parsed.maxCreditsPerDay === "number" &&
+          Number.isFinite(parsed.maxCreditsPerDay)
+            ? Math.max(0, Math.min(1_000, Math.round(parsed.maxCreditsPerDay)))
+            : defaultParentalSettings.maxCreditsPerDay,
         sessionUnlockedUntil:
           typeof parsed.sessionUnlockedUntil === "number"
             ? parsed.sessionUnlockedUntil
@@ -1139,6 +1198,19 @@ export default function SettingsPage() {
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     return () =>
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  }, []);
+
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+        true;
+    setIsPwaInstalled(Boolean(isStandalone));
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      setNotificationPermission("unsupported");
+    }
   }, []);
 
   useEffect(() => {
@@ -1349,8 +1421,37 @@ export default function SettingsPage() {
       return;
     }
     await deferredPwaPrompt.prompt();
-    await deferredPwaPrompt.userChoice;
+    const installChoice = await deferredPwaPrompt.userChoice;
+    if (installChoice.outcome === "accepted") {
+      setIsPwaInstalled(true);
+    }
     setDeferredPwaPrompt(null);
+  };
+
+  const handleRequestDeviceNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      createNotification({
+        level: "warning",
+        message:
+          "Les notifications système ne sont pas disponibles dans cet environnement.",
+        source: "system",
+        title: "Notifications",
+      });
+      return;
+    }
+
+    const result = await Notification.requestPermission();
+    setNotificationPermission(result);
+    createNotification({
+      level: result === "granted" ? "success" : "warning",
+      message:
+        result === "granted"
+          ? "Notifications appareil activées."
+          : "Notifications appareil refusées.",
+      source: "system",
+      title: "Notifications",
+    });
   };
 
   const handleProfileLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1570,13 +1671,6 @@ export default function SettingsPage() {
         title: "Tâches",
         used: tasks.length,
       },
-      {
-        key: "quiz",
-        limit: -1,
-        period: "day",
-        title: "Quiz",
-        used: 0,
-      },
     ];
   }, [
     currentPlanDefinition,
@@ -1591,18 +1685,18 @@ export default function SettingsPage() {
   ]);
 
   const settingsSections = [
-    { href: "#compte", key: "compte", label: "Compte" },
-    { href: "#notifications", key: "notifications", label: "Notifications" },
+    { href: "#compte", key: "compte", label: uiLabels.account },
+    { href: "#notifications", key: "notifications", label: uiLabels.notifications },
     {
       href: "#personnalisation",
       key: "personnalisation",
-      label: "Personnalisation IA",
+      label: uiLabels.personalization,
     },
-    { href: "#parental", key: "parental", label: "Contrôle parental" },
-    { href: "#donnees", key: "donnees", label: "Données" },
-    { href: "#credits", key: "credits", label: "Crédits" },
-    { href: "#taches", key: "taches", label: "Tâches" },
-    { href: "#apropos", key: "apropos", label: "À propos" },
+    { href: "#parental", key: "parental", label: uiLabels.parental },
+    { href: "#donnees", key: "donnees", label: uiLabels.data },
+    { href: "#credits", key: "credits", label: uiLabels.credits },
+    { href: "#taches", key: "taches", label: uiLabels.tasks },
+    { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
   const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
     activeSettingsSection === key ? "block" : "hidden";
@@ -1616,6 +1710,12 @@ export default function SettingsPage() {
     parentalSettings.enabled &&
     parentalSettings.dailyLimitMinutes > 0 &&
     parentalSettings.usageMinutes >= parentalSettings.dailyLimitMinutes;
+  const totalCreditsUsedToday =
+    tierUsage.tier1 + tierUsage.tier2 + tierUsage.tier3 + fileUsageToday;
+  const isCreditLimitReached =
+    parentalSettings.enabled &&
+    parentalSettings.maxCreditsPerDay > 0 &&
+    totalCreditsUsedToday >= parentalSettings.maxCreditsPerDay;
   const isBedtimeRestrictionActive =
     parentalSettings.enabled &&
     parentalSettings.bedtimeMode &&
@@ -1625,7 +1725,10 @@ export default function SettingsPage() {
     ) &&
     !isParentalSessionUnlocked;
   const isDataAccessRestricted =
-    isAdvancedAccessRestricted || isUsageLimitReached || isBedtimeRestrictionActive;
+    isAdvancedAccessRestricted ||
+    isUsageLimitReached ||
+    isCreditLimitReached ||
+    isBedtimeRestrictionActive;
 
   const handleSetLockCode = () => {
     const normalizedNewCode = newLockCode.trim();
@@ -1691,8 +1794,26 @@ export default function SettingsPage() {
 
 
   const handleSaveSecurityPin = () => {
+    const currentPin = currentSecurityPinDraft.trim();
     const nextPin = securityPinDraft.trim();
     const confirmPin = securityPinConfirmDraft.trim();
+
+    if (securitySettings.pinCodeHash) {
+      if (!/^\d{4,8}$/.test(currentPin)) {
+        setSecurityFeedback({
+          type: "error",
+          text: "Entrez le PIN actuel pour modifier la protection.",
+        });
+        return;
+      }
+      if (hashPinCode(currentPin) !== securitySettings.pinCodeHash) {
+        setSecurityFeedback({
+          type: "error",
+          text: "PIN actuel invalide.",
+        });
+        return;
+      }
+    }
 
     if (!/^\d{4,8}$/.test(nextPin)) {
       setSecurityFeedback({
@@ -1716,6 +1837,7 @@ export default function SettingsPage() {
       lockOnReturn: true,
       pinCodeHash: hashPinCode(nextPin),
     }));
+    setCurrentSecurityPinDraft("");
     setSecurityPinDraft("");
     setSecurityPinConfirmDraft("");
     setSecurityFeedback({
@@ -1725,12 +1847,29 @@ export default function SettingsPage() {
   };
 
   const handleDisableSecurityPin = () => {
+    const currentPin = currentSecurityPinDraft.trim();
+    if (!securitySettings.pinCodeHash) {
+      setSecurityFeedback({
+        type: "error",
+        text: "Aucun PIN actif à désactiver.",
+      });
+      return;
+    }
+    if (hashPinCode(currentPin) !== securitySettings.pinCodeHash) {
+      setSecurityFeedback({
+        type: "error",
+        text: "PIN actuel invalide. Désactivation refusée.",
+      });
+      return;
+    }
+
     setSecuritySettings((current) => ({
       ...current,
       enablePinLock: false,
       lockOnReturn: false,
       pinCodeHash: "",
     }));
+    setCurrentSecurityPinDraft("");
     setSecurityPinDraft("");
     setSecurityPinConfirmDraft("");
     setSecurityFeedback({
@@ -1743,12 +1882,12 @@ export default function SettingsPage() {
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
       <div className="flex items-center gap-3">
         <Settings2 className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Paramètres</h1>
+        <h1 className="text-3xl font-bold">{uiLabels.settings}</h1>
       </div>
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-4 backdrop-blur-xl">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Navigation des paramètres
+          {uiLabels.navigation}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {settingsSections.map((item) => (
@@ -1767,21 +1906,9 @@ export default function SettingsPage() {
             </a>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Mode contextuel : la section active adapte les droits d&apos;accès.
-          Pendant la consultation des notifications, les actions sensibles sur
-          les données sont limitées.
-        </p>
       </section>
 
-      <section
-        className={cn(
-          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("compte")
-        )}
-        id="compte"
-      >
-        <h2 className="text-lg font-semibold">Compte</h2>
+      <CompteSection className={sectionVisibility("compte")}>
         <p className="mt-2 text-sm text-muted-foreground">
           Connecté en tant que : {data?.user?.email ?? "Invité"}
         </p>
@@ -1951,64 +2078,16 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </CompteSection>
 
-      <section
-        className={cn(
-          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("notifications")
-        )}
-        id="notifications"
-      >
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Bell className="size-4 text-primary" />
-          Notifications
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Choisissez les alertes que vous souhaitez recevoir dans l&apos;app.
-        </p>
-        <div className="mt-4 grid gap-2 md:grid-cols-3">
-          {[
-            {
-              description: "Être alerté quand une réponse IA est prête.",
-              key: "responseReady" as const,
-              label: "Réponses",
-            },
-            {
-              description: "Recevoir les rappels des tâches automatiques.",
-              key: "scheduledTasks" as const,
-              label: "Tâches",
-            },
-            {
-              description: "Être notifié des mises à jour de la plateforme.",
-              key: "projectUpdates" as const,
-              label: "Plateforme",
-            },
-          ].map((notificationItem) => (
-            <button
-              className={cn(
-                "rounded-xl border p-3 text-left text-sm transition-colors",
-                notifications[notificationItem.key]
-                  ? "border-primary/40 bg-primary/10"
-                  : "border-border/50 bg-background/50"
-              )}
-              key={notificationItem.key}
-              onClick={() =>
-                handleNotificationToggle(
-                  notificationItem.key,
-                  !notifications[notificationItem.key]
-                )
-              }
-              type="button"
-            >
-              <p className="font-medium">{notificationItem.label}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {notificationItem.description}
-              </p>
-            </button>
-          ))}
-        </div>
-      </section>
+      <NotificationsSection
+        className={sectionVisibility("notifications")}
+        isPwaInstalled={isPwaInstalled}
+        notificationPermission={notificationPermission}
+        onRequestDevicePermission={handleRequestDeviceNotifications}
+        onToggle={handleNotificationToggle}
+        settings={notifications}
+      />
 
       <section
         className={cn(
@@ -2324,6 +2403,36 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Gauge className="size-4" />
+              Limite crédits IA
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                min={0}
+                onChange={(event) =>
+                  setParentalSettings((prev) => ({
+                    ...prev,
+                    maxCreditsPerDay: Math.max(
+                      0,
+                      Math.min(1_000, Number(event.target.value) || 0)
+                    ),
+                  }))
+                }
+                type="number"
+                value={parentalSettings.maxCreditsPerDay}
+              />
+              <span className="text-xs text-muted-foreground">crédits/jour</span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Consommation observée : {totalCreditsUsedToday}
+              {parentalSettings.maxCreditsPerDay > 0
+                ? ` / ${parentalSettings.maxCreditsPerDay}`
+                : " (illimitée)"}
+            </p>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -2546,6 +2655,13 @@ export default function SettingsPage() {
             restent désactivées jusqu&apos;à réinitialisation.
           </p>
         )}
+        {isCreditLimitReached && (
+          <p className="mt-3 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+            Limite de crédits atteinte ({totalCreditsUsedToday}/
+            {parentalSettings.maxCreditsPerDay}). Les actions sensibles sont
+            restreintes jusqu&apos;à la prochaine réinitialisation.
+          </p>
+        )}
         {isAdvancedAccessRestricted && (
           <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             Accès restreint : entrez le code parental dans la section "Contrôle
@@ -2637,7 +2753,23 @@ export default function SettingsPage() {
             </label>
           </div>
 
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            <Input
+              inputMode="numeric"
+              maxLength={8}
+              onChange={(event) =>
+                setCurrentSecurityPinDraft(
+                  event.target.value.replace(/\D+/g, "").slice(0, 8)
+                )
+              }
+              placeholder={
+                securitySettings.pinCodeHash
+                  ? "PIN actuel"
+                  : "PIN actuel (optionnel)"
+              }
+              type="password"
+              value={currentSecurityPinDraft}
+            />
             <Input
               inputMode="numeric"
               maxLength={8}
@@ -2968,69 +3100,13 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section
-        className={cn(
-          "liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("credits")
-        )}
-        id="credits"
-      >
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Gauge className="size-5" />
-          Crédits
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Suivi des crédits IA par tier, des tâches et des fichiers.
-        </p>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {creditMetrics.map((metric) => {
-            const isUnlimited = metric.limit < 0;
-            const consumed = isUnlimited
-              ? 0
-              : Math.min(metric.used, metric.limit);
-            const remaining = isUnlimited ? Number.POSITIVE_INFINITY : Math.max(metric.limit - consumed, 0);
-            const remainingRatio =
-              metric.limit <= 0 || !Number.isFinite(remaining)
-                ? 1
-                : remaining / metric.limit;
-            const resetDate = formatDateTime(getNextResetDate(metric.period));
-
-            return (
-              <article
-                className="rounded-xl border border-border/50 bg-background/60 p-4"
-                key={metric.key}
-              >
-                <p className="text-sm font-semibold">{metric.title}</p>
-                <p
-                  className={cn(
-                    "mt-2 text-lg font-bold tabular-nums",
-                    getCreditBadgeColor(remainingRatio)
-                  )}
-                >
-                  {isUnlimited ? "Illimité" : `${remaining}/${metric.limit}`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isUnlimited
-                    ? "Accès sans limite"
-                    : `Consommé: ${consumed} • Réinitialisation: ${resetDate}`}
-                </p>
-              </article>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
-          <h3 className="text-sm font-semibold">Infos</h3>
-          <p className="mt-2 text-xs leading-6 text-muted-foreground">
-            Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2,
-            Mistral Large 3 tandis que le Tier 2 comporte GPT-5.1, GPT-5,
-            Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek 3.2, Kimi K2.5 et que
-            le Tier 3 ont les modèles les moins performants, GPT-5.4 Mini,
-            GPT-5.4 Nano, Claude Haïku 4.5.
-          </p>
-        </div>
-      </section>
+      <CreditsSection
+        className={sectionVisibility("credits")}
+        creditMetrics={creditMetrics}
+        formatDateTime={formatDateTime}
+        getCreditBadgeColor={getCreditBadgeColor}
+        getNextResetDate={getNextResetDate}
+      />
 
       <section
         className={cn(
@@ -3192,57 +3268,21 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section
-        className={cn(
-          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("apropos")
-        )}
-        id="apropos"
-      >
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <MessageCircle className="size-5" />
-          Communauté & support
-        </h2>
-        <div className="mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
-          <label className="text-sm font-medium" htmlFor="language-selector">
-            Langue
-          </label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Langue d&apos;interface par défaut: Français.
-          </p>
-          <select
-            className="mt-2 w-full rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-sm"
-            id="language-selector"
-            onChange={(event) => {
-              const nextLanguage = resolveLanguage(event.target.value);
-              setInterfaceLanguage(nextLanguage);
-              setLanguageInStorage(nextLanguage);
-              createNotification({
-                level: "success",
-                message: `Langue appliquée: ${nextLanguage.toUpperCase()}`,
-                title: "Préférences",
-              });
-            }}
-            value={interfaceLanguage}
-          >
-            <option value="fr">Français</option>
-            <option value="en">English</option>
-            <option value="es">Español</option>
-          </select>
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Rejoignez le serveur Discord officiel pour poser vos questions,
-          remonter des bugs et suivre les nouveautés.
-        </p>
-        <a
-          className="mt-3 inline-flex rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-500/20 dark:text-indigo-300"
-          href="https://discord.gg/fV7zwdGPpY"
-          rel="noreferrer"
-          target="_blank"
-        >
-          Ouvrir Discord mAI
-        </a>
-      </section>
+      <AproposSection
+        className={sectionVisibility("apropos")}
+        interfaceLanguage={interfaceLanguage}
+        language={interfaceLanguage}
+        onLanguageChange={(value) => {
+          const nextLanguage = resolveLanguage(value);
+          setInterfaceLanguage(nextLanguage);
+          setLanguageInStorage(nextLanguage);
+          createNotification({
+            level: "success",
+            message: `Langue appliquée: ${nextLanguage.toUpperCase()}`,
+            title: "Préférences",
+          });
+        }}
+      />
 
       {isMemoryModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-md">

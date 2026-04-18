@@ -114,6 +114,14 @@ export const chatModels: ChatModel[] = [
     reasoningEffort: "high",
   },
   {
+    id: "anthropic/claude-opus-4-7",
+    name: "Claude Opus 4.7",
+    provider: "anthropic",
+    description:
+      "Version avancée du modèle Opus d'Anthropic, optimisée pour les tâches stratégiques, l'analyse longue et la génération de code complexe.",
+    reasoningEffort: "high",
+  },
+  {
     id: "claude/claude-sonnet-4-20250514",
     name: "Claude Sonnet 4",
     provider: "claude",

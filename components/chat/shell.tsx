@@ -28,7 +28,6 @@ import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Artifact } from "./artifact";
 import { DataStreamHandler } from "./data-stream-handler";
-import { HomeNotifications } from "./home-notifications";
 import { submitEditedMessage } from "./message-editor";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
@@ -297,7 +296,6 @@ export function ChatShell() {
           )}
         >
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background/70 md:rounded-tl-[16px] md:border-t md:border-l md:border-border/30 md:shadow-[var(--shadow-float)]">
-            <HomeNotifications />
             <VoiceTopActions chatId={chatId} messages={messages} />
             <Messages
               addToolApprovalResponse={addToolApprovalResponse}

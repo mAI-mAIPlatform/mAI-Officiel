@@ -8,6 +8,8 @@ const modelIdsByTier: Record<ModelTier, string[]> = {
   tier1: [
     "openai/gpt-5.4",
     "openai/gpt-5.2",
+    "anthropic/claude-opus-4-6",
+    "anthropic/claude-opus-4-7",
     "azure/mistral-large-3",
   ],
   tier2: [

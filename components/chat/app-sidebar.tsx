@@ -56,32 +56,124 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import { useLanguage } from "@/hooks/use-language";
 import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
-  { href: "/", label: "Discussion", icon: PenSquareIcon },
-  { href: "/library", label: "Bibliothèque", icon: BookOpenIcon },
-  { href: "/projects", label: "Projets", icon: FolderIcon },
-  { href: "/settings", label: "Paramètres", icon: Settings2Icon },
-  { href: "/pricing", label: "Tarifs", icon: CreditCardIcon },
+  { href: "/", key: "discussion", icon: PenSquareIcon },
+  { href: "/library", key: "library", icon: BookOpenIcon },
+  { href: "/projects", key: "projects", icon: FolderIcon },
+  { href: "/settings", key: "settings", icon: Settings2Icon },
+  { href: "/pricing", key: "pricing", icon: CreditCardIcon },
 ] as const;
 
 const APPLICATION_LINKS = [
-  { href: "/mais", label: "mAIs", icon: BotIcon },
-  { href: "/translation", label: "Traduction", icon: LanguagesIcon },
-  { href: "/interpreter", label: "Code", icon: TerminalSquareIcon },
-  { href: "/speaky", label: "Speaky", icon: Volume2Icon },
-  { href: "/humanizy", label: "Humanizy", icon: FingerprintIcon },
+  { href: "/mais", key: "mais", icon: BotIcon },
+  { href: "/translation", key: "translation", icon: LanguagesIcon },
+  { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
+  { href: "/speaky", key: "speaky", icon: Volume2Icon },
+  { href: "/humanizy", key: "humanizy", icon: FingerprintIcon },
 ] as const;
+
+const sidebarI18n = {
+  en: {
+    apps: "Apps",
+    discussion: "Chat",
+    deleteAll: "Delete all",
+    deleteAllConfirm: "Delete all conversations?",
+    deleteAllDesc:
+      "This action is irreversible. All your conversations will be permanently deleted from our servers.",
+    deleteFail: "Deletion failed. Please try again.",
+    deleteSuccess: "All conversations have been deleted",
+    historyLoading: "Loading history…",
+    modulesNotFound: "No module found.",
+    newChat: "New chat",
+    library: "Library",
+    pricing: "Pricing",
+    projects: "Projects",
+    settings: "Settings",
+    translation: "Translation",
+    code: "Code",
+    mais: "mAIs",
+    speaky: "Speaky",
+    humanizy: "Humanizy",
+    quickGoTo: "Go to",
+    searchPlaceholder: "Global search… (Ctrl/Cmd+K)",
+    cancel: "Cancel",
+    delete: "Delete",
+  },
+  es: {
+    apps: "Aplicaciones",
+    discussion: "Discusión",
+    deleteAll: "Borrar todo",
+    deleteAllConfirm: "¿Borrar todas las conversaciones?",
+    deleteAllDesc:
+      "Esta acción es irreversible. Todas tus conversaciones se eliminarán definitivamente de nuestros servidores.",
+    deleteFail: "Error al eliminar. Inténtalo de nuevo.",
+    deleteSuccess: "Todas las conversaciones han sido eliminadas",
+    historyLoading: "Cargando historial…",
+    modulesNotFound: "No se encontró ningún módulo.",
+    newChat: "Nueva conversación",
+    library: "Biblioteca",
+    pricing: "Precios",
+    projects: "Proyectos",
+    settings: "Ajustes",
+    translation: "Traducción",
+    code: "Código",
+    mais: "mAIs",
+    speaky: "Speaky",
+    humanizy: "Humanizy",
+    quickGoTo: "Ir a",
+    searchPlaceholder: "Búsqueda global… (Ctrl/Cmd+K)",
+    cancel: "Cancelar",
+    delete: "Eliminar",
+  },
+  fr: {
+    apps: "Applications",
+    discussion: "Discussion",
+    deleteAll: "Tout supprimer",
+    deleteAllConfirm: "Supprimer toutes les discussions ?",
+    deleteAllDesc:
+      "Cette action est irréversible. Toutes vos discussions seront supprimées définitivement de nos serveurs.",
+    deleteFail: "Échec de la suppression. Veuillez réessayer.",
+    deleteSuccess: "Toutes les discussions ont été supprimées",
+    historyLoading: "Chargement de l'historique…",
+    modulesNotFound: "Aucun module trouvé.",
+    newChat: "Nouvelle discussion",
+    library: "Bibliothèque",
+    pricing: "Tarifs",
+    projects: "Projets",
+    settings: "Paramètres",
+    translation: "Traduction",
+    code: "Code",
+    mais: "mAIs",
+    speaky: "Speaky",
+    humanizy: "Humanizy",
+    quickGoTo: "Aller vers",
+    searchPlaceholder: "Recherche globale… (Ctrl/Cmd+K)",
+    cancel: "Annuler",
+    delete: "Supprimer",
+  },
+} as const;
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const { mutate } = useSWRConfig();
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const { language } = useLanguage();
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [isHistoryReady, setIsHistoryReady] = useState(false);
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
+  const sidebarText = sidebarI18n[language];
+  const quickLinksResolved = QUICK_LINKS.map((item) => ({
+    ...item,
+    label: sidebarText[item.key],
+  }));
+  const applicationLinksResolved = APPLICATION_LINKS.map((item) => ({
+    ...item,
+    label: sidebarText[item.key],
+  }));
 
   const closeMobileSidebar = () => {
     if (isMobile) {
@@ -128,17 +220,17 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       return [];
     }
 
-    return QUICK_LINKS.filter((item) =>
+    return quickLinksResolved.filter((item) =>
       item.label.toLowerCase().includes(normalizedGlobalQuery)
     );
-  }, [normalizedGlobalQuery]);
+  }, [normalizedGlobalQuery, quickLinksResolved]);
 
   const featuredLinks = useMemo(() => {
-    const order = ["Projets", "Bibliothèque"] as const;
+    const order = [sidebarText.projects, sidebarText.library] as const;
     return order
-      .map((label) => QUICK_LINKS.find((item) => item.label === label))
+      .map((label) => quickLinksResolved.find((item) => item.label === label))
       .filter((item) => item !== undefined);
-  }, []);
+  }, [quickLinksResolved, sidebarText.library, sidebarText.projects]);
 
   const handleDeleteAll = async () => {
     setShowDeleteAllDialog(false);
@@ -159,9 +251,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         throw new Error("Suppression globale impossible");
       }
 
-      toast.success("Toutes les discussions ont été supprimées");
+      toast.success(sidebarText.deleteSuccess);
     } catch {
-      toast.error("Échec de la suppression. Veuillez réessayer.");
+      toast.error(sidebarText.deleteFail);
     }
   };
 
@@ -200,7 +292,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     onChange={(event) =>
                       setGlobalSearchQuery(event.target.value)
                     }
-                    placeholder="Recherche globale… (Ctrl/Cmd+K)"
+                    placeholder={sidebarText.searchPlaceholder}
                     type="search"
                     value={globalSearchQuery}
                   />
@@ -220,10 +312,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       closeMobileSidebar();
                       router.push("/");
                     }}
-                    tooltip="Nouvelle discussion"
+                    tooltip={sidebarText.newChat}
                   >
                     <PenSquareIcon className="size-4" />
-                    <span className="font-medium">Nouvelle discussion</span>
+                    <span className="font-medium">{sidebarText.newChat}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
@@ -246,10 +338,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
                         className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] text-sidebar-foreground/85 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                        tooltip="Applications"
+                        tooltip={sidebarText.apps}
                       >
                         <PanelsTopLeftIcon className="size-4" />
-                        <span className="font-medium">Applications</span>
+                        <span className="font-medium">{sidebarText.apps}</span>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -258,7 +350,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       side={isMobile ? "bottom" : "right"}
                       sideOffset={isMobile ? 10 : 6}
                     >
-                      {APPLICATION_LINKS.map((item) => (
+                      {applicationLinksResolved.map((item) => (
                         <DropdownMenuItem asChild key={`app-${item.href}`}>
                           <Link
                             href={item.href}
@@ -282,7 +374,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     >
                       <Link href={item.href} onClick={closeMobileSidebar}>
                         <item.icon className="size-3.5" />
-                        <span>Aller vers {item.label}</span>
+                        <span>
+                          {sidebarText.quickGoTo} {item.label}
+                        </span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -292,7 +386,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   quickLinks.length === 0 && (
                     <SidebarMenuItem>
                       <div className="px-2 py-1 text-[11px] text-sidebar-foreground/60">
-                        Aucun module trouvé.
+                        {sidebarText.modulesNotFound}
                       </div>
                     </SidebarMenuItem>
                   )}
@@ -305,7 +399,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       tooltip="Supprimer toutes les discussions"
                     >
                       <TrashIcon className="size-4" />
-                      <span className="text-[13px]">Tout supprimer</span>
+                      <span className="text-[13px]">{sidebarText.deleteAll}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )}
@@ -316,7 +410,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
             <SidebarHistory globalSearchQuery={globalSearchQuery} user={user} />
           ) : (
             <div className="px-2 py-3 text-xs text-sidebar-foreground/55">
-              Chargement de l&apos;historique…
+              {sidebarText.historyLoading}
             </div>
           )}
         </SidebarContent>
@@ -333,17 +427,16 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Supprimer toutes les discussions ?
+              {sidebarText.deleteAllConfirm}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Toutes vos discussions seront
-              supprimées définitivement de nos serveurs.
+              {sidebarText.deleteAllDesc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{sidebarText.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteAll}>
-              Supprimer
+              {sidebarText.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
