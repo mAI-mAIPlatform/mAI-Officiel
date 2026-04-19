@@ -46,6 +46,7 @@ export const postRequestBodySchema = z.object({
   ghostMode: z.boolean().optional(),
   uploadSource: z.enum(["device", "mai-library"]).optional(),
   persistentMemory: z.string().max(4000).optional(),
+  customSystemPrompt: z.string().max(8000).optional(),
   clientGeolocation: z
     .object({
       latitude: z.number().min(-90).max(90),

@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       contextualActions,
       ghostMode,
       persistentMemory,
+      customSystemPrompt,
       clientGeolocation,
       projectId,
     } = requestBody;
@@ -246,6 +247,18 @@ export async function POST(request: Request) {
         ? contextualReasoningEffort
         : modelConfig?.reasoningEffort;
 
+    const computedSystemPrompt = systemPrompt({
+      requestHints,
+      supportsTools,
+      agentPrompt: customSystemPrompt,
+      userMemory: persistentMemory,
+      isLearningEnabled: contextualActions?.isLearningEnabled,
+      reasoningLevel:
+        contextualActions?.isReasoningEnabled === true
+          ? contextualReasoningLevel
+          : undefined,
+    });
+
     const modelMessages = await convertToModelMessages(uiMessages);
     const latestUserText =
       message?.parts
@@ -276,8 +289,7 @@ export async function POST(request: Request) {
         chatModel,
         modelMessages,
         {
-          systemInstruction:
-            'Reply in the same language as the user\'s latest message. For health topics, include the exact disclaimer: "mAIHealth ne remplace pas un professionnel de santé".',
+          systemInstruction: computedSystemPrompt,
         }
       );
       const assistantMessageId = generateUUID();
@@ -363,16 +375,7 @@ export async function POST(request: Request) {
       execute: async ({ writer: dataStream }) => {
         const result = streamText({
           model: getLanguageModel(chatModel),
-          system: systemPrompt({
-            requestHints,
-            supportsTools,
-            userMemory: persistentMemory,
-            isLearningEnabled: contextualActions?.isLearningEnabled,
-            reasoningLevel:
-              contextualActions?.isReasoningEnabled === true
-                ? contextualReasoningLevel
-                : undefined,
-          }).concat(
+          system: computedSystemPrompt.concat(
             forceWebSearch
               ? "\n\n[Instruction système] La recherche web est obligatoire pour cette requête: appelle d'abord l'outil webSearch, puis réponds en t'appuyant sur ses résultats."
               : ""
@@ -382,9 +385,6 @@ export async function POST(request: Request) {
           experimental_activeTools:
             isReasoningModel && !supportsTools ? [] : activeTools,
           providerOptions: {
-            ...(modelConfig?.gatewayOrder && {
-              gateway: { order: modelConfig.gatewayOrder },
-            }),
             ...(openaiReasoningEffort && {
               openai: { reasoningEffort: openaiReasoningEffort },
             }),

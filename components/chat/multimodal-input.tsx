@@ -174,6 +174,73 @@ function getPersistentMemoryFromLocalStorage(): string | undefined {
   }
 }
 
+
+function getCustomSystemPromptFromLocalStorage(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const rawProfile = window.localStorage.getItem(
+      PROFILE_SETTINGS_STORAGE_KEY
+    );
+    if (!rawProfile) {
+      return undefined;
+    }
+
+    const parsedProfile = JSON.parse(rawProfile) as {
+      aiName?: unknown;
+      aiPersonality?: unknown;
+      personalContext?: unknown;
+      profession?: unknown;
+      stylisticDirectives?: unknown;
+    };
+
+    const aiName =
+      typeof parsedProfile.aiName === "string"
+        ? parsedProfile.aiName.trim()
+        : "";
+    const aiPersonality =
+      typeof parsedProfile.aiPersonality === "string"
+        ? parsedProfile.aiPersonality.trim()
+        : "";
+    const personalContext =
+      typeof parsedProfile.personalContext === "string"
+        ? parsedProfile.personalContext.trim()
+        : "";
+    const profession =
+      typeof parsedProfile.profession === "string"
+        ? parsedProfile.profession.trim()
+        : "";
+    const stylisticDirectives =
+      typeof parsedProfile.stylisticDirectives === "string"
+        ? parsedProfile.stylisticDirectives.trim()
+        : "";
+
+    const blocks = [
+      aiName ? `Nom de l'assistant: ${aiName}` : "",
+      aiPersonality ? `Personnalité souhaitée: ${aiPersonality}` : "",
+      personalContext ? `Contexte personnel utilisateur: ${personalContext}` : "",
+      profession ? `Profession utilisateur: ${profession}` : "",
+      stylisticDirectives
+        ? `Directives stylistiques: ${stylisticDirectives}`
+        : "",
+    ].filter(Boolean);
+
+    if (blocks.length === 0) {
+      return undefined;
+    }
+
+    return [
+      "[Personnalisation IA utilisateur]",
+      ...blocks,
+      "Applique strictement ces préférences sans ignorer les règles de sécurité.",
+    ].join("\n");
+  } catch {
+    return undefined;
+  }
+}
+
 function setCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 365;
   // biome-ignore lint/suspicious/noDocumentCookie: needed for client-side cookie setting
@@ -808,6 +875,7 @@ function PureMultimodalInput({
           ? false
           : localStorage.getItem(GHOST_MODE_STORAGE_KEY) === "true";
       const persistentMemory = getPersistentMemoryFromLocalStorage();
+      const customSystemPrompt = getCustomSystemPromptFromLocalStorage();
 
       const extractedFileContext = extractedFiles
         .filter((item) => item.text.trim().length > 0)
@@ -871,6 +939,7 @@ ${extractedFileContext}`
           ghostMode: isGhostModeEnabled,
           uploadSource,
           persistentMemory,
+          customSystemPrompt,
         },
       });
 
