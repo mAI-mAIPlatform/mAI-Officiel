@@ -32,11 +32,25 @@ export async function PUT(
   }
 
   const { id } = await context.params;
-  const [updated] = await updateMemoryEntryByUser(id, session.user.id, {
-    content: parsed.data.content,
-    type: parsed.data.type,
-    projectId: parsed.data.projectId ?? undefined,
-  });
+  let updated;
+  try {
+    [updated] = await updateMemoryEntryByUser(id, session.user.id, {
+      content: parsed.data.content,
+      type: parsed.data.type,
+      projectId: parsed.data.projectId ?? undefined,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "memory_table_missing") {
+      return NextResponse.json(
+        {
+          error:
+            'La table "Memory" est absente. Appliquez les migrations base de données pour activer la mémoire serveur.',
+        },
+        { status: 503 }
+      );
+    }
+    throw error;
+  }
 
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -56,7 +70,21 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
-  const [deleted] = await deleteMemoryEntryByUser(id, session.user.id);
+  let deleted;
+  try {
+    [deleted] = await deleteMemoryEntryByUser(id, session.user.id);
+  } catch (error) {
+    if (error instanceof Error && error.message === "memory_table_missing") {
+      return NextResponse.json(
+        {
+          error:
+            'La table "Memory" est absente. Appliquez les migrations base de données pour activer la mémoire serveur.',
+        },
+        { status: 503 }
+      );
+    }
+    throw error;
+  }
 
   if (!deleted) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -1,10 +1,9 @@
 import { auth } from "@/app/(auth)/auth";
 import {
-  cometImageModels,
   isExternalTextModel,
-  runCometImageModel,
   runExternalTextModel,
 } from "@/lib/ai/external-providers";
+import { launchHordeGeneration } from "@/lib/ai/horde";
 
 type StudioRequest = {
   action: "text" | "generate-image" | "edit-image";
@@ -49,13 +48,6 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "generate-image" || body.action === "edit-image") {
-      if (!cometImageModels.has(body.model)) {
-        return Response.json(
-          { error: "Modèle image non supporté" },
-          { status: 400 }
-        );
-      }
-
       if (body.action === "edit-image" && !body.image?.trim()) {
         return Response.json(
           { error: "Une image source est requise pour l'édition" },
@@ -63,14 +55,13 @@ export async function POST(request: Request) {
         );
       }
 
-      const result = await runCometImageModel(
-        body.action,
-        body.model,
+      const result = await launchHordeGeneration({
         prompt,
-        body.image
-      );
+        mode: body.action,
+        sourceImage: body.image,
+      });
 
-      return Response.json({ type: "image", ...result });
+      return Response.json({ type: "image", ...result, provider: "aihorde" });
     }
 
     return Response.json({ error: "Action non supportée" }, { status: 400 });

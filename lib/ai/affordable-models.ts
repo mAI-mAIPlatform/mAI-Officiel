@@ -16,4 +16,6 @@ export const affordableTextModels: AffordableModelOption[] = [
   { id: "azure/mistral-large-3", label: "Mistral-Large-3 (FranceStudent)" },
 ];
 
-export const affordableImageModels: AffordableModelOption[] = [];
+export const affordableImageModels: AffordableModelOption[] = [
+  { id: "aihorde/stable-diffusion", label: "Stable Diffusion (AI Horde)" },
+];

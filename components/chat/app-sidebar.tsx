@@ -11,6 +11,7 @@ import {
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
+  SparklesIcon,
   TerminalSquareIcon,
   TrashIcon,
   Volume2Icon,
@@ -68,6 +69,7 @@ const QUICK_LINKS = [
 ] as const;
 
 const APPLICATION_LINKS = [
+  { href: "/studio", key: "studio", icon: SparklesIcon },
   { href: "/mais", key: "mais", icon: BotIcon },
   { href: "/translation", key: "translation", icon: LanguagesIcon },
   { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
@@ -92,6 +94,7 @@ const sidebarI18n = {
     pricing: "Pricing",
     projects: "Projects",
     settings: "Settings",
+    studio: "Studio",
     translation: "Translation",
     code: "Code",
     mais: "mAIs",
@@ -118,6 +121,7 @@ const sidebarI18n = {
     pricing: "Precios",
     projects: "Proyectos",
     settings: "Ajustes",
+    studio: "Studio",
     translation: "Traducción",
     code: "Código",
     mais: "mAIs",
@@ -144,6 +148,7 @@ const sidebarI18n = {
     pricing: "Tarifs",
     projects: "Projets",
     settings: "Paramètres",
+    studio: "Studio",
     translation: "Traduction",
     code: "Code",
     mais: "mAIs",

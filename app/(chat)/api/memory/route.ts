@@ -39,12 +39,33 @@ export async function POST(request: Request) {
     );
   }
 
-  const [created] = await createMemoryEntry({
-    userId: session.user.id,
-    projectId: parsed.data.projectId,
-    content: parsed.data.content,
-    type: parsed.data.type,
-  });
+  let created;
+  try {
+    [created] = await createMemoryEntry({
+      userId: session.user.id,
+      projectId: parsed.data.projectId,
+      content: parsed.data.content,
+      type: parsed.data.type,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "memory_table_missing") {
+      return NextResponse.json(
+        {
+          error:
+            'La table "Memory" est absente. Appliquez les migrations base de données pour activer la mémoire serveur.',
+        },
+        { status: 503 }
+      );
+    }
+    throw error;
+  }
+
+  if (!created) {
+    return NextResponse.json(
+      { error: "Création impossible pour le moment." },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json(created, { status: 201 });
 }

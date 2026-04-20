@@ -1017,6 +1017,17 @@ export async function createMemoryEntry(
   try {
     return await db.insert(memoryEntry).values(data).returning();
   } catch (error) {
+    const relationMissing =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "42P01";
+    if (relationMissing) {
+      console.warn(
+        'Memory table is missing ("Memory"): skipping createMemoryEntry until migrations are applied.'
+      );
+      throw new Error("memory_table_missing");
+    }
     console.error("Failed to create memory entry:", error);
     throw new Error("Failed to create memory entry");
   }
@@ -1040,6 +1051,17 @@ export async function getMemoryEntriesByUser(
       )
       .orderBy(desc(memoryEntry.createdAt));
   } catch (error) {
+    const relationMissing =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "42P01";
+    if (relationMissing) {
+      console.warn(
+        'Memory table is missing ("Memory"): returning an empty memory list.'
+      );
+      return [];
+    }
     console.error("Failed to get memory entries:", error);
     throw new Error("Failed to get memory entries");
   }
@@ -1057,6 +1079,17 @@ export async function updateMemoryEntryByUser(
       .where(and(eq(memoryEntry.id, id), eq(memoryEntry.userId, userId)))
       .returning();
   } catch (error) {
+    const relationMissing =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "42P01";
+    if (relationMissing) {
+      console.warn(
+        'Memory table is missing ("Memory"): skipping updateMemoryEntryByUser.'
+      );
+      throw new Error("memory_table_missing");
+    }
     console.error("Failed to update memory entry:", error);
     throw new Error("Failed to update memory entry");
   }
@@ -1069,6 +1102,17 @@ export async function deleteMemoryEntryByUser(id: string, userId: string) {
       .where(and(eq(memoryEntry.id, id), eq(memoryEntry.userId, userId)))
       .returning();
   } catch (error) {
+    const relationMissing =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "42P01";
+    if (relationMissing) {
+      console.warn(
+        'Memory table is missing ("Memory"): skipping deleteMemoryEntryByUser.'
+      );
+      throw new Error("memory_table_missing");
+    }
     console.error("Failed to delete memory entry:", error);
     throw new Error("Failed to delete memory entry");
   }

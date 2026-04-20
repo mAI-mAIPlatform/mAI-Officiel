@@ -2,6 +2,7 @@ export type UsageFeature =
   | "news"
   | "health"
   | "meals"
+  | "studio"
   | "websearch"
   | "files"
   | "tier1"

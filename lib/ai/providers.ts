@@ -8,6 +8,10 @@ const FS_API_BASE_URL =
 const FS_API_KEY = process.env.FS_API_KEY;
 
 const fsModelAliases: Record<string, string> = {
+  // Alias pour les proxys exposant la nomenclature "gpt-5*".
+  "gpt-5.4": "gpt-5",
+  "gpt-5.4-mini": "gpt-5-mini",
+  "gpt-5.4-nano": "gpt-5-nano",
   // Alias de compatibilité inverses pour les environnements qui exposent
   // les agents "gpt-5.4*" au lieu des IDs "gpt-5*".
   "gpt-5": "gpt-5.4",
@@ -57,6 +61,10 @@ function getFsProvider(): ReturnType<typeof createOpenAI> | null {
   cachedFsProvider = createOpenAI({
     apiKey: FS_API_KEY,
     baseURL: normalizeBaseUrl(FS_API_BASE_URL),
+    // Certains proxys OpenAI-like (FranceStudent) attendent ce mode.
+    compatibility: "compatible",
+  } as Parameters<typeof createOpenAI>[0] & {
+    compatibility: "compatible";
   });
 
   return cachedFsProvider;
@@ -100,7 +108,7 @@ export function getLanguageModel(modelId: string) {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(modelId));
+    return fsProvider.chat(normalizeModelId(modelId));
   }
 
   const gatewayProvider = getGatewayProvider();
@@ -120,7 +128,7 @@ export function getTitleModel() {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(titleModel.id));
+    return fsProvider.chat(normalizeModelId(titleModel.id));
   }
 
   const gatewayProvider = getGatewayProvider();

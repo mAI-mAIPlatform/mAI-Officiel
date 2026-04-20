@@ -65,10 +65,6 @@ interface ChatCompletionResponse {
   output_text?: string;
 }
 
-interface ResponsesApiResponse {
-  output_text?: string;
-}
-
 function extractTextFromChatCompletion(
   data: ChatCompletionResponse | undefined | null
 ): string {
@@ -90,7 +86,7 @@ function extractTextFromChatCompletion(
 
 export async function generateResponse(input: {
   model: string;
-  messages: Array<{ role: "user" | "assistant" | "developer"; content: string }>;
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   systemInstruction?: string;
 }): Promise<{ provider: string; text: string }> {
   const fsClient = getFsClient();
@@ -101,36 +97,16 @@ export async function generateResponse(input: {
 
   const normalizedMessages = [
     ...(input.systemInstruction
-      ? [{ role: "developer" as const, content: input.systemInstruction }]
+      ? [{ role: "system" as const, content: input.systemInstruction }]
       : []),
     ...input.messages,
   ];
 
-  let text = "";
-
-  try {
-    const response = (await fsClient.responses.create({
-      model: input.model,
-      input: normalizedMessages,
-    })) as ResponsesApiResponse;
-    text = (response.output_text ?? "").trim();
-  } catch (error) {
-    const isNotFoundError =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      error.status === 404;
-
-    if (!isNotFoundError) {
-      throw error;
-    }
-
-    const completion = await fsClient.chat.completions.create({
-      model: input.model,
-      messages: normalizedMessages,
-    });
-    text = extractTextFromChatCompletion(completion);
-  }
+  const completion = await fsClient.chat.completions.create({
+    model: input.model,
+    messages: normalizedMessages,
+  });
+  const text = extractTextFromChatCompletion(completion);
 
   if (!text) {
     throw new Error("FranceStudent API returned an empty response");
@@ -158,7 +134,7 @@ export async function runExternalTextModel(
     .map((modelMessage) => {
       const role =
         modelMessage.role === "system"
-          ? "developer"
+          ? "system"
           : modelMessage.role === "assistant"
             ? "assistant"
             : "user";
@@ -192,7 +168,7 @@ export async function runExternalTextModel(
       return { role, content };
     })
     .filter(
-      (message): message is { role: "user" | "assistant" | "developer"; content: string } =>
+      (message): message is { role: "user" | "assistant" | "system"; content: string } =>
         message !== null
     );
 
