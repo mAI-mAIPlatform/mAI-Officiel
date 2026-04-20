@@ -39,6 +39,12 @@ test("generateUUID", () => {
 test("sanitizeText", () => {
   assert.equal(sanitizeText("Hello <has_function_call>world"), "Hello world");
   assert.equal(sanitizeText("No function calls here"), "No function calls here");
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.output_text.delta","delta":"Salut"}{"type":"response.output_text.done","text":"Salut final"}'
+    ),
+    "Salut final"
+  );
 });
 
 test("getTextFromMessage", () => {
@@ -79,6 +85,18 @@ test("getTextFromMessage", () => {
     ],
   };
   assert.equal(getTextFromMessage(mockMessageEmptyTextStrings as any), "Test");
+
+  const mockMessageResponseEvents = {
+    id: "6",
+    role: "assistant",
+    parts: [
+      {
+        type: "text",
+        text: '{"type":"response.output_text.delta","delta":"Salut"}{"type":"response.output_text.done","text":"Salut final"}',
+      },
+    ],
+  };
+  assert.equal(getTextFromMessage(mockMessageResponseEvents as any), "Salut final");
 
   const mockMessageConsecutiveText = {
     id: "5",
