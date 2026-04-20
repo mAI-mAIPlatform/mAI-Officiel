@@ -84,7 +84,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle open-source de 120 milliards de paramètres développé par OpenAI, conçu exclusivement pour l'exécution de tâches de raisonnement à haute performance.",
     reasoningEffort: "high",
-    capabilities: { tools: true, vision: false, reasoning: true },
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
 
   // ── Azure (DeepSeek, Kimi, Mistral) ───────────────────────────────────
@@ -95,7 +95,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle de dernière génération intégrant des optimisations substantielles en matière de connaissances globales, d'analyse logique et de développement de code.",
     reasoningEffort: "medium",
-    capabilities: { tools: true, vision: false, reasoning: true },
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "azure/kimi-k2.5",
@@ -112,7 +112,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle de grande capacité développé par Mistral et déployé sur l'infrastructure Azure OpenAI, destiné aux interactions conversationnelles complexes et aux tâches d'analyse approfondie.",
     reasoningEffort: "medium",
-    capabilities: { tools: true, vision: false, reasoning: true },
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
 
   // ── Anthropic / Claude ────────────────────────────────────────────────
