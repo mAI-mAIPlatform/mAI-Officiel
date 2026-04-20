@@ -65,7 +65,9 @@ export function getDocumentTimestampByIndex(
 }
 
 export function sanitizeText(text: string) {
-  return text.replace('<has_function_call>', '');
+  const sanitized = text.replace('<has_function_call>', '');
+  const extractedFromResponseStream = extractTextFromResponseEventStream(sanitized);
+  return extractedFromResponseStream ?? sanitized;
 }
 
 export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
@@ -82,6 +84,91 @@ export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
 export function getTextFromMessage(message: ChatMessage | UIMessage): string {
   return message.parts
     .filter((part) => part.type === 'text')
-    .map((part) => (part as { type: 'text'; text: string}).text)
+    .map((part) => sanitizeText((part as { type: 'text'; text: string}).text))
     .join('');
+}
+
+function extractTextFromResponseEventStream(text: string): string | null {
+  if (!text.includes('"type":"response.')) {
+    return null;
+  }
+
+  const parsedEvents = extractJsonObjectsFromConcatenatedStream(text)
+    .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null);
+
+  if (parsedEvents.length === 0) {
+    return null;
+  }
+
+  const doneText = parsedEvents
+    .filter((entry) => entry.type === 'response.output_text.done' && typeof entry.text === 'string')
+    .at(-1)?.text;
+
+  if (typeof doneText === 'string' && doneText.trim().length > 0) {
+    return doneText;
+  }
+
+  const deltaText = parsedEvents
+    .filter((entry) => entry.type === 'response.output_text.delta' && typeof entry.delta === 'string')
+    .map((entry) => entry.delta as string)
+    .join('');
+
+  return deltaText.trim().length > 0 ? deltaText : null;
+}
+
+function extractJsonObjectsFromConcatenatedStream(raw: string): unknown[] {
+  const events: unknown[] = [];
+  let depth = 0;
+  let startIndex = -1;
+  let isInsideString = false;
+  let isEscaped = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const currentCharacter = raw[i];
+
+    if (isInsideString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (currentCharacter === '\\') {
+        isEscaped = true;
+        continue;
+      }
+
+      if (currentCharacter === '"') {
+        isInsideString = false;
+      }
+      continue;
+    }
+
+    if (currentCharacter === '"') {
+      isInsideString = true;
+      continue;
+    }
+
+    if (currentCharacter === '{') {
+      if (depth === 0) {
+        startIndex = i;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (currentCharacter === '}') {
+      depth -= 1;
+      if (depth === 0 && startIndex >= 0) {
+        const eventAsString = raw.slice(startIndex, i + 1);
+        try {
+          events.push(JSON.parse(eventAsString) as unknown);
+        } catch {
+          // ignore malformed chunk
+        }
+        startIndex = -1;
+      }
+    }
+  }
+
+  return events;
 }
