@@ -11,12 +11,8 @@ import { checkBotId } from "botid/server";
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
-import { entitlementsByUserType } from "@/lib/ai/entitlements";
+import { getMaxMessagesPerHour } from "@/lib/ai/entitlements";
 import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
-import {
-  isExternalTextModel,
-  runExternalTextModel,
-} from "@/lib/ai/external-providers";
 import {
   allowedModelIds,
   chatModels,
@@ -53,6 +49,7 @@ import {
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
 import { checkIpRateLimit } from "@/lib/ratelimit";
+import { parsePlanKey, planDefinitions, type PlanKey } from "@/lib/subscription";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
@@ -74,6 +71,27 @@ function getStreamContext() {
 }
 
 export { getStreamContext };
+
+function getPlanFromRequest(request: Request): PlanKey {
+  const url = new URL(request.url);
+  const fromQuery = parsePlanKey(url.searchParams.get("plan"));
+  if (fromQuery !== "free") {
+    return fromQuery;
+  }
+
+  const fromHeader = parsePlanKey(request.headers.get("x-mai-plan"));
+  if (fromHeader !== "free") {
+    return fromHeader;
+  }
+
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const cookieMatch = cookieHeader.match(/(?:^|;\s*)mai_plan=([^;]+)/);
+  if (cookieMatch?.[1]) {
+    return parsePlanKey(decodeURIComponent(cookieMatch[1]));
+  }
+
+  return "free";
+}
 
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
@@ -116,7 +134,9 @@ export async function POST(request: Request) {
         ? DEFAULT_CHAT_MODEL
         : selectedChatModel;
 
-    await checkIpRateLimit(ipAddress(request));
+    const plan = getPlanFromRequest(request);
+    const planMessageLimit = planDefinitions[plan].limits.messagesPerHour;
+    await checkIpRateLimit(ipAddress(request), planMessageLimit);
 
     const userType: UserType = session.user.type;
 
@@ -125,7 +145,9 @@ export async function POST(request: Request) {
       differenceInHours: 1,
     });
 
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerHour) {
+    const maxMessagesPerHour = getMaxMessagesPerHour(userType, plan);
+
+    if (messageCount > maxMessagesPerHour) {
       return new ChatbotError("rate_limit:chat").toResponse();
     }
 
@@ -280,70 +302,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (isExternalTextModel(chatModel)) {
-      if (!sanitizedLatestUserText) {
-        return new ChatbotError("bad_request:api").toResponse();
-      }
-
-      let externalResult: Awaited<ReturnType<typeof runExternalTextModel>>;
-
-      try {
-        externalResult = await runExternalTextModel(chatModel, modelMessages, {
-          systemInstruction: computedSystemPrompt,
-        });
-      } catch (externalError) {
-        console.error("[mAI Chat Error] external model failed", {
-          model: chatModel,
-          message:
-            externalError instanceof Error
-              ? externalError.message
-              : String(externalError),
-        });
-        throw externalError;
-      }
-      const assistantMessageId = generateUUID();
-      const textPartId = generateUUID();
-
-      if (!isGhostMode) {
-        await saveMessages({
-          messages: [
-            {
-              id: assistantMessageId,
-              role: "assistant",
-              parts: [{ type: "text", text: externalResult.text }],
-              createdAt: new Date(),
-              attachments: [],
-              chatId: id,
-            },
-          ],
-        });
-      }
-
-      const stream = createUIMessageStream({
-        execute: async ({ writer }) => {
-          writer.write({ type: "text-start", id: textPartId });
-          const chunks = externalResult.text.split(/(\s+)/).filter(Boolean);
-          for (const chunk of chunks) {
-            writer.write({
-              type: "text-delta",
-              id: textPartId,
-              delta: chunk,
-            });
-            await new Promise((resolve) => setTimeout(resolve, 12));
-          }
-          writer.write({ type: "text-end", id: textPartId });
-
-          if (titlePromise && !isGhostMode) {
-            const title = normalizeChatTitle(await titlePromise);
-            writer.write({ type: "data-chat-title", data: title });
-            await updateChatTitleById({ chatId: id, title });
-          }
-        },
-      });
-
-      return createUIMessageStreamResponse({ stream });
-    }
-
     // Base tools available
     const activeTools: (
       | "getWeather"
@@ -496,6 +454,14 @@ export async function POST(request: Request) {
 
         if (message.toLowerCase().includes("model")) {
           return `Modèle "${chatModel}" non reconnu par le provider.`;
+        }
+
+        if (message.toLowerCase().includes("not found")) {
+          return `Le provider IA n'expose pas encore l'endpoint/modèle demandé pour "${chatModel}". Essaie "openai/gpt-5" ou "openai/gpt-5-mini".`;
+        }
+
+        if (message.toLowerCase().includes("bad request")) {
+          return `Le provider IA a rejeté la requête pour "${chatModel}" (agent inactif ou modèle indisponible). Essaie "openai/gpt-5.4" ou "openai/gpt-5.4-mini".`;
         }
 
         return "Une erreur est survenue. Réessaie ou change de modèle.";

@@ -16,9 +16,4 @@ export const affordableTextModels: AffordableModelOption[] = [
   { id: "azure/mistral-large-3", label: "Mistral-Large-3 (FranceStudent)" },
 ];
 
-export const affordableImageModels: AffordableModelOption[] = [
-  { id: "flux-2-max", label: "Flux 2 Max" },
-  { id: "kling-image", label: "Kling Image" },
-  { id: "flux-2-pro", label: "Flux 2 Pro" },
-  { id: "flux-2-flex", label: "Flux 2 Flex" },
-];
+export const affordableImageModels: AffordableModelOption[] = [];

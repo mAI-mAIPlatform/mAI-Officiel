@@ -21,6 +21,7 @@ export type ChatModel = {
   description: string;
   gatewayOrder?: string[];
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
+  capabilities?: Partial<ModelCapabilities>;
 };
 
 // Catalogue volontairement limité aux modèles connectés via FS_API_KEY.
@@ -32,6 +33,7 @@ export const chatModels: ChatModel[] = [
     provider: "openai",
     description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
     reasoningEffort: "high",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-5.4-mini",
@@ -39,6 +41,7 @@ export const chatModels: ChatModel[] = [
     provider: "openai",
     description: "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-5.4-nano",
@@ -47,6 +50,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle ultra-léger de nouvelle génération, rigoureusement optimisé pour maximiser la vitesse d'exécution et l'efficacité des ressources informatiques.",
     reasoningEffort: "minimal",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-5.2",
@@ -55,6 +59,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle avancé offrant des performances significativement améliorées dans les domaines de l'acquisition de connaissances, du raisonnement analytique et de la programmation.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-5.1",
@@ -62,6 +67,7 @@ export const chatModels: ChatModel[] = [
     provider: "openai",
     description: "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-5",
@@ -69,6 +75,7 @@ export const chatModels: ChatModel[] = [
     provider: "openai",
     description: "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "openai/gpt-oss-120b",
@@ -77,6 +84,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle open-source de 120 milliards de paramètres développé par OpenAI, conçu exclusivement pour l'exécution de tâches de raisonnement à haute performance.",
     reasoningEffort: "high",
+    capabilities: { tools: true, vision: false, reasoning: true },
   },
 
   // ── Azure (DeepSeek, Kimi, Mistral) ───────────────────────────────────
@@ -87,6 +95,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle de dernière génération intégrant des optimisations substantielles en matière de connaissances globales, d'analyse logique et de développement de code.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: false, reasoning: true },
   },
   {
     id: "azure/kimi-k2.5",
@@ -94,6 +103,7 @@ export const chatModels: ChatModel[] = [
     provider: "azure",
     description:
       "Modèle multimodal open-source développé par Moonshot AI, architecturé spécifiquement pour l'élaboration et la gestion de flux de travail automatisés.",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "azure/mistral-large-3",
@@ -102,6 +112,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle de grande capacité développé par Mistral et déployé sur l'infrastructure Azure OpenAI, destiné aux interactions conversationnelles complexes et aux tâches d'analyse approfondie.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: false, reasoning: true },
   },
 
   // ── Anthropic / Claude ────────────────────────────────────────────────
@@ -112,6 +123,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle d'excellence d'Anthropic, accessible via l'API Messages sécurisée par OAuth, dédié à la résolution de requêtes complexes exigeant un niveau d'effort cognitif maximal.",
     reasoningEffort: "high",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "anthropic/claude-opus-4-7",
@@ -120,6 +132,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Version avancée du modèle Opus d'Anthropic, optimisée pour les tâches stratégiques, l'analyse longue et la génération de code complexe.",
     reasoningEffort: "high",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "claude/claude-sonnet-4-20250514",
@@ -128,6 +141,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle intermédiaire d'Anthropic, accessible via l'API Messages sécurisée par OAuth, offrant un équilibre optimal entre performance de raisonnement et rapidité d'exécution.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "anthropic/claude-sonnet-4-6",
@@ -136,6 +150,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Version actualisée du modèle intermédiaire d'Anthropic, accessible via l'API Messages sécurisée par OAuth, garantissant des performances équilibrées et efficientes.",
     reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
   {
     id: "anthropic/claude-haiku-4-5",
@@ -144,6 +159,7 @@ export const chatModels: ChatModel[] = [
     description:
       "Modèle compact d'Anthropic, accessible via l'API Messages sécurisée par OAuth, spécifiquement élaboré pour assurer une latence minimale et des temps de réponse ultra-rapides.",
     reasoningEffort: "low",
+    capabilities: { tools: true, vision: true, reasoning: true },
   },
 ];
 
@@ -174,19 +190,27 @@ function buildLocalCapabilities(): Record<string, ModelCapabilities> {
     chatModels.map((m) => [
       m.id,
       {
-        tools: true,
+        tools: m.capabilities?.tools ?? true,
         vision:
+          m.capabilities?.vision ??
+          (
           m.id.includes("vision") ||
           m.id.includes("flash") ||
           m.id.includes("4o") ||
+          m.id.includes("gpt-5") ||
           m.id.includes("gemini") ||
           m.id.includes("claude-opus") ||
-          m.id.includes("claude-sonnet"),
+          m.id.includes("claude-sonnet")
+          ),
         reasoning:
+          m.capabilities?.reasoning ??
+          (
           m.id.includes("oss") ||
           m.id.includes("reasoning") ||
           m.id.includes("r1") ||
-          m.id.includes("claude-opus"),
+          m.id.includes("gpt-5") ||
+          m.id.includes("claude-opus")
+          ),
       },
     ])
   );

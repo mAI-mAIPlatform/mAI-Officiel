@@ -10,6 +10,7 @@ export type UsageFeature =
 export type UsagePeriod = "hour" | "day" | "week" | "month";
 
 const USAGE_PREFIX = "mai.usage";
+const serverUsageStore = new Map<string, UsageSnapshot>();
 
 type UsageSnapshot = {
   count: number;
@@ -75,12 +76,14 @@ function getStorageKey(feature: UsageFeature): string {
 }
 
 function readSnapshot(feature: UsageFeature): UsageSnapshot {
+  const key = getStorageKey(feature);
+
   if (typeof window === "undefined") {
-    return { count: 0, periodKey: "" };
+    return serverUsageStore.get(key) ?? { count: 0, periodKey: "" };
   }
 
   try {
-    const raw = window.localStorage.getItem(getStorageKey(feature));
+    const raw = window.localStorage.getItem(key);
     if (!raw) {
       return { count: 0, periodKey: "" };
     }
@@ -103,11 +106,14 @@ function readSnapshot(feature: UsageFeature): UsageSnapshot {
 }
 
 function writeSnapshot(feature: UsageFeature, snapshot: UsageSnapshot) {
+  const key = getStorageKey(feature);
+
   if (typeof window === "undefined") {
+    serverUsageStore.set(key, snapshot);
     return;
   }
 
-  window.localStorage.setItem(getStorageKey(feature), JSON.stringify(snapshot));
+  window.localStorage.setItem(key, JSON.stringify(snapshot));
   window.dispatchEvent(
     new CustomEvent("mai:usage-updated", {
       detail: { feature },
