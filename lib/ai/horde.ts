@@ -6,7 +6,9 @@ const AI_HORDE_CLIENT_AGENT =
 type HordeLaunchInput = {
   prompt: string;
   mode: "generate-image" | "edit-image";
-  size?: "1024x1024" | "1536x1024";
+  size?: "1024x1024" | "768x1024" | "1536x1024" | "1024x576";
+  quality?: "eco" | "standard" | "high";
+  quantity?: number;
   sourceImage?: string;
 };
 
@@ -18,11 +20,17 @@ type HordeStatusResponse = {
 };
 
 function parseSize(size: HordeLaunchInput["size"]): { height: number; width: number } {
-  if (size === "1536x1024") {
-    return { height: 1024, width: 1536 };
-  }
+  if (size === "1536x1024") return { height: 1024, width: 1536 };
+  if (size === "768x1024") return { height: 1024, width: 768 };
+  if (size === "1024x576") return { height: 576, width: 1024 };
 
-  return { height: 512, width: 512 };
+  return { height: 1024, width: 1024 };
+}
+
+function parseSteps(quality: HordeLaunchInput["quality"]): number {
+  if (quality === "eco") return 15;
+  if (quality === "high") return 35;
+  return 24;
 }
 
 function toBase64Image(image: string): string {
@@ -36,6 +44,8 @@ function toBase64Image(image: string): string {
 
 export async function launchHordeGeneration(input: HordeLaunchInput) {
   const { height, width } = parseSize(input.size);
+  const steps = parseSteps(input.quality);
+  const quantity = Math.min(4, Math.max(1, Math.floor(input.quantity ?? 1)));
 
   const response = await fetch(`${AI_HORDE_BASE_URL}/async`, {
     method: "POST",
@@ -50,7 +60,8 @@ export async function launchHordeGeneration(input: HordeLaunchInput) {
         sampler_name: "k_euler",
         width,
         height,
-        steps: 20,
+        steps,
+        n: quantity,
       },
       ...(input.mode === "edit-image" && input.sourceImage
         ? {
@@ -88,9 +99,11 @@ export async function getHordeGenerationStatus(id: string) {
     throw new Error(payload.message ?? "Impossible de récupérer le statut AI Horde.");
   }
 
-  const firstImage = payload.generations?.[0]?.img;
+  const images = (payload.generations ?? [])
+    .map((generation) => generation.img?.trim() ?? "")
+    .filter((image) => image.length > 0);
 
-  if (!firstImage) {
+  if (images.length === 0) {
     return {
       status: payload.done ? "done" : "processing",
       message: payload.done
@@ -101,6 +114,6 @@ export async function getHordeGenerationStatus(id: string) {
 
   return {
     status: "done",
-    image: firstImage,
+    images,
   } as const;
 }

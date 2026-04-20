@@ -4,7 +4,9 @@ import { launchHordeGeneration } from "@/lib/ai/horde";
 type GenerateRequest = {
   prompt?: string;
   mode?: "generate-image" | "edit-image";
-  size?: "1024x1024" | "1536x1024";
+  size?: "1024x1024" | "768x1024" | "1536x1024" | "1024x576";
+  quality?: "eco" | "standard" | "high";
+  quantity?: number;
   image?: string;
 };
 
@@ -41,6 +43,8 @@ export async function POST(request: Request) {
       prompt,
       mode,
       size: body.size,
+      quality: body.quality,
+      quantity: body.quantity,
       sourceImage: body.image,
     });
 
