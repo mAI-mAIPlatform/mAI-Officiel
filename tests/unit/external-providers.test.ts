@@ -34,3 +34,13 @@ test("extractTextFromResponsesPayload - fallback output structuré", () => {
     "Hello world"
   );
 });
+
+test("extractTextFromResponsesPayload - parse une chaîne de JSON concaténés", () => {
+  const concatenatedPayload =
+    '{"type":"response.created","response":{"id":"resp_1"}}' +
+    '{"type":"response.output_text.delta","delta":"Salut"}' +
+    '{"type":"response.output_text.delta","delta":" !"}' +
+    '{"type":"response.completed","response":{"id":"resp_1"}}';
+
+  assert.equal(extractTextFromResponsesPayload(concatenatedPayload), "Salut !");
+});

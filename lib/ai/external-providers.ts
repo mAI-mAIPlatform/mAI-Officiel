@@ -80,6 +80,69 @@ interface ResponseTextDeltaEvent {
   delta?: string;
 }
 
+function parseConcatenatedJsonObjects(raw: string): unknown[] {
+  const source = raw.trim();
+  if (!source) {
+    return [];
+  }
+
+  const parsed: unknown[] = [];
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) {
+        objectStart = index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+
+      if (depth === 0 && objectStart >= 0) {
+        const chunk = source.slice(objectStart, index + 1);
+        try {
+          parsed.push(JSON.parse(chunk) as unknown);
+        } catch {
+          // Ignore malformed chunks, keep parsing the rest.
+        }
+        objectStart = -1;
+      }
+    }
+  }
+
+  return parsed;
+}
+
 function extractTextFromChatCompletion(
   data: ChatCompletionResponse | undefined | null
 ): string {
@@ -156,6 +219,11 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
       const parsed = JSON.parse(payload) as unknown;
       return extractTextFromResponsesPayload(parsed);
     } catch {
+      const events = parseConcatenatedJsonObjects(payload);
+      if (events.length > 0) {
+        return extractTextFromResponsesPayload(events);
+      }
+
       return payload.trim();
     }
   }
