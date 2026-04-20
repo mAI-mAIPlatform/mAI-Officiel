@@ -101,7 +101,7 @@ export async function generateResponse(input: {
 
   const normalizedMessages = [
     ...(input.systemInstruction
-      ? [{ role: "developer" as const, content: input.systemInstruction }]
+      ? [{ role: "system" as const, content: input.systemInstruction }]
       : []),
     ...input.messages,
   ];
