@@ -268,6 +268,7 @@ export async function POST(request: Request) {
       contextualActions?.isReasoningEnabled === true
         ? contextualReasoningEffort
         : modelConfig?.reasoningEffort;
+    const isUsingFsProvider = Boolean(process.env.FS_API_KEY);
 
     const computedSystemPrompt = systemPrompt({
       requestHints,
@@ -352,7 +353,7 @@ export async function POST(request: Request) {
           experimental_activeTools:
             isReasoningModel && !supportsTools ? [] : activeTools,
           providerOptions: {
-            ...(openaiReasoningEffort && {
+            ...(openaiReasoningEffort && !isUsingFsProvider && {
               openai: { reasoningEffort: openaiReasoningEffort },
             }),
           },

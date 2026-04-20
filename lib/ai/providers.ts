@@ -57,6 +57,10 @@ function getFsProvider(): ReturnType<typeof createOpenAI> | null {
   cachedFsProvider = createOpenAI({
     apiKey: FS_API_KEY,
     baseURL: normalizeBaseUrl(FS_API_BASE_URL),
+    // Certains proxys OpenAI-like (FranceStudent) attendent ce mode.
+    compatibility: "compatible",
+  } as Parameters<typeof createOpenAI>[0] & {
+    compatibility: "compatible";
   });
 
   return cachedFsProvider;
@@ -100,7 +104,7 @@ export function getLanguageModel(modelId: string) {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(modelId));
+    return fsProvider.chat(normalizeModelId(modelId));
   }
 
   const gatewayProvider = getGatewayProvider();
@@ -120,7 +124,7 @@ export function getTitleModel() {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(titleModel.id));
+    return fsProvider.chat(normalizeModelId(titleModel.id));
   }
 
   const gatewayProvider = getGatewayProvider();
