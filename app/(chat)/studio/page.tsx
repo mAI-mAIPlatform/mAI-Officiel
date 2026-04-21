@@ -422,7 +422,7 @@ export default function StudioPage() {
             { id: "likes", label: "J'aime" },
           ].map((item) => (
             <button
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+              className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${
                 activeSection === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
               }`}
               key={item.id}
@@ -443,7 +443,7 @@ export default function StudioPage() {
             { id: "dechets", label: "Déchets" },
           ].map((item) => (
             <button
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+              className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${
                 activeLibrarySection === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
               }`}
               key={item.id}
@@ -466,7 +466,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">IA utilisée</label>
             <select
-              className="h-9 w-full rounded-md border border-border bg-background px-2"
+              className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setImageModel(event.target.value)}
               value={imageModel}
             >
@@ -480,7 +480,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Style visuel</label>
             <select
-              className="h-9 w-full rounded-md border border-border bg-background px-2"
+              className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setStyleFilter(event.target.value)}
               value={styleFilter}
             >
@@ -495,7 +495,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Tri</label>
             <select
-              className="h-9 w-full rounded-md border border-border bg-background px-2"
+              className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setSortMode(event.target.value as SortMode)}
               value={sortMode}
             >
@@ -521,7 +521,7 @@ export default function StudioPage() {
           <div className="flex items-center gap-2">
             <Search className="size-4 text-muted-foreground" />
             <input
-              className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+              className="h-9 w-full rounded-xl border border-border bg-background px-4 text-sm"
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Rechercher par prompt, style, modèle..."
               type="search"
@@ -536,7 +536,7 @@ export default function StudioPage() {
               "Favoris",
               "Téléchargées",
             ].map((chip) => (
-              <button className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted" key={chip} type="button">
+              <button className="rounded-2xl border border-border px-3 py-1 text-xs hover:bg-muted" key={chip} type="button">
                 {chip}
               </button>
             ))}
@@ -584,10 +584,10 @@ export default function StudioPage() {
         </section>
 
         <section className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 p-3 backdrop-blur">
-          <div className="rounded-2xl border border-border bg-card/80 p-3">
+          <div className="rounded-3xl border border-border bg-card/80 p-4">
             <div className="flex items-center gap-2">
               <button
-                className="rounded-lg border border-border p-2"
+                className="rounded-2xl border border-border p-2.5"
                 onClick={() => imageUploadRef.current?.click()}
                 type="button"
                 title="Importer 1 à 2 images"
@@ -603,7 +603,7 @@ export default function StudioPage() {
                 type="file"
               />
               <textarea
-                className="min-h-12 flex-1 resize-none rounded-lg border border-border bg-background p-2 text-sm"
+                className="min-h-12 flex-1 resize-none rounded-2xl border border-border bg-background p-3 text-sm"
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder="Décrivez votre image..."
                 value={prompt}
@@ -620,7 +620,7 @@ export default function StudioPage() {
                 ["portrait", "4:5"],
               ].map(([id, label]) => (
                 <button
-                  className={`rounded-full border px-3 py-1 ${
+                  className={`rounded-2xl border px-3 py-1 ${
                     outputPreset === id ? "border-primary text-primary" : "border-border"
                   }`}
                   key={id}
@@ -631,7 +631,7 @@ export default function StudioPage() {
                 </button>
               ))}
               <select
-                className="h-8 rounded-full border border-border bg-background px-3"
+                className="h-8 rounded-2xl border border-border bg-background px-3"
                 onChange={(event) => setVariationCount(Number(event.target.value))}
                 value={variationCount}
               >
@@ -641,21 +641,21 @@ export default function StudioPage() {
                 <option value={4}>4v</option>
               </select>
               <button
-                className="rounded-full border border-border px-3 py-1"
+                className="rounded-2xl border border-border px-3 py-1"
                 onClick={() => setShowStylePicker((current) => !current)}
                 type="button"
               >
                 Styles
               </button>
               <button
-                className="rounded-full border border-border px-3 py-1"
+                className="rounded-2xl border border-border px-3 py-1"
                 onClick={() => setShowHelp((current) => !current)}
                 type="button"
               >
                 <CircleHelp className="mr-1 inline size-3.5" /> Aide
               </button>
               <button
-                className="rounded-full border border-border px-3 py-1"
+                className="rounded-2xl border border-border px-3 py-1"
                 onClick={() => setMode((current) => (current === "generate-image" ? "edit-image" : "generate-image"))}
                 type="button"
               >

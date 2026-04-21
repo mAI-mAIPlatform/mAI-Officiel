@@ -539,6 +539,7 @@ export default function SettingsPage() {
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [showPwaInstallCard, setShowPwaInstallCard] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | "unsupported"
   >("unsupported");
@@ -1222,8 +1223,18 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const dismissed = window.localStorage.getItem("mai.pwa.install.dismissed");
+    if (dismissed === "1") {
+      setShowPwaInstallCard(false);
+    }
+  }, []);
+
+  useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      window.localStorage.removeItem("mai.pwa.install.dismissed");
+      setShowPwaInstallCard(true);
       setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -1990,34 +2001,38 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
-          <p className="text-sm font-medium">Installation PWA</p>
-          <p className="mt-1 text-xs text-black/70">
-            Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              disabled={!deferredPwaPrompt}
-              onClick={handleInstallPwa}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Download className="mr-2 size-4" />
-              Installer mAI en PWA
-            </Button>
-            {deferredPwaPrompt ? (
+        {showPwaInstallCard ? (
+          <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
+            <p className="text-sm font-medium">Installation PWA</p>
+            <p className="mt-1 text-xs text-black/70">
+              Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
+            </p>
+            <div className="mt-3 flex gap-2">
               <Button
-                onClick={() => setDeferredPwaPrompt(null)}
+                disabled={!deferredPwaPrompt}
+                onClick={handleInstallPwa}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Download className="mr-2 size-4" />
+                Installer mAI en PWA
+              </Button>
+              <Button
+                onClick={() => {
+                  setDeferredPwaPrompt(null);
+                  setShowPwaInstallCard(false);
+                  window.localStorage.setItem("mai.pwa.install.dismissed", "1");
+                }}
                 size="sm"
                 type="button"
                 variant="ghost"
               >
                 Fermer
               </Button>
-            ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
           <div className="flex flex-col items-center gap-2">

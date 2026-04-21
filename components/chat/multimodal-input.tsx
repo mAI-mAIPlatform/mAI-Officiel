@@ -42,6 +42,7 @@ import {
   ModelSelector,
   ModelSelectorContent,
   ModelSelectorGroup,
+  ModelSelectorInput,
   ModelSelectorItem,
   ModelSelectorList,
   ModelSelectorLogo,
@@ -2321,6 +2322,7 @@ function PureModelSelectorCompact({
         </Button>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
+        <ModelSelectorInput placeholder="Rechercher un modèle texte..." />
         <ModelSelectorList>
           {(() => {
             const curatedIds = new Set(chatModels.map((m) => m.id));

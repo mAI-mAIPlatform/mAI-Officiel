@@ -97,6 +97,20 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
     if (id.includes("qwen")) {
       return "alibaba";
     }
+    if (
+      id.includes("mistral") ||
+      id.includes("mixtral") ||
+      name.includes("mistral") ||
+      name.includes("mixtral")
+    ) {
+      return "mistral";
+    }
+    if (id.includes("gemma") || name.includes("gemma")) {
+      return "google";
+    }
+    if (id.includes("llama") || name.includes("llama")) {
+      return "meta";
+    }
     return "meta";
   }
 
