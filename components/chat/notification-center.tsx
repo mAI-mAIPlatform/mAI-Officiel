@@ -107,7 +107,12 @@ export function NotificationCenter() {
                   : "border-sidebar-border/70 bg-sidebar/50"
               )}
               key={item.id}
-              onClick={() => setActiveItem(item)}
+              onClick={() => {
+                setActiveItem(item);
+                if (!item.read) {
+                  markNotificationRead(item.id, true);
+                }
+              }}
               type="button"
             >
               <p className="flex items-center gap-1 text-[11px] font-medium text-sidebar-foreground">

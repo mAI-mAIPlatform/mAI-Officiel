@@ -17,5 +17,5 @@ export const affordableTextModels: AffordableModelOption[] = [
 ];
 
 export const affordableImageModels: AffordableModelOption[] = [
-  { id: "horde/stable_diffusion", label: "Stable Diffusion (AI Horde)" },
+  { id: "horde/stable_diffusion", label: "Stable Diffusion" },
 ];

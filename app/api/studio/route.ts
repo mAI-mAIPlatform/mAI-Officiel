@@ -12,7 +12,7 @@ type StudioRequest = {
   model: string;
   prompt: string;
   image?: string;
-  size?: "1024x1024" | "1536x1024";
+  size?: string;
 };
 
 export async function POST(request: Request) {

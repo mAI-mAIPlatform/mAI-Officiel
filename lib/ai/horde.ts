@@ -1,7 +1,7 @@
 export type HordeGenerationOptions = {
   model: string;
   prompt: string;
-  size: "1024x1024" | "1536x1024";
+  size: string;
 };
 
 export type HordeGenerationResponse = {

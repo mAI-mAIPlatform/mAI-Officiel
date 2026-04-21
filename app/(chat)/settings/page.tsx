@@ -72,6 +72,7 @@ const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
 const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
+const IMPROVE_MAI_FOR_ALL_KEY = "mai.settings.improve-for-all.v1";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -548,6 +549,7 @@ export default function SettingsPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
+  const [improveMaiForAll, setImproveMaiForAll] = useState(false);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -900,6 +902,19 @@ export default function SettingsPage() {
       JSON.stringify(notifications)
     );
   }, [notifications]);
+
+  useEffect(() => {
+    setImproveMaiForAll(
+      window.localStorage.getItem(IMPROVE_MAI_FOR_ALL_KEY) === "true"
+    );
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      IMPROVE_MAI_FOR_ALL_KEY,
+      improveMaiForAll ? "true" : "false"
+    );
+  }, [improveMaiForAll]);
 
   useEffect(() => {
     setInterfaceLanguage(
@@ -2303,6 +2318,24 @@ export default function SettingsPage() {
           Définissez la hauteur par défaut de la barre de saisie. Le mode
           compact est désormais recommandé pour une interface plus dense.
         </p>
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background/60 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              checked={improveMaiForAll}
+              className="mt-1"
+              onChange={(event) => setImproveMaiForAll(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Améliorer mAI pour tous</span>
+              <span className="block text-xs text-muted-foreground">
+                Autorisez l'utilisation de votre contenu pour entraîner les modèles et améliorer les performances d'mAI pour vous et tous ceux qui l'utilisent. Nous prenons des mesures pour protéger votre vie privée.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           {[
             { label: "Compacte", value: "compact" as const },
@@ -2679,6 +2712,24 @@ export default function SettingsPage() {
             sont temporairement bloquées.
           </p>
         )}
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background/60 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              checked={improveMaiForAll}
+              className="mt-1"
+              onChange={(event) => setImproveMaiForAll(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Améliorer mAI pour tous</span>
+              <span className="block text-xs text-muted-foreground">
+                Autorisez l'utilisation de votre contenu pour entraîner les modèles et améliorer les performances d'mAI pour vous et tous ceux qui l'utilisent. Nous prenons des mesures pour protéger votre vie privée.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           <Button
             className="justify-start"

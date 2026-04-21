@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
+import { triggerHaptic } from "@/lib/haptics";
 import type { ChatMessage } from "@/lib/types";
 import {
   MessageAction as Action,
@@ -71,6 +72,7 @@ export function PureMessageActions({
     }
 
     await copyToClipboard(textFromParts);
+    triggerHaptic(16);
     toast.success("Copied to clipboard!");
   };
 
@@ -83,6 +85,7 @@ export function PureMessageActions({
         JSON.stringify(pinnedMessages)
       );
     }
+    triggerHaptic(12);
     toast.success("Message épinglé");
   };
 
@@ -182,6 +185,7 @@ export function PureMessageActions({
             <DropdownMenuItem
               key={item.mode}
               onClick={() => {
+                triggerHaptic(10);
                 window.dispatchEvent(
                   new CustomEvent("mai:rewrite-message", {
                     detail: {
