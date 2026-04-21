@@ -47,7 +47,10 @@ export function SessionGuard() {
     syncLockState();
     window.addEventListener("storage", syncLockState);
     window.addEventListener("focus", syncLockState);
-    window.addEventListener("mai:security-settings-updated", syncLockState as EventListener);
+    window.addEventListener(
+      "mai:security-settings-updated",
+      syncLockState as EventListener
+    );
 
     const markLockedOnLeave = () => {
       if (
@@ -66,7 +69,10 @@ export function SessionGuard() {
     return () => {
       window.removeEventListener("storage", syncLockState);
       window.removeEventListener("focus", syncLockState);
-      window.removeEventListener("mai:security-settings-updated", syncLockState as EventListener);
+      window.removeEventListener(
+        "mai:security-settings-updated",
+        syncLockState as EventListener
+      );
       window.removeEventListener("pagehide", markLockedOnLeave);
       window.removeEventListener("beforeunload", markLockedOnLeave);
     };

@@ -4,13 +4,15 @@ import {
   BookOpenIcon,
   BotIcon,
   CreditCardIcon,
-  FolderIcon,
   FingerprintIcon,
+  FolderIcon,
+  ImagePlusIcon,
   LanguagesIcon,
   PanelsTopLeftIcon,
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
+  AudioWaveformIcon,
   TerminalSquareIcon,
   TrashIcon,
   Volume2Icon,
@@ -46,6 +48,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useLanguage } from "@/hooks/use-language";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,7 +59,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { useLanguage } from "@/hooks/use-language";
 import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
@@ -68,6 +70,8 @@ const QUICK_LINKS = [
 ] as const;
 
 const APPLICATION_LINKS = [
+  { href: "/studio", key: "studio", icon: ImagePlusIcon },
+  { href: "/wave", key: "wave", icon: AudioWaveformIcon },
   { href: "/mais", key: "mais", icon: BotIcon },
   { href: "/translation", key: "translation", icon: LanguagesIcon },
   { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
@@ -90,6 +94,8 @@ const sidebarI18n = {
     newChat: "New chat",
     library: "Library",
     pricing: "Pricing",
+    studio: "Studio",
+    wave: "Wave",
     projects: "Projects",
     settings: "Settings",
     translation: "Translation",
@@ -116,6 +122,8 @@ const sidebarI18n = {
     newChat: "Nueva conversación",
     library: "Biblioteca",
     pricing: "Precios",
+    studio: "Estudio",
+    wave: "Wave",
     projects: "Proyectos",
     settings: "Ajustes",
     translation: "Traducción",
@@ -142,6 +150,8 @@ const sidebarI18n = {
     newChat: "Nouvelle discussion",
     library: "Bibliothèque",
     pricing: "Tarifs",
+    studio: "Studio",
+    wave: "Wave",
     projects: "Projets",
     settings: "Paramètres",
     translation: "Traduction",
@@ -352,10 +362,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     >
                       {applicationLinksResolved.map((item) => (
                         <DropdownMenuItem asChild key={`app-${item.href}`}>
-                          <Link
-                            href={item.href}
-                            onClick={closeMobileSidebar}
-                          >
+                          <Link href={item.href} onClick={closeMobileSidebar}>
                             <item.icon className="mr-2 size-3.5" />
                             {item.label}
                           </Link>
@@ -399,7 +406,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       tooltip="Supprimer toutes les discussions"
                     >
                       <TrashIcon className="size-4" />
-                      <span className="text-[13px]">{sidebarText.deleteAll}</span>
+                      <span className="text-[13px]">
+                        {sidebarText.deleteAll}
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )}
@@ -426,9 +435,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {sidebarText.deleteAllConfirm}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{sidebarText.deleteAllConfirm}</AlertDialogTitle>
             <AlertDialogDescription>
               {sidebarText.deleteAllDesc}
             </AlertDialogDescription>

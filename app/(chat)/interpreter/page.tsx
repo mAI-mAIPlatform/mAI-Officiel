@@ -23,7 +23,10 @@ type Runtime =
   | "cpp"
   | "go"
   | "ruby"
-  | "php";
+  | "php"
+  | "sql"
+  | "json"
+  | "markdown";
 
 type RuntimeFile = { contentBase64: string; name: string };
 type EditorTheme = "monokai" | "dracula" | "one-dark";
@@ -61,6 +64,9 @@ const runtimeSnippets: Record<Runtime, string> = {
   go: `package main\nimport "fmt"\nfunc main(){ fmt.Println("Hello Go") }`,
   ruby: `puts "Hello Ruby"`,
   php: `<?php\necho "Hello PHP\\n";`,
+  sql: `CREATE TABLE sales(month TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('Jan', 20), ('Feb', 40), ('Mar', 35);\nSELECT month, amount FROM sales ORDER BY amount DESC;`,
+  json: `{\n  "project": "mAI Code Interpreter",\n  "version": 2,\n  "features": ["snippets", "history", "multi-runtime"]\n}`,
+  markdown: `# Rapport rapide\n\n- Dataset: ventes mensuelles\n- Insight principal: **février** est le meilleur mois.\n\n\`\`\`python\nprint("Export prêt")\n\`\`\``,
 };
 
 const runtimeLabels: Record<Runtime, string> = {
@@ -74,6 +80,9 @@ const runtimeLabels: Record<Runtime, string> = {
   go: "Go",
   ruby: "Ruby",
   php: "PHP",
+  sql: "SQL (SQLite)",
+  json: "JSON",
+  markdown: "Markdown",
 };
 
 const runtimeOrder: Runtime[] = [
@@ -87,12 +96,16 @@ const runtimeOrder: Runtime[] = [
   "go",
   "ruby",
   "php",
+  "sql",
+  "json",
+  "markdown",
 ];
 
 const quickPresets: Array<{ label: string; runtime: Runtime }> = [
   { label: "Analyse CSV", runtime: "python" },
   { label: "Script CLI", runtime: "bash" },
   { label: "Sandbox JS", runtime: "javascript" },
+  { label: "Requête SQL", runtime: "sql" },
 ];
 
 async function toRuntimeFile(file: File): Promise<RuntimeFile> {
@@ -130,6 +143,7 @@ export default function InterpreterPage() {
       { icon: FileSpreadsheet, label: "Import CSV / Excel" },
       { icon: BarChart3, label: "Génération de graphiques" },
       { icon: SquareTerminal, label: "Logs & erreurs structurés" },
+      { icon: Play, label: "Runtimes code + aperçu JSON/Markdown" },
     ],
     []
   );
@@ -155,15 +169,17 @@ export default function InterpreterPage() {
 
       const payload = (await response.json()) as ExecutionResponse;
       setResult(payload);
-      setHistory([
-        {
-          createdAt: new Date().toISOString(),
-          output: payload,
-          runtime,
-          sourceCode: code,
-        },
-        ...history,
-      ].slice(0, 20));
+      setHistory((current) =>
+        [
+          {
+            createdAt: new Date().toISOString(),
+            output: payload,
+            runtime,
+            sourceCode: code,
+          },
+          ...current,
+        ].slice(0, 20)
+      );
     } catch (error) {
       const errorPayload = {
         error:
@@ -173,15 +189,17 @@ export default function InterpreterPage() {
         success: false,
       } satisfies ExecutionResponse;
       setResult(errorPayload);
-      setHistory([
-        {
-          createdAt: new Date().toISOString(),
-          output: errorPayload,
-          runtime,
-          sourceCode: code,
-        },
-        ...history,
-      ].slice(0, 20));
+      setHistory((current) =>
+        [
+          {
+            createdAt: new Date().toISOString(),
+            output: errorPayload,
+            runtime,
+            sourceCode: code,
+          },
+          ...current,
+        ].slice(0, 20)
+      );
     } finally {
       setIsRunning(false);
     }
@@ -220,7 +238,9 @@ export default function InterpreterPage() {
             Thème
             <select
               className="ml-2 rounded-lg border border-border/50 bg-background px-2 py-1"
-              onChange={(event) => setEditorTheme(event.target.value as EditorTheme)}
+              onChange={(event) =>
+                setEditorTheme(event.target.value as EditorTheme)
+              }
               value={editorTheme}
             >
               <option value="monokai">Monokai</option>
@@ -292,7 +312,9 @@ export default function InterpreterPage() {
               accept=".csv,.xlsx,.xls,.txt,.json"
               className="hidden"
               multiple
-              onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+              onChange={(event) =>
+                setFiles(Array.from(event.target.files ?? []))
+              }
               type="file"
             />
           </label>
@@ -303,34 +325,63 @@ export default function InterpreterPage() {
             </p>
           ) : null}
 
-          <button
-            className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
-            disabled={isRunning}
-            onClick={onRun}
-            type="button"
-          >
-            <Play className="size-4" />
-            {isRunning ? "Exécution..." : "Run"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+              disabled={isRunning}
+              onClick={onRun}
+              type="button"
+            >
+              <Play className="size-4" />
+              {isRunning ? "Exécution..." : "Run"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm"
+              onClick={() => {
+                setFiles([]);
+                setResult(null);
+              }}
+              type="button"
+            >
+              Réinitialiser sortie
+            </button>
+          </div>
         </section>
 
         <section className="liquid-panel rounded-2xl p-4">
           <h2 className="mb-2 text-sm font-medium">Output</h2>
           <div className="space-y-2 text-xs">
             {result?.logs?.length ? (
-              <pre className="rounded-xl bg-background/80 p-2">{result.logs.join("\n")}</pre>
+              <pre className="rounded-xl bg-background/80 p-2">
+                {result.logs.join("\n")}
+              </pre>
             ) : null}
-            {result?.output ? <pre className="rounded-xl bg-emerald-500/10 p-2">{result.output}</pre> : null}
+            {result?.output ? (
+              <pre className="rounded-xl bg-emerald-500/10 p-2">
+                {result.output}
+              </pre>
+            ) : null}
             {result?.error ? (
-              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">{result.error}</pre>
+              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
+                {result.error}
+              </pre>
             ) : null}
-            {typeof result?.exitCode !== "undefined" ? <p>Code retour: {String(result.exitCode)}</p> : null}
-            {result ? null : <p className="text-muted-foreground">Aucun résultat pour le moment.</p>}
+            {typeof result?.exitCode === "undefined" ? null : (
+              <p>Code retour: {String(result.exitCode)}</p>
+            )}
+            {result ? null : (
+              <p className="text-muted-foreground">
+                Aucun résultat pour le moment.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 grid gap-2">
             {features.map((item) => (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground" key={item.label}>
+              <div
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                key={item.label}
+              >
                 <item.icon className="size-3.5" />
                 <span>{item.label}</span>
               </div>
@@ -372,7 +423,8 @@ export default function InterpreterPage() {
                   }}
                   type="button"
                 >
-                  {runtimeLabels[entry.runtime]} · {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
+                  {runtimeLabels[entry.runtime]} ·{" "}
+                  {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
                 </button>
               ))}
             </div>

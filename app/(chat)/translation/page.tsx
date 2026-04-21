@@ -138,8 +138,8 @@ export default function TranslationPage() {
         const payload = await response.json();
         const bestMatch = payload?.matches?.[0]?.translation;
         const nextTranslation =
-          (bestMatch || payload?.responseData?.translatedText || "").trim()
-            || "Aucune traduction n'a été trouvée.";
+          (bestMatch || payload?.responseData?.translatedText || "").trim() ||
+          "Aucune traduction n'a été trouvée.";
         setTranslatedText(nextTranslation);
         translationCacheRef.current[cacheKey] = nextTranslation;
       } catch (error) {
@@ -156,12 +156,7 @@ export default function TranslationPage() {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [
-    detectedLanguage,
-    sourceLanguage,
-    sourceText,
-    targetLanguage,
-  ]);
+  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguage]);
 
   const lexicalAnalysis = useMemo(() => {
     const textToAnalyze = translatedText.trim() || sourceText.trim();

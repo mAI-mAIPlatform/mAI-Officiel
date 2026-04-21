@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
-import { test, mock, afterEach } from "node:test";
+import { afterEach, mock, test } from "node:test";
+import { ChatbotError } from "@/lib/errors";
 import {
   cn,
+  convertToUIMessages,
   fetcher,
   fetchWithErrorHandlers,
   generateUUID,
   getDocumentTimestampByIndex,
+  getTextFromMessage,
   sanitizeText,
-  convertToUIMessages,
-  getTextFromMessage
 } from "@/lib/utils";
-import { ChatbotError } from "@/lib/errors";
 
 afterEach(() => {
   mock.restoreAll();
@@ -18,14 +18,21 @@ afterEach(() => {
 
 test("cn (tailwind-merge + clsx)", () => {
   assert.equal(cn("bg-red-500", "bg-blue-500"), "bg-blue-500");
-  assert.equal(cn("p-4", { "text-red-500": true, "text-blue-500": false }), "p-4 text-red-500");
-  assert.equal(cn("flex items-center", "flex-col"), "flex items-center flex-col");
+  assert.equal(
+    cn("p-4", { "text-red-500": true, "text-blue-500": false }),
+    "p-4 text-red-500"
+  );
+  assert.equal(
+    cn("flex items-center", "flex-col"),
+    "flex items-center flex-col"
+  );
 });
 
 test("generateUUID", () => {
-  const numToGenerate = 10000;
+  const numToGenerate = 10_000;
   const uuids = new Set();
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   for (let i = 0; i < numToGenerate; i++) {
     const uuid = generateUUID();
@@ -33,12 +40,19 @@ test("generateUUID", () => {
     uuids.add(uuid);
   }
 
-  assert.equal(uuids.size, numToGenerate, "Collisions detected in generated UUIDs");
+  assert.equal(
+    uuids.size,
+    numToGenerate,
+    "Collisions detected in generated UUIDs"
+  );
 });
 
 test("sanitizeText", () => {
   assert.equal(sanitizeText("Hello <has_function_call>world"), "Hello world");
-  assert.equal(sanitizeText("No function calls here"), "No function calls here");
+  assert.equal(
+    sanitizeText("No function calls here"),
+    "No function calls here"
+  );
   assert.equal(
     sanitizeText(
       '{"type":"response.output_text.delta","delta":"Salut"}{"type":"response.output_text.done","text":"Salut final"}'
@@ -62,9 +76,7 @@ test("getTextFromMessage", () => {
   const mockMessageEmpty = {
     id: "2",
     role: "user",
-    parts: [
-      { type: "tool-invocation", toolInvocation: {} },
-    ],
+    parts: [{ type: "tool-invocation", toolInvocation: {} }],
   };
   assert.equal(getTextFromMessage(mockMessageEmpty as any), "");
 
@@ -96,7 +108,10 @@ test("getTextFromMessage", () => {
       },
     ],
   };
-  assert.equal(getTextFromMessage(mockMessageResponseEvents as any), "Salut final");
+  assert.equal(
+    getTextFromMessage(mockMessageResponseEvents as any),
+    "Salut final"
+  );
 
   const mockMessageConsecutiveText = {
     id: "5",
@@ -107,14 +122,31 @@ test("getTextFromMessage", () => {
       { type: "text", text: "Part2" },
     ],
   };
-  assert.equal(getTextFromMessage(mockMessageConsecutiveText as any), "Part1 Part2");
+  assert.equal(
+    getTextFromMessage(mockMessageConsecutiveText as any),
+    "Part1 Part2"
+  );
 });
 
 test("getDocumentTimestampByIndex", () => {
   const now = new Date();
   const documents = [
-    { id: "1", createdAt: new Date("2024-01-01T00:00:00Z"), title: "Doc 1", content: "Content 1", kind: "text", userId: "1" },
-    { id: "2", createdAt: new Date("2024-01-02T00:00:00Z"), title: "Doc 2", content: "Content 2", kind: "text", userId: "1" },
+    {
+      id: "1",
+      createdAt: new Date("2024-01-01T00:00:00Z"),
+      title: "Doc 1",
+      content: "Content 1",
+      kind: "text",
+      userId: "1",
+    },
+    {
+      id: "2",
+      createdAt: new Date("2024-01-02T00:00:00Z"),
+      title: "Doc 2",
+      content: "Content 2",
+      kind: "text",
+      userId: "1",
+    },
   ];
 
   const dt1 = getDocumentTimestampByIndex(documents as any, 0);
@@ -137,15 +169,15 @@ test("convertToUIMessages", () => {
       chatId: "chat1",
       role: "user",
       parts: [{ type: "text", text: "Hello" }],
-      createdAt: new Date("2024-01-01T12:00:00Z")
+      createdAt: new Date("2024-01-01T12:00:00Z"),
     },
     {
       id: "msg2",
       chatId: "chat1",
       role: "assistant",
       parts: [{ type: "text", text: "Hi there" }],
-      createdAt: new Date("2024-01-01T12:00:05Z")
-    }
+      createdAt: new Date("2024-01-01T12:00:05Z"),
+    },
   ];
 
   const uiMessages = convertToUIMessages(dbMessages as any);
@@ -162,9 +194,9 @@ test("fetcher", async (t) => {
   // Test successful fetch
   const mockResponseOk = {
     ok: true,
-    json: async () => ({ data: "success" })
+    json: async () => ({ data: "success" }),
   };
-  t.mock.method(global, 'fetch', async () => mockResponseOk);
+  t.mock.method(global, "fetch", async () => mockResponseOk);
 
   const result = await fetcher("https://example.com");
   assert.deepEqual(result, { data: "success" });
@@ -172,15 +204,20 @@ test("fetcher", async (t) => {
   // Test error fetch
   const mockResponseErr = {
     ok: false,
-    json: async () => ({ code: "bad_request:api", cause: "Something went wrong" })
+    json: async () => ({
+      code: "bad_request:api",
+      cause: "Something went wrong",
+    }),
   };
-  t.mock.method(global, 'fetch', async () => mockResponseErr);
+  t.mock.method(global, "fetch", async () => mockResponseErr);
 
   try {
     await fetcher("https://example.com");
     assert.fail("Expected fetcher to throw ChatbotError");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "bad_request");
     assert.equal(error.surface, "api");
@@ -191,9 +228,9 @@ test("fetcher", async (t) => {
 test("fetchWithErrorHandlers - success", async (t) => {
   const mockResponseOk = {
     ok: true,
-    json: async () => ({ data: "success" })
+    json: async () => ({ data: "success" }),
   };
-  t.mock.method(global, 'fetch', async () => mockResponseOk);
+  t.mock.method(global, "fetch", async () => mockResponseOk);
 
   const result = await fetchWithErrorHandlers("https://example.com");
   assert.equal(result.ok, true);
@@ -202,105 +239,111 @@ test("fetchWithErrorHandlers - success", async (t) => {
 test("fetchWithErrorHandlers - api error", async (t) => {
   const mockResponseErr = {
     ok: false,
-    json: async () => ({ code: "bad_request:api", cause: "Failed" })
+    json: async () => ({ code: "bad_request:api", cause: "Failed" }),
   };
-  t.mock.method(global, 'fetch', async () => mockResponseErr);
+  t.mock.method(global, "fetch", async () => mockResponseErr);
 
   // ensure we don't accidentally fall into offline error
   const originalNavigator = global.navigator;
-  Object.defineProperty(global, 'navigator', {
+  Object.defineProperty(global, "navigator", {
     value: { onLine: true },
-    configurable: true
+    configurable: true,
   });
 
   try {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw ChatbotError");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "bad_request");
     assert.equal(error.surface, "api");
     assert.equal(error.cause, "Failed");
   } finally {
-    if (originalNavigator !== undefined) {
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true
-      });
-    } else {
-      // @ts-ignore
+    if (originalNavigator === undefined) {
+      // @ts-expect-error
       delete global.navigator;
+    } else {
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      });
     }
   }
 });
 
 test("fetchWithErrorHandlers - network error", async (t) => {
-  t.mock.method(global, 'fetch', async () => {
+  t.mock.method(global, "fetch", async () => {
     throw new Error("Network error");
   });
 
   // ensure we don't accidentally fall into offline error
   const originalNavigator = global.navigator;
-  Object.defineProperty(global, 'navigator', {
+  Object.defineProperty(global, "navigator", {
     value: { onLine: true },
-    configurable: true
+    configurable: true,
   });
 
   try {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw Error");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(!(error instanceof ChatbotError));
     assert.equal(error.message, "Network error");
   } finally {
-    if (originalNavigator !== undefined) {
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true
-      });
-    } else {
-      // @ts-ignore
+    if (originalNavigator === undefined) {
+      // @ts-expect-error
       delete global.navigator;
+    } else {
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      });
     }
   }
 });
 
 test("fetchWithErrorHandlers - offline error", async (t) => {
-  t.mock.method(global, 'fetch', async () => {
+  t.mock.method(global, "fetch", async () => {
     throw new TypeError("Failed to fetch"); // Usually how fetch fails when offline
   });
 
   const originalNavigator = global.navigator;
-  Object.defineProperty(global, 'navigator', {
+  Object.defineProperty(global, "navigator", {
     value: { onLine: false },
-    configurable: true
+    configurable: true,
   });
 
   try {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw offline error");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "offline");
     assert.equal(error.surface, "chat");
   } finally {
-    if (originalNavigator !== undefined) {
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true
-      });
-    } else {
-      // @ts-ignore
+    if (originalNavigator === undefined) {
+      // @ts-expect-error
       delete global.navigator;
+    } else {
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      });
     }
   }
 });
 
 test("fetchWithErrorHandlers - offline error, typeof navigator undefined", async (t) => {
-  t.mock.method(global, 'fetch', async () => {
+  t.mock.method(global, "fetch", async () => {
     throw new TypeError("Failed to fetch");
   });
 
@@ -312,14 +355,16 @@ test("fetchWithErrorHandlers - offline error, typeof navigator undefined", async
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw original Error");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(!(error instanceof ChatbotError));
     assert.equal(error.message, "Failed to fetch");
   } finally {
     if (originalNavigator !== undefined) {
-      Object.defineProperty(global, 'navigator', {
+      Object.defineProperty(global, "navigator", {
         value: originalNavigator,
-        configurable: true
+        configurable: true,
       });
     }
   }
@@ -328,32 +373,36 @@ test("fetchWithErrorHandlers - offline error, typeof navigator undefined", async
 test("fetchWithErrorHandlers - non-ok response throwing non-JSON", async (t) => {
   const mockResponseErr = {
     ok: false,
-    json: async () => { throw new Error("Invalid JSON"); }
+    json: async () => {
+      throw new Error("Invalid JSON");
+    },
   };
-  t.mock.method(global, 'fetch', async () => mockResponseErr);
+  t.mock.method(global, "fetch", async () => mockResponseErr);
 
   const originalNavigator = global.navigator;
-  Object.defineProperty(global, 'navigator', {
+  Object.defineProperty(global, "navigator", {
     value: { onLine: true },
-    configurable: true
+    configurable: true,
   });
 
   try {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw original Error");
   } catch (error: any) {
-    if (error.name === 'AssertionError') throw error;
+    if (error.name === "AssertionError") {
+      throw error;
+    }
     assert.ok(!(error instanceof ChatbotError));
     assert.equal(error.message, "Invalid JSON");
   } finally {
-    if (originalNavigator !== undefined) {
-      Object.defineProperty(global, 'navigator', {
-        value: originalNavigator,
-        configurable: true
-      });
-    } else {
-      // @ts-ignore
+    if (originalNavigator === undefined) {
+      // @ts-expect-error
       delete global.navigator;
+    } else {
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      });
     }
   }
 });

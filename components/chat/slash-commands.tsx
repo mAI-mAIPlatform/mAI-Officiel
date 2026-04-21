@@ -111,7 +111,9 @@ const parseCustomSlashCommands = (): SlashCommand[] => {
     return parsed
       .slice(0, MAX_CUSTOM_SLASH_COMMANDS)
       .filter(
-        (item): item is { action?: string; description?: string; name: string } =>
+        (
+          item
+        ): item is { action?: string; description?: string; name: string } =>
           typeof item === "object" &&
           item !== null &&
           typeof item.name === "string" &&

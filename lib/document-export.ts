@@ -1,6 +1,6 @@
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { utils, write } from "xlsx";
 
 export const documentExportFormats = ["doc", "pdf", "pptx", "xlsx"] as const;
@@ -74,7 +74,9 @@ const parseMarkdownLike = (content: string) => {
     blocks.push({ type: "paragraph", text: line });
   }
 
-  return blocks.length > 0 ? blocks : [{ type: "paragraph" as const, text: content }];
+  return blocks.length > 0
+    ? blocks
+    : [{ type: "paragraph" as const, text: content }];
 };
 
 const extractTableRows = (content: string) => {
@@ -137,7 +139,9 @@ export async function exportContentAsBuffer(
                 }
 
                 return new Paragraph({
-                  children: [new TextRun(block.text.length > 0 ? block.text : " ")],
+                  children: [
+                    new TextRun(block.text.length > 0 ? block.text : " "),
+                  ],
                 });
               }),
             ],
@@ -240,7 +244,9 @@ export async function exportContentAsBuffer(
         });
       });
 
-      const arrayBuffer = (await pptx.write({ outputType: "arraybuffer" })) as ArrayBuffer;
+      const arrayBuffer = (await pptx.write({
+        outputType: "arraybuffer",
+      })) as ArrayBuffer;
       return Buffer.from(arrayBuffer);
     }
 
@@ -249,7 +255,10 @@ export async function exportContentAsBuffer(
       const normalizedRows =
         tableRows.length > 0
           ? tableRows
-          : [["Ligne", "Contenu"], ["1", content.trim()]];
+          : [
+              ["Ligne", "Contenu"],
+              ["1", content.trim()],
+            ];
       const worksheet = utils.aoa_to_sheet(normalizedRows);
       const range = utils.decode_range(worksheet["!ref"] ?? "A1:A1");
       const maxWidthByColumn: number[] = [];
@@ -258,11 +267,16 @@ export async function exportContentAsBuffer(
         for (let col = range.s.c; col <= range.e.c; col++) {
           const cell = worksheet[utils.encode_cell({ r: row, c: col })];
           const value = String(cell?.v ?? "");
-          maxWidthByColumn[col] = Math.max(maxWidthByColumn[col] ?? 10, value.length + 2);
+          maxWidthByColumn[col] = Math.max(
+            maxWidthByColumn[col] ?? 10,
+            value.length + 2
+          );
         }
       }
 
-      worksheet["!cols"] = maxWidthByColumn.map((width) => ({ wch: Math.min(width, 60) }));
+      worksheet["!cols"] = maxWidthByColumn.map((width) => ({
+        wch: Math.min(width, 60),
+      }));
       const workbook = utils.book_new();
       utils.book_append_sheet(workbook, worksheet, "Document");
 
@@ -274,7 +288,10 @@ export async function exportContentAsBuffer(
   }
 }
 
-export function buildExportFileName(title: string, format: DocumentExportFormat) {
+export function buildExportFileName(
+  title: string,
+  format: DocumentExportFormat
+) {
   const safeTitle = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/gi, "-")

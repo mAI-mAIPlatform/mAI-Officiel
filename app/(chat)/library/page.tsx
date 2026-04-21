@@ -256,7 +256,6 @@ export default function LibraryPage() {
     setAssetToDelete(null);
   };
 
-
   const handleDropImport = (files: FileList | null) => {
     if (!files?.length) {
       return;

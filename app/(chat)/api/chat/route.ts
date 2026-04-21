@@ -12,7 +12,6 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { getMaxMessagesPerHour } from "@/lib/ai/entitlements";
-import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
 import {
   allowedModelIds,
   chatModels,
@@ -21,6 +20,7 @@ import {
 } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
+import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
 import { audioAssistant } from "@/lib/ai/tools/audio-assistant";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { createMaiTool } from "@/lib/ai/tools/create-mai";
@@ -49,7 +49,11 @@ import {
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
 import { checkIpRateLimit } from "@/lib/ratelimit";
-import { parsePlanKey, planDefinitions, type PlanKey } from "@/lib/subscription";
+import {
+  type PlanKey,
+  parsePlanKey,
+  planDefinitions,
+} from "@/lib/subscription";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
@@ -60,6 +64,21 @@ const MAX_CHAT_TITLE_LENGTH = 160;
 
 function normalizeChatTitle(title: string): string {
   return title.trim().slice(0, MAX_CHAT_TITLE_LENGTH);
+}
+
+function buildFallbackTitleFromMessage(message?: ChatMessage): string {
+  const text = message?.parts
+    ?.filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text) {
+    return "Nouvelle discussion";
+  }
+
+  return normalizeChatTitle(text.split(" ").slice(0, 8).join(" "));
 }
 
 function getStreamContext() {
@@ -393,7 +412,11 @@ export async function POST(request: Request) {
         );
 
         if (titlePromise && !isGhostMode) {
-          const title = normalizeChatTitle(await titlePromise);
+          const generatedTitle = normalizeChatTitle(await titlePromise);
+          const title =
+            generatedTitle.length > 0
+              ? generatedTitle
+              : buildFallbackTitleFromMessage(message as ChatMessage);
           dataStream.write({ type: "data-chat-title", data: title });
           await updateChatTitleById({ chatId: id, title });
         }
@@ -505,7 +528,10 @@ export async function POST(request: Request) {
       return new ChatbotError("bad_request:activate_gateway").toResponse();
     }
 
-    console.error("Unhandled error in chat API:", error, { vercelId, chatModel: requestBody?.selectedChatModel });
+    console.error("Unhandled error in chat API:", error, {
+      vercelId,
+      chatModel: requestBody?.selectedChatModel,
+    });
     return new ChatbotError("offline:chat").toResponse();
   }
 }

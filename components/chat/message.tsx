@@ -45,6 +45,21 @@ const PurePreviewMessage = ({
   requiresScrollPadding: boolean;
   onEdit?: (message: ChatMessage) => void;
 }) => {
+  const stripLeadingJsonPayload = (value: string) => {
+    const trimmed = value.trimStart();
+    if (!trimmed.startsWith("{")) {
+      return value;
+    }
+
+    const match = trimmed.match(/^\{[\s\S]*?\}\s*([\s\S]+)$/);
+    if (!match?.[1]) {
+      return value;
+    }
+
+    const trailingText = match[1].trim();
+    return trailingText.length > 0 ? trailingText : value;
+  };
+
   const attachmentsFromMessage = message.parts.filter(
     (part) => part.type === "file"
   );
@@ -122,7 +137,9 @@ const PurePreviewMessage = ({
           data-testid="message-content"
           key={key}
         >
-          <MessageResponse>{sanitizeText(part.text)}</MessageResponse>
+          <MessageResponse>
+            {sanitizeText(stripLeadingJsonPayload(part.text))}
+          </MessageResponse>
         </MessageContent>
       );
     }
@@ -317,7 +334,7 @@ const PurePreviewMessage = ({
   const content = isThinking ? (
     <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
       <Shimmer className="font-medium" duration={1}>
-        Thinking...
+        Réflexion
       </Shimmer>
     </div>
   ) : (
@@ -400,7 +417,7 @@ export const ThinkingMessage = () => {
 
         <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
           <Shimmer className="font-medium" duration={1}>
-            Thinking...
+            Réflexion
           </Shimmer>
         </div>
       </div>

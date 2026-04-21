@@ -73,7 +73,6 @@ async function deliverSystemNotification(notification: AppNotification) {
   });
 }
 
-
 function emitUpdate() {
   if (typeof window === "undefined") {
     return;

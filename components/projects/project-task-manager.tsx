@@ -231,7 +231,9 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
     const payload = {
       title: formState.title,
       description: formState.description || undefined,
-      dueDate: formState.dueDate ? new Date(formState.dueDate).toISOString() : null,
+      dueDate: formState.dueDate
+        ? new Date(formState.dueDate).toISOString()
+        : null,
       status: formState.status,
       priority: formState.priority,
       repeatType: formState.repeatType,
@@ -288,9 +290,12 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
   const deleteTask = async (task: TaskItem) => {
     try {
       if (!task.isLocalOnly) {
-        const response = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
-          method: "DELETE",
-        });
+        const response = await fetch(
+          `/api/projects/${projectId}/tasks/${task.id}`,
+          {
+            method: "DELETE",
+          }
+        );
         if (!response.ok) {
           throw new Error("Delete error");
         }
@@ -316,7 +321,9 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
 
   const reportTask = (task: TaskItem) => {
     const reportsRaw = localStorage.getItem("mai.reports.tasks");
-    const reports = reportsRaw ? (JSON.parse(reportsRaw) as Array<unknown>) : [];
+    const reports = reportsRaw
+      ? (JSON.parse(reportsRaw) as Array<unknown>)
+      : [];
     const nextReports = [
       {
         taskId: task.id,
@@ -498,16 +505,22 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
       </div>
 
       <div className="mt-4 space-y-3">
-        {isLoading ? <p className="text-sm text-black/70">Chargement...</p> : null}
+        {isLoading ? (
+          <p className="text-sm text-black/70">Chargement...</p>
+        ) : null}
 
         {sortedTasks.length === 0 && !isLoading ? (
           <p className="rounded-xl border border-dashed border-black/25 bg-white/75 p-3 text-sm text-black/70">
-            Aucune tâche pour ce projet. Utilisez le bouton « + Nouvelle tâche ».
+            Aucune tâche pour ce projet. Utilisez le bouton « + Nouvelle tâche
+            ».
           </p>
         ) : null}
 
         {sortedTasks.map((task) => (
-          <div className="rounded-xl border border-black/15 bg-white/85 p-3" key={task.id}>
+          <div
+            className="rounded-xl border border-black/15 bg-white/85 p-3"
+            key={task.id}
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-medium">
@@ -515,7 +528,8 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
                   {task.title}
                 </p>
                 <p className="text-xs text-black/60">
-                  {task.priority.toUpperCase()} • {task.status.toUpperCase()} • {task.repeatType.toUpperCase()}
+                  {task.priority.toUpperCase()} • {task.status.toUpperCase()} •{" "}
+                  {task.repeatType.toUpperCase()}
                   {task.isLocalOnly ? " • Local" : ""}
                 </p>
               </div>
@@ -531,7 +545,10 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
                     <MoreHorizontalIcon className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="liquid-panel bg-white/95">
+                <DropdownMenuContent
+                  align="end"
+                  className="liquid-panel bg-white/95"
+                >
                   <DropdownMenuItem onClick={() => togglePin(task)}>
                     <PinIcon className="mr-2 size-4" />
                     Épingler
@@ -557,7 +574,10 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
             ) : null}
 
             <p className="mt-2 text-xs text-black/70">
-              Échéance : {task.dueDate ? new Date(task.dueDate).toLocaleString("fr-FR") : "Aucune"}
+              Échéance :{" "}
+              {task.dueDate
+                ? new Date(task.dueDate).toLocaleString("fr-FR")
+                : "Aucune"}
               {task.isOverdue ? " • En retard" : ""}
             </p>
           </div>

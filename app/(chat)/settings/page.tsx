@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,22 +38,19 @@ import {
 } from "@/lib/ai/credits";
 import { APP_VERSION } from "@/lib/app-version";
 import {
-  type AppLanguage,
-  LANGUAGE_STORAGE_KEY,
-  resolveLanguage,
-  setLanguageInStorage,
-} from "@/lib/i18n";
-import {
   CHAT_TAGS_STORAGE_KEY,
   TAG_DEFINITIONS_STORAGE_KEY,
   TAG_PALETTE,
   type TagDefinition,
 } from "@/lib/chat-preferences";
+import {
+  type AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  resolveLanguage,
+  setLanguageInStorage,
+} from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
-import { AproposSection } from "./sections/apropos-section";
-import { CompteSection } from "./sections/compte-section";
-import { CreditsSection } from "./sections/credits-section";
-import { NotificationsSection } from "./sections/notifications-section";
+import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
 import {
   defaultSecuritySettings,
   hashPinCode,
@@ -65,6 +62,10 @@ import {
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
+import { AproposSection } from "./sections/apropos-section";
+import { CompteSection } from "./sections/compte-section";
+import { CreditsSection } from "./sections/credits-section";
+import { NotificationsSection } from "./sections/notifications-section";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v018";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
@@ -72,6 +73,7 @@ const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
 const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
+const IMPROVE_MAI_FOR_ALL_KEY = "mai.settings.improve-for-all.v1";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -377,8 +379,7 @@ function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
     )
     .map((task) => ({
       ...task,
-      isEnabled:
-        typeof task.isEnabled === "boolean" ? task.isEnabled : true,
+      isEnabled: typeof task.isEnabled === "boolean" ? task.isEnabled : true,
       notes: typeof task.notes === "string" ? task.notes.trim() : "",
       title: task.title.trim(),
     }))
@@ -528,6 +529,9 @@ export default function SettingsPage() {
     outputTokens: 0,
   });
   const [fileUsageToday, setFileUsageToday] = useState(0);
+  const [studioUsageToday, setStudioUsageToday] = useState(0);
+  const [waveUsageWeek, setWaveUsageWeek] = useState(0);
+  const [vibrationsEnabled, setVibrationsEnabled] = useState(true);
   const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
     tier1: 0,
     tier2: 0,
@@ -536,11 +540,13 @@ export default function SettingsPage() {
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [showPwaInstallCard, setShowPwaInstallCard] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | "unsupported"
   >("unsupported");
-  const [securitySettings, setSecuritySettings] =
-    useState<SecuritySettings>(defaultSecuritySettings);
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
+    defaultSecuritySettings
+  );
   const [currentSecurityPinDraft, setCurrentSecurityPinDraft] = useState("");
   const [securityPinDraft, setSecurityPinDraft] = useState("");
   const [securityPinConfirmDraft, setSecurityPinConfirmDraft] = useState("");
@@ -548,6 +554,7 @@ export default function SettingsPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
+  const [improveMaiForAll, setImproveMaiForAll] = useState(false);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -591,6 +598,8 @@ export default function SettingsPage() {
   useEffect(() => {
     const refreshUsage = () => {
       setFileUsageToday(getUsageCount("files", "day"));
+      setStudioUsageToday(getUsageCount("studio", "day"));
+      setWaveUsageWeek(getUsageCount("wave", "week"));
       setTierUsage({
         tier1: getTierUsage("tier1"),
         tier2: getTierUsage("tier2"),
@@ -603,13 +612,23 @@ export default function SettingsPage() {
     window.addEventListener("mai:usage-updated", refreshUsage);
     return () => {
       window.removeEventListener("storage", refreshUsage);
-      window.removeEventListener(
-        "mai:websearch-usage-updated",
-        refreshUsage
-      );
+      window.removeEventListener("mai:websearch-usage-updated", refreshUsage);
       window.removeEventListener("mai:usage-updated", refreshUsage);
     };
   }, []);
+
+  useEffect(() => {
+    setVibrationsEnabled(
+      window.localStorage.getItem(HAPTICS_ENABLED_STORAGE_KEY) !== "false"
+    );
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      HAPTICS_ENABLED_STORAGE_KEY,
+      vibrationsEnabled ? "true" : "false"
+    );
+  }, [vibrationsEnabled]);
 
   useEffect(() => {
     const rawTags = window.localStorage.getItem(TAG_DEFINITIONS_STORAGE_KEY);
@@ -905,6 +924,19 @@ export default function SettingsPage() {
   }, [notifications]);
 
   useEffect(() => {
+    setImproveMaiForAll(
+      window.localStorage.getItem(IMPROVE_MAI_FOR_ALL_KEY) === "true"
+    );
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      IMPROVE_MAI_FOR_ALL_KEY,
+      improveMaiForAll ? "true" : "false"
+    );
+  }, [improveMaiForAll]);
+
+  useEffect(() => {
     setInterfaceLanguage(
       resolveLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY))
     );
@@ -1010,7 +1042,7 @@ export default function SettingsPage() {
         maxCreditsPerDay:
           typeof parsed.maxCreditsPerDay === "number" &&
           Number.isFinite(parsed.maxCreditsPerDay)
-            ? Math.max(0, Math.min(1_000, Math.round(parsed.maxCreditsPerDay)))
+            ? Math.max(0, Math.min(1000, Math.round(parsed.maxCreditsPerDay)))
             : defaultParentalSettings.maxCreditsPerDay,
         sessionUnlockedUntil:
           typeof parsed.sessionUnlockedUntil === "number"
@@ -1186,13 +1218,25 @@ export default function SettingsPage() {
   useEffect(() => {
     const enabled = window.localStorage.getItem("mai-reasoning-enabled");
     const level = window.localStorage.getItem("mai-reasoning-level");
-    setReasoningPreference(resolveReasoningPreferenceFromStorage(enabled, level));
+    setReasoningPreference(
+      resolveReasoningPreferenceFromStorage(enabled, level)
+    );
     setIsReasoningPreferenceHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const dismissed = window.localStorage.getItem("mai.pwa.install.dismissed");
+    if (dismissed === "1") {
+      setShowPwaInstallCard(false);
+    }
   }, []);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      window.localStorage.removeItem("mai.pwa.install.dismissed");
+      setShowPwaInstallCard(true);
       setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -1665,20 +1709,28 @@ export default function SettingsPage() {
         used: fileUsageToday,
       },
       {
-        key: "tasks",
-        limit: currentPlanDefinition.limits.taskSchedules,
-        period: "month",
-        title: "Tâches",
-        used: tasks.length,
+        key: "images",
+        limit: currentPlanDefinition.limits.studioImagesPerDay,
+        period: "day",
+        title: "Images",
+        used: studioUsageToday,
+      },
+      {
+        key: "wave",
+        limit: currentPlanDefinition.limits.musicGenerationsPerWeek,
+        period: "week",
+        title: "Musiques (Wave)",
+        used: waveUsageWeek,
       },
     ];
   }, [
     currentPlanDefinition,
     fileUsageToday,
+    studioUsageToday,
     isAuthenticated,
     isHydrated,
     plan,
-    tasks.length,
+    waveUsageWeek,
     tierUsage.tier1,
     tierUsage.tier2,
     tierUsage.tier3,
@@ -1686,7 +1738,11 @@ export default function SettingsPage() {
 
   const settingsSections = [
     { href: "#compte", key: "compte", label: uiLabels.account },
-    { href: "#notifications", key: "notifications", label: uiLabels.notifications },
+    {
+      href: "#notifications",
+      key: "notifications",
+      label: uiLabels.notifications,
+    },
     {
       href: "#personnalisation",
       key: "personnalisation",
@@ -1695,7 +1751,6 @@ export default function SettingsPage() {
     { href: "#parental", key: "parental", label: uiLabels.parental },
     { href: "#donnees", key: "donnees", label: uiLabels.data },
     { href: "#credits", key: "credits", label: uiLabels.credits },
-    { href: "#taches", key: "taches", label: uiLabels.tasks },
     { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
   const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
@@ -1791,7 +1846,6 @@ export default function SettingsPage() {
       type: "success",
     });
   };
-
 
   const handleSaveSecurityPin = () => {
     const currentPin = currentSecurityPinDraft.trim();
@@ -1929,7 +1983,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
             {isHydrated
-              ? `${getTierRemaining("tier1", plan, isAuthenticated).limit} Tier 1/j • ${getTierRemaining("tier2", plan, isAuthenticated).limit} Tier 2/j • ${getTierRemaining("tier3", plan, isAuthenticated).limit} Tier 3/j • Quiz illimités`
+              ? `${getTierRemaining("tier1", plan, isAuthenticated).limit} Tier 1/j • ${getTierRemaining("tier2", plan, isAuthenticated).limit} Tier 2/j • ${getTierRemaining("tier3", plan, isAuthenticated).limit} Tier 3/j`
               : "Chargement du forfait..."}
           </p>
 
@@ -1948,34 +2002,38 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
-          <p className="text-sm font-medium">Installation PWA</p>
-          <p className="mt-1 text-xs text-black/70">
-            Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              disabled={!deferredPwaPrompt}
-              onClick={handleInstallPwa}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Download className="mr-2 size-4" />
-              Installer mAI en PWA
-            </Button>
-            {deferredPwaPrompt ? (
+        {showPwaInstallCard ? (
+          <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
+            <p className="text-sm font-medium">Installation PWA</p>
+            <p className="mt-1 text-xs text-black/70">
+              Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
+            </p>
+            <div className="mt-3 flex gap-2">
               <Button
-                onClick={() => setDeferredPwaPrompt(null)}
+                disabled={!deferredPwaPrompt}
+                onClick={handleInstallPwa}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Download className="mr-2 size-4" />
+                Installer mAI en PWA
+              </Button>
+              <Button
+                onClick={() => {
+                  setDeferredPwaPrompt(null);
+                  setShowPwaInstallCard(false);
+                  window.localStorage.setItem("mai.pwa.install.dismissed", "1");
+                }}
                 size="sm"
                 type="button"
                 variant="ghost"
               >
                 Fermer
               </Button>
-            ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
           <div className="flex flex-col items-center gap-2">
@@ -2072,9 +2130,35 @@ export default function SettingsPage() {
               onClick={() => handleWordCounterVisibility(false)}
               size="sm"
               type="button"
-              variant={!showWordCounter ? "default" : "outline"}
+              variant={showWordCounter ? "outline" : "default"}
             >
               Masquer
+            </Button>
+          </div>
+        </div>
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="text-sm font-medium">Vibrations</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Active un retour haptique sur mobile (début/fin de réponse IA et
+            interactions).
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              onClick={() => setVibrationsEnabled(true)}
+              size="sm"
+              type="button"
+              variant={vibrationsEnabled ? "default" : "outline"}
+            >
+              Activer
+            </Button>
+            <Button
+              onClick={() => setVibrationsEnabled(false)}
+              size="sm"
+              type="button"
+              variant={vibrationsEnabled ? "outline" : "default"}
+            >
+              Désactiver
             </Button>
           </div>
         </div>
@@ -2301,6 +2385,7 @@ export default function SettingsPage() {
           Définissez la hauteur par défaut de la barre de saisie. Le mode
           compact est désormais recommandé pour une interface plus dense.
         </p>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           {[
             { label: "Compacte", value: "compact" as const },
@@ -2417,14 +2502,16 @@ export default function SettingsPage() {
                     ...prev,
                     maxCreditsPerDay: Math.max(
                       0,
-                      Math.min(1_000, Number(event.target.value) || 0)
+                      Math.min(1000, Number(event.target.value) || 0)
                     ),
                   }))
                 }
                 type="number"
                 value={parentalSettings.maxCreditsPerDay}
               />
-              <span className="text-xs text-muted-foreground">crédits/jour</span>
+              <span className="text-xs text-muted-foreground">
+                crédits/jour
+              </span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Consommation observée : {totalCreditsUsedToday}
@@ -2675,6 +2762,28 @@ export default function SettingsPage() {
             sont temporairement bloquées.
           </p>
         )}
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background/60 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              checked={improveMaiForAll}
+              className="mt-1"
+              onChange={(event) => setImproveMaiForAll(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-semibold">
+                Améliorer mAI pour tous
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Autorisez l&apos;utilisation de votre contenu pour entraîner les
+                modèles et améliorer les performances d&apos;mAI pour vous et
+                tous ceux qui l&apos;utilisent.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           <Button
             className="justify-start"
@@ -2720,7 +2829,8 @@ export default function SettingsPage() {
             Sécurité de session
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Protégez votre session sans vous reconnecter : vérification au chargement, PIN de reprise et déconnexion régulière.
+            Protégez votre session sans vous reconnecter : vérification au
+            chargement, PIN de reprise et déconnexion régulière.
           </p>
 
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -2774,7 +2884,9 @@ export default function SettingsPage() {
               inputMode="numeric"
               maxLength={8}
               onChange={(event) =>
-                setSecurityPinDraft(event.target.value.replace(/\D+/g, "").slice(0, 8))
+                setSecurityPinDraft(
+                  event.target.value.replace(/\D+/g, "").slice(0, 8)
+                )
               }
               placeholder="Nouveau PIN (4-8)"
               type="password"
@@ -2784,13 +2896,19 @@ export default function SettingsPage() {
               inputMode="numeric"
               maxLength={8}
               onChange={(event) =>
-                setSecurityPinConfirmDraft(event.target.value.replace(/\D+/g, "").slice(0, 8))
+                setSecurityPinConfirmDraft(
+                  event.target.value.replace(/\D+/g, "").slice(0, 8)
+                )
               }
               placeholder="Confirmer PIN"
               type="password"
               value={securityPinConfirmDraft}
             />
-            <Button onClick={handleSaveSecurityPin} type="button" variant="outline">
+            <Button
+              onClick={handleSaveSecurityPin}
+              type="button"
+              variant="outline"
+            >
               Enregistrer PIN
             </Button>
           </div>
@@ -2814,7 +2932,11 @@ export default function SettingsPage() {
                 value={securitySettings.autoLogoutMinutes}
               />
             </label>
-            <Button onClick={handleDisableSecurityPin} type="button" variant="ghost">
+            <Button
+              onClick={handleDisableSecurityPin}
+              type="button"
+              variant="ghost"
+            >
               Désactiver PIN
             </Button>
           </div>
@@ -2834,7 +2956,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
-          <h3 className="text-sm font-semibold">Compteur de tokens (hors chat fantôme)</h3>
+          <h3 className="text-sm font-semibold">
+            Compteur de tokens (hors chat fantôme)
+          </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Compte cumulatif de tous les échanges non fantômes (entrée/sortie).
           </p>
@@ -2854,7 +2978,9 @@ export default function SettingsPage() {
             <div className="rounded-lg border border-border/50 bg-card/70 p-3">
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-lg font-semibold tabular-nums">
-                {(tokenUsage.inputTokens + tokenUsage.outputTokens).toLocaleString("fr-FR")}
+                {(
+                  tokenUsage.inputTokens + tokenUsage.outputTokens
+                ).toLocaleString("fr-FR")}
               </p>
             </div>
           </div>
@@ -3111,7 +3237,7 @@ export default function SettingsPage() {
       <section
         className={cn(
           "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("taches")
+          "hidden"
         )}
         id="taches"
       >
@@ -3226,7 +3352,9 @@ export default function SettingsPage() {
                     Statut : {task.isEnabled ? "Actif" : "En pause"}
                   </p>
                   {task.notes ? (
-                    <p className="text-xs text-muted-foreground">{task.notes}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {task.notes}
+                    </p>
                   ) : null}
                   {task.lastRunAt ? (
                     <p className="text-xs text-muted-foreground">

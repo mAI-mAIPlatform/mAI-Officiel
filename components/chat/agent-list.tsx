@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AgentForm, AgentDTO } from "./agent-form";
+import { type AgentDTO, AgentForm } from "./agent-form";
 
 export function AgentListDialog({
   open,

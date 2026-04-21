@@ -1,11 +1,19 @@
 "use client";
 
-import { Bell, CheckCheck, Circle, Copy, Pin, PinOff, Trash2 } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  Circle,
+  Copy,
+  Pin,
+  PinOff,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  type AppNotification,
   clearNotifications,
   deleteNotification,
-  type AppNotification,
   getNotificationHistory,
   markAllNotificationsRead,
   markNotificationRead,
@@ -17,9 +25,15 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 function levelBadge(level: AppNotification["level"]) {
-  if (level === "error") return "bg-rose-500/15 text-rose-700";
-  if (level === "warning") return "bg-amber-500/15 text-amber-700";
-  if (level === "success") return "bg-emerald-500/15 text-emerald-700";
+  if (level === "error") {
+    return "bg-rose-500/15 text-rose-700";
+  }
+  if (level === "warning") {
+    return "bg-amber-500/15 text-amber-700";
+  }
+  if (level === "success") {
+    return "bg-emerald-500/15 text-emerald-700";
+  }
   return "bg-sky-500/15 text-sky-700";
 }
 
@@ -36,11 +50,16 @@ export function NotificationCenter() {
 
   const sortedItems = useMemo(
     () =>
-      [...items].sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))),
+      [...items].sort(
+        (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+      ),
     [items]
   );
 
-  const unreadCount = useMemo(() => items.filter((item) => !item.read).length, [items]);
+  const unreadCount = useMemo(
+    () => items.filter((item) => !item.read).length,
+    [items]
+  );
 
   return (
     <div className="liquid-panel mx-2 mt-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/20 p-2 group-data-[collapsible=icon]:hidden">
@@ -88,7 +107,12 @@ export function NotificationCenter() {
                   : "border-sidebar-border/70 bg-sidebar/50"
               )}
               key={item.id}
-              onClick={() => setActiveItem(item)}
+              onClick={() => {
+                setActiveItem(item);
+                if (!item.read) {
+                  markNotificationRead(item.id, true);
+                }
+              }}
               type="button"
             >
               <p className="flex items-center gap-1 text-[11px] font-medium text-sidebar-foreground">
@@ -107,7 +131,10 @@ export function NotificationCenter() {
         )}
       </div>
 
-      <Dialog onOpenChange={(open) => !open && setActiveItem(null)} open={Boolean(activeItem)}>
+      <Dialog
+        onOpenChange={(open) => !open && setActiveItem(null)}
+        open={Boolean(activeItem)}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{activeItem?.title}</DialogTitle>
@@ -116,7 +143,9 @@ export function NotificationCenter() {
           <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={() => {
-                if (!activeItem) return;
+                if (!activeItem) {
+                  return;
+                }
                 navigator.clipboard.writeText(activeItem.message);
               }}
               size="sm"
@@ -127,7 +156,9 @@ export function NotificationCenter() {
             </Button>
             <Button
               onClick={() => {
-                if (!activeItem) return;
+                if (!activeItem) {
+                  return;
+                }
                 markNotificationRead(activeItem.id, !activeItem.read);
               }}
               size="sm"
@@ -139,7 +170,9 @@ export function NotificationCenter() {
             </Button>
             <Button
               onClick={() => {
-                if (!activeItem) return;
+                if (!activeItem) {
+                  return;
+                }
                 pinNotification(activeItem.id, !activeItem.pinned);
               }}
               size="sm"
@@ -147,14 +180,20 @@ export function NotificationCenter() {
               variant="outline"
             >
               {activeItem?.pinned ? (
-                <><PinOff className="mr-1 size-4" /> Désépingler</>
+                <>
+                  <PinOff className="mr-1 size-4" /> Désépingler
+                </>
               ) : (
-                <><Pin className="mr-1 size-4" /> Épingler</>
+                <>
+                  <Pin className="mr-1 size-4" /> Épingler
+                </>
               )}
             </Button>
             <Button
               onClick={() => {
-                if (!activeItem) return;
+                if (!activeItem) {
+                  return;
+                }
                 deleteNotification(activeItem.id);
                 setActiveItem(null);
               }}

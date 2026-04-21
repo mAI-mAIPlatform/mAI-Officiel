@@ -3,7 +3,11 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { motion } from "framer-motion";
 import { memo, useEffect, useState } from "react";
-import { pickRandomSuggestions, suggestionPool } from "@/lib/suggestion-pool";
+import { useLanguage } from "@/hooks/use-language";
+import {
+  getDefaultSuggestions,
+  pickRandomSuggestions,
+} from "@/lib/suggestion-pool";
 import type { ChatMessage } from "@/lib/types";
 import { Suggestion } from "../ai-elements/suggestion";
 import type { VisibilityType } from "./visibility-selector";
@@ -15,17 +19,18 @@ type SuggestedActionsProps = {
 };
 
 function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
+  const { language } = useLanguage();
   const [suggestedActions, setSuggestedActions] = useState<string[]>(() =>
-    suggestionPool.slice(0, 4)
+    getDefaultSuggestions(4, language)
   );
 
   useEffect(() => {
-    setSuggestedActions(pickRandomSuggestions(4));
-  }, []);
+    setSuggestedActions(pickRandomSuggestions(4, language));
+  }, [language]);
 
   return (
     <div
-      className="flex w-full gap-2.5 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible"
+      className="flex w-full gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible"
       data-testid="suggested-actions"
       style={{
         scrollbarWidth: "none",
@@ -36,7 +41,7 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
       {suggestedActions.map((suggestedAction, index) => (
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="min-w-[200px] shrink-0 sm:min-w-0 sm:shrink"
+          className="min-w-fit shrink-0"
           exit={{ opacity: 0, y: 16 }}
           initial={{ opacity: 0, y: 16 }}
           key={suggestedAction}
@@ -47,7 +52,7 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
           }}
         >
           <Suggestion
-            className="liquid-glass h-auto w-full whitespace-nowrap rounded-xl px-4 py-3 text-left text-[12px] leading-relaxed text-muted-foreground transition-all duration-200 sm:whitespace-normal sm:p-4 sm:text-[13px] hover:-translate-y-0.5 hover:text-foreground hover:shadow-[var(--shadow-card)]"
+            className="liquid-glass h-auto w-full whitespace-nowrap rounded-full px-3 py-1.5 text-left text-[11px] leading-snug text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground hover:shadow-[var(--shadow-card)]"
             onClick={(suggestion) => {
               window.history.pushState(
                 {},

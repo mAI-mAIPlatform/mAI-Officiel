@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { test, afterEach } from "node:test";
+import { afterEach, test } from "node:test";
 import { readJsonStorage } from "@/lib/chat-preferences";
 
 afterEach(() => {
   // Clean up global window object after each test if it exists
   if (global.window !== undefined) {
-    // @ts-ignore
+    // @ts-expect-error
     delete global.window;
   }
 });
@@ -24,10 +24,10 @@ test("readJsonStorage - window is defined but item is null", () => {
   Object.defineProperty(global, "window", {
     value: {
       localStorage: {
-        getItem: mockGetItem
-      }
+        getItem: mockGetItem,
+      },
     },
-    configurable: true
+    configurable: true,
   });
 
   const fallback = { test: "fallback" };
@@ -42,10 +42,10 @@ test("readJsonStorage - window is defined and item is valid JSON", () => {
   Object.defineProperty(global, "window", {
     value: {
       localStorage: {
-        getItem: mockGetItem
-      }
+        getItem: mockGetItem,
+      },
     },
-    configurable: true
+    configurable: true,
   });
 
   const fallback = { value: "fallback" };
@@ -59,10 +59,10 @@ test("readJsonStorage - window is defined and item is invalid JSON", () => {
   Object.defineProperty(global, "window", {
     value: {
       localStorage: {
-        getItem: mockGetItem
-      }
+        getItem: mockGetItem,
+      },
     },
-    configurable: true
+    configurable: true,
   });
 
   const fallback = { test: "fallback" };
@@ -78,10 +78,10 @@ test("readJsonStorage - window is defined but localStorage.getItem throws", () =
   Object.defineProperty(global, "window", {
     value: {
       localStorage: {
-        getItem: mockGetItem
-      }
+        getItem: mockGetItem,
+      },
     },
-    configurable: true
+    configurable: true,
   });
 
   const fallback = { test: "fallback" };

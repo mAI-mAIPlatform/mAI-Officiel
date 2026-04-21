@@ -4,7 +4,8 @@ export const titleModel = {
   id: "openai/gpt-5.4",
   name: "GPT-5.4",
   provider: "openai",
-  description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
+  description:
+    "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
   gatewayOrder: ["openai"],
 };
 
@@ -31,7 +32,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4",
     name: "GPT-5.4",
     provider: "openai",
-    description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
+    description:
+      "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
     reasoningEffort: "high",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -39,7 +41,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4-mini",
     name: "GPT-5.4 Mini",
     provider: "openai",
-    description: "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
+    description:
+      "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -65,7 +68,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.1",
     name: "GPT-5.1",
     provider: "openai",
-    description: "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
+    description:
+      "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -73,7 +77,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5",
     name: "GPT-5",
     provider: "openai",
-    description: "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
+    description:
+      "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -113,6 +118,172 @@ export const chatModels: ChatModel[] = [
       "Modèle de grande capacité développé par Mistral et déployé sur l'infrastructure Azure OpenAI, destiné aux interactions conversationnelles complexes et aux tâches d'analyse approfondie.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
+  },
+  {
+    id: "azure/kimi-k2.6",
+    name: "Kimi K2.6",
+    provider: "azure",
+    description:
+      "Nouvelle itération Kimi optimisée pour le raisonnement multi-étapes et les flux conversationnels complexes.",
+    capabilities: { tools: true, vision: true, reasoning: true },
+  },
+
+  // ── AI Horde (Text) ───────────────────────────────────────────────────
+  {
+    id: "horde/Cydonia-24B-v4.3",
+    name: "Cydonia-24B-v4.3",
+    provider: "horde",
+    description: "Modèle texte AI Horde orienté génération générale.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Skyfall-31B-v4.1",
+    name: "Skyfall-31B-v4.1",
+    provider: "horde",
+    description: "Modèle texte AI Horde 31B orienté dialogue.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Gemma-4-31B-it",
+    name: "Gemma-4-31B-it",
+    provider: "horde",
+    description: "Modèle texte AI Horde Gemma instruction-tuned.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Behemoth-R1-123B-v2-w4a16",
+    name: "Behemoth-R1-123B-v2-w4a16",
+    provider: "horde",
+    description: "Modèle texte AI Horde très grande capacité.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Ministral-3-8B-Instruct-2512",
+    name: "Ministral-3-8B-Instruct-2512",
+    provider: "horde",
+    description: "Modèle texte AI Horde compact et rapide.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Rocinante-XL-16B-v1a-Q4_K_M",
+    name: "Rocinante-XL-16B-v1a-Q4_K_M",
+    provider: "horde",
+    description: "Modèle texte AI Horde orienté performances équilibrées.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/L3-8B-Stheno-v3.2",
+    name: "L3-8B-Stheno-v3.2",
+    provider: "horde",
+    description: "Modèle texte AI Horde 8B à faible latence.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/mini-magnum-12b-v1.1",
+    name: "mini-magnum-12b-v1.1",
+    provider: "horde",
+    description: "Modèle texte AI Horde mid-size orienté chat.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/MN-12B-Mag-Mell-R1.Q5_K_M",
+    name: "MN-12B-Mag-Mell-R1.Q5_K_M",
+    provider: "horde",
+    description: "Modèle texte AI Horde spécialisé rôleplay/raisonnement.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Artemis-31B-v1b-Q4_K_M",
+    name: "Artemis-31B-v1b-Q4_K_M",
+    provider: "horde",
+    description: "Modèle texte AI Horde 31B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/pygmalion-2-7b.Q4_K_M",
+    name: "pygmalion-2-7b.Q4_K_M",
+    provider: "horde",
+    description: "Modèle texte AI Horde 7B conversationnel.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/L3-Super-Nova-RP-8B",
+    name: "L3-Super-Nova-RP-8B",
+    provider: "horde",
+    description: "Modèle texte AI Horde RP 8B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/WizzGPTv8",
+    name: "WizzGPTv8",
+    provider: "horde",
+    description: "Modèle texte AI Horde polyvalent.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Qwen_Qwen3-0.6B-IQ4_XS",
+    name: "Qwen_Qwen3-0.6B-IQ4_XS",
+    provider: "horde",
+    description: "Modèle texte AI Horde Qwen compact.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/LFM2.5-1.2B-Instruct",
+    name: "LFM2.5-1.2B-Instruct",
+    provider: "horde",
+    description: "Modèle texte AI Horde léger orienté instructions.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/HY-MT1.5-1.8B",
+    name: "HY-MT1.5-1.8B",
+    provider: "horde",
+    description: "Modèle texte AI Horde compact pour requêtes rapides.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "horde/Qwen3-30B-A3B-abliterated-erotic",
+    name: "Qwen3-30B-A3B-abliterated-erotic",
+    provider: "horde",
+    description: "Modèle texte AI Horde Qwen3 30B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+
+  // ── Ollama (Text local) ───────────────────────────────────────────────
+  {
+    id: "ollama/qwen3:14b",
+    name: "Qwen3:14b",
+    provider: "ollama",
+    description: "Modèle local Ollama Qwen3 14B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "ollama/llama3.1:8b",
+    name: "Llama3.1:8b",
+    provider: "ollama",
+    description: "Modèle local Ollama Llama 3.1 8B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "ollama/mixtral:8x7b",
+    name: "Mixtral:8x7b",
+    provider: "ollama",
+    description: "Modèle local Ollama Mixtral 8x7B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "ollama/deepseek-r1",
+    name: "DeepSeek-R1",
+    provider: "ollama",
+    description: "Modèle local Ollama DeepSeek-R1.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "ollama/gemma2:9b",
+    name: "Gemma2:9b",
+    provider: "ollama",
+    description: "Modèle local Ollama Gemma2 9B.",
+    capabilities: { tools: true, vision: false, reasoning: true },
   },
 
   // ── Anthropic / Claude ────────────────────────────────────────────────
@@ -161,6 +332,70 @@ export const chatModels: ChatModel[] = [
     reasoningEffort: "low",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
+  // ── OpenRouter ─────────────────────────────────────────────────────────
+  {
+    id: "openrouter/qwen/qwen3.6-plus:free",
+    name: "Qwen 3.6 Plus",
+    provider: "openrouter",
+    description: "Qwen 3.6 Plus via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/qwen/qwen3.6-plus-preview:free",
+    name: "Qwen 3.6 Plus Preview",
+    provider: "openrouter",
+    description: "Qwen 3.6 Plus Preview via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/qwen/qwen3-coder:free",
+    name: "Qwen 3 Coder",
+    provider: "openrouter",
+    description: "Qwen 3 Coder via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/qwen/qwen3-next-80b-a3b-instruct:free",
+    name: "Qwen 3 Next",
+    provider: "openrouter",
+    description: "Qwen 3 Next 80B A3B Instruct via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+    name: "Llama 3.3 70b",
+    provider: "openrouter",
+    description: "Llama 3.3 70B Instruct via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/nvidia/nemotron-3-super-120b:free",
+    name: "Nemotron 3 Super 120b",
+    provider: "openrouter",
+    description: "Nemotron 3 Super 120B via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/mistralai/mistral-large",
+    name: "Mistral Large",
+    provider: "openrouter",
+    description: "Mistral Large via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/anthropic/claude-3-haiku",
+    name: "Claude 3 Haiku",
+    provider: "openrouter",
+    description: "Claude 3 Haiku via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
+  {
+    id: "openrouter/openai/gpt-oss-20b",
+    name: "GPT-OSS-20b",
+    provider: "openrouter",
+    description: "GPT-OSS-20b via OpenRouter.",
+    capabilities: { tools: true, vision: false, reasoning: true },
+  },
 ];
 
 export const embeddingModels = [
@@ -193,24 +428,20 @@ function buildLocalCapabilities(): Record<string, ModelCapabilities> {
         tools: m.capabilities?.tools ?? true,
         vision:
           m.capabilities?.vision ??
-          (
-          m.id.includes("vision") ||
-          m.id.includes("flash") ||
-          m.id.includes("4o") ||
-          m.id.includes("gpt-5") ||
-          m.id.includes("gemini") ||
-          m.id.includes("claude-opus") ||
-          m.id.includes("claude-sonnet")
-          ),
+          (m.id.includes("vision") ||
+            m.id.includes("flash") ||
+            m.id.includes("4o") ||
+            m.id.includes("gpt-5") ||
+            m.id.includes("gemini") ||
+            m.id.includes("claude-opus") ||
+            m.id.includes("claude-sonnet")),
         reasoning:
           m.capabilities?.reasoning ??
-          (
-          m.id.includes("oss") ||
-          m.id.includes("reasoning") ||
-          m.id.includes("r1") ||
-          m.id.includes("gpt-5") ||
-          m.id.includes("claude-opus")
-          ),
+          (m.id.includes("oss") ||
+            m.id.includes("reasoning") ||
+            m.id.includes("r1") ||
+            m.id.includes("gpt-5") ||
+            m.id.includes("claude-opus")),
       },
     ])
   );

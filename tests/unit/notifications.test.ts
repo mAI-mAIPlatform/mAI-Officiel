@@ -8,11 +8,14 @@ test("interpolateTemplate - basic variable replacement", () => {
 });
 
 test("interpolateTemplate - multiple variables", () => {
-  const result = interpolateTemplate("{{greeting}}, {{name}}! Welcome to {{place}}.", {
-    greeting: "Hello",
-    name: "Alice",
-    place: "Wonderland"
-  });
+  const result = interpolateTemplate(
+    "{{greeting}}, {{name}}! Welcome to {{place}}.",
+    {
+      greeting: "Hello",
+      name: "Alice",
+      place: "Wonderland",
+    }
+  );
   assert.equal(result, "Hello, Alice! Welcome to Wonderland.");
 });
 
@@ -23,7 +26,7 @@ test("interpolateTemplate - various data types", () => {
       num: 42,
       boolTrue: true,
       boolFalse: false,
-      zero: 0
+      zero: 0,
     }
   );
   assert.equal(result, "Num: 42, BoolTrue: true, BoolFalse: false, Zero: 0");
@@ -34,7 +37,7 @@ test("interpolateTemplate - null, undefined, and missing variables", () => {
     "Null: [{{nullVal}}], Undef: [{{undefVal}}], Missing: [{{missing}}]",
     {
       nullVal: null,
-      undefVal: undefined
+      undefVal: undefined,
       // missing is not defined
     }
   );
@@ -47,7 +50,7 @@ test("interpolateTemplate - whitespace tolerance", () => {
     {
       tight: "a",
       loose: "b",
-      newline: "c"
+      newline: "c",
     }
   );
   assert.equal(result, "a b c");
@@ -58,7 +61,7 @@ test("interpolateTemplate - keys with dots and dashes", () => {
     "User: {{user.first-name}} {{user.last_name}}",
     {
       "user.first-name": "John",
-      "user.last_name": "Doe" // Though the regex allows \w (letters, digits, underscores), dots, and dashes.
+      "user.last_name": "Doe", // Though the regex allows \w (letters, digits, underscores), dots, and dashes.
     }
   );
   assert.equal(result, "User: John Doe");
@@ -75,19 +78,21 @@ test("interpolateTemplate - template without variables", () => {
 });
 
 test("interpolateTemplate - identical variables multiple times", () => {
-  const result = interpolateTemplate("{{val}} + {{val}} = {{sum}}", { val: 2, sum: 4 });
+  const result = interpolateTemplate("{{val}} + {{val}} = {{sum}}", {
+    val: 2,
+    sum: 4,
+  });
   assert.equal(result, "2 + 2 = 4");
 });
 
-
 import {
-  getNotificationHistory,
-  createNotification,
-  createAiResponseNotification,
-  markNotificationRead,
-  markAllNotificationsRead,
   clearNotifications,
-  subscribeNotifications
+  createAiResponseNotification,
+  createNotification,
+  getNotificationHistory,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications,
 } from "@/lib/notifications";
 
 // --- Mocking the Browser Environment ---
@@ -105,12 +110,16 @@ function setupWindow() {
   (global as any).window = {
     localStorage: {
       getItem: (key: string) => mockStorage[key] || null,
-      setItem: (key: string, value: string) => { mockStorage[key] = value; },
-      clear: () => { mockStorage = {}; }
+      setItem: (key: string, value: string) => {
+        mockStorage[key] = value;
+      },
+      clear: () => {
+        mockStorage = {};
+      },
     },
     dispatchEvent: (event: CustomEvent) => {
       eventDispatchCount++;
-      mockEvents.forEach(e => {
+      mockEvents.forEach((e) => {
         if (e.type === event.type) {
           e.callback(event);
         }
@@ -121,8 +130,10 @@ function setupWindow() {
       mockEvents.push({ type, callback });
     },
     removeEventListener: (type: string, callback: EventListener) => {
-      mockEvents = mockEvents.filter(e => !(e.type === type && e.callback === callback));
-    }
+      mockEvents = mockEvents.filter(
+        (e) => !(e.type === type && e.callback === callback)
+      );
+    },
   };
 
   // Also need to mock CustomEvent for dispatchEvent
@@ -169,7 +180,9 @@ test("getNotificationHistory - returns empty array on invalid JSON", () => {
 
 test("getNotificationHistory - returns empty array if JSON is not an array", () => {
   setupWindow();
-  mockStorage["mai.notifications.history.v1"] = JSON.stringify({ not: "an array" });
+  mockStorage["mai.notifications.history.v1"] = JSON.stringify({
+    not: "an array",
+  });
   const history = getNotificationHistory();
   assert.deepEqual(history, []);
 });
@@ -181,7 +194,7 @@ test("getNotificationHistory - returns valid parsed notifications, filtering inv
     null,
     validItem,
     "string",
-    { id: "2", title: "Test 2", level: "warning" }
+    { id: "2", title: "Test 2", level: "warning" },
   ];
 
   // Add enough to test the slice
@@ -207,7 +220,7 @@ test("createNotification - creates and saves notification, dispatches event", ()
     message: "Operation successful {{value}}",
     title: "Success",
     variables: { value: 123 },
-    metadata: { chatId: "chat-1" }
+    metadata: { chatId: "chat-1" },
   });
 
   const history = getNotificationHistory();
@@ -229,7 +242,7 @@ test("createNotification - uses default title by level if not provided", () => {
 
   createNotification({
     level: "warning",
-    message: "Be careful"
+    message: "Be careful",
   });
 
   const history = getNotificationHistory();
@@ -242,13 +255,16 @@ test("createAiResponseNotification - started phase", () => {
   createAiResponseNotification({
     phase: "started",
     chatId: "chat-1",
-    conversationTitle: "My Chat"
+    conversationTitle: "My Chat",
   });
 
   const history = getNotificationHistory();
   assert.equal(history[0].level, "info");
   assert.equal(history[0].title, "Réponse IA en cours");
-  assert.equal(history[0].message, "La conversation « My Chat » est en cours de génération.");
+  assert.equal(
+    history[0].message,
+    "La conversation « My Chat » est en cours de génération."
+  );
   assert.equal(history[0].metadata?.chatId, "chat-1");
   assert.equal(history[0].metadata?.phase, "started");
 });
@@ -259,7 +275,7 @@ test("createAiResponseNotification - completed phase", () => {
   createAiResponseNotification({
     phase: "completed",
     chatId: "chat-1",
-    preview: "Here is your response"
+    preview: "Here is your response",
   });
 
   const history = getNotificationHistory();
@@ -272,13 +288,16 @@ test("createAiResponseNotification - error phase", () => {
 
   createAiResponseNotification({
     phase: "error",
-    chatId: "chat-1"
+    chatId: "chat-1",
   });
 
   const history = getNotificationHistory();
   assert.equal(history[0].level, "error");
   // Testing fallback behavior for missing conversation title
-  assert.equal(history[0].message, "Une erreur est survenue sur la conversation « Sans titre ».");
+  assert.equal(
+    history[0].message,
+    "Une erreur est survenue sur la conversation « Sans titre »."
+  );
 });
 
 test("markNotificationRead - updates specific notification read status", () => {
@@ -299,8 +318,8 @@ test("markNotificationRead - updates specific notification read status", () => {
   markNotificationRead(idToMark, true);
 
   const historyAfter = getNotificationHistory();
-  assert.equal(historyAfter.find(n => n.id === idToMark)?.read, true);
-  assert.equal(historyAfter.find(n => n.id === otherId)?.read, false);
+  assert.equal(historyAfter.find((n) => n.id === idToMark)?.read, true);
+  assert.equal(historyAfter.find((n) => n.id === otherId)?.read, false);
 
   assert.equal(eventDispatchCount, initialEventCount + 1);
 });
@@ -334,7 +353,9 @@ test("subscribeNotifications - adds and removes event listener", () => {
   setupWindow();
 
   let callbackCount = 0;
-  const callback = () => { callbackCount++; };
+  const callback = () => {
+    callbackCount++;
+  };
 
   const unsubscribe = subscribeNotifications(callback);
 
@@ -355,7 +376,9 @@ test("subscribeNotifications - handles missing window gracefully", () => {
   teardownWindow();
 
   let callbackCount = 0;
-  const callback = () => { callbackCount++; };
+  const callback = () => {
+    callbackCount++;
+  };
 
   const unsubscribe = subscribeNotifications(callback);
 

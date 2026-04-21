@@ -30,7 +30,32 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
     return "deepseek";
   }
   if (id.includes("qwen") || name.includes("qwen")) {
-    return "alibaba";
+    return "qwen";
+  }
+  if (provider === "horde") {
+    if (id.includes("claude")) {
+      return "anthropic";
+    }
+    if (id.includes("gpt")) {
+      return "openai";
+    }
+    if (id.includes("mistral") || id.includes("ministral")) {
+      return "mistral";
+    }
+    if (id.includes("gemma")) {
+      return "google";
+    }
+    if (
+      id.includes("sdxl") ||
+      id.includes("stable") ||
+      id.includes("dreamshaper") ||
+      id.includes("juggernaut") ||
+      id.includes("anything") ||
+      id.includes("realistic")
+    ) {
+      return "stabilityai";
+    }
+    return "huggingface";
   }
   if (id.includes("grok") || model.provider === "xai") {
     return "xai";
@@ -70,7 +95,21 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "alibaba";
+      return "qwen";
+    }
+    if (
+      id.includes("mistral") ||
+      id.includes("mixtral") ||
+      name.includes("mistral") ||
+      name.includes("mixtral")
+    ) {
+      return "mistral";
+    }
+    if (id.includes("gemma") || name.includes("gemma")) {
+      return "google";
+    }
+    if (id.includes("llama") || name.includes("llama")) {
+      return "meta";
     }
     return "meta";
   }
@@ -80,7 +119,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "alibaba";
+      return "qwen";
     }
     if (id.includes("llama")) {
       return "meta";

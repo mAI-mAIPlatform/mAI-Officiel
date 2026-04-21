@@ -10,7 +10,8 @@ export function computeNextDueDate(
   }
 
   const next = new Date(dueDate);
-  const safeInterval = repeatInterval && repeatInterval > 0 ? repeatInterval : 1;
+  const safeInterval =
+    repeatInterval && repeatInterval > 0 ? repeatInterval : 1;
 
   if (repeatType === "daily") {
     next.setDate(next.getDate() + safeInterval);

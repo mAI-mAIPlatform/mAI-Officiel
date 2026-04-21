@@ -26,9 +26,9 @@ export function VoiceTopActions({
   const [isGhostModeEnabled, setIsGhostModeEnabled] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [activeNotificationId, setActiveNotificationId] = useState<string | null>(
-    null
-  );
+  const [activeNotificationId, setActiveNotificationId] = useState<
+    string | null
+  >(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -52,7 +52,9 @@ export function VoiceTopActions({
 
   useEffect(() => {
     setNotifications(getNotificationHistory());
-    return subscribeNotifications(() => setNotifications(getNotificationHistory()));
+    return subscribeNotifications(() =>
+      setNotifications(getNotificationHistory())
+    );
   }, []);
 
   useEffect(() => {
@@ -71,7 +73,9 @@ export function VoiceTopActions({
   );
   const activeNotification = useMemo(
     () =>
-      notifications.find((notification) => notification.id === activeNotificationId) ??
+      notifications.find(
+        (notification) => notification.id === activeNotificationId
+      ) ??
       notifications[0] ??
       null,
     [activeNotificationId, notifications]
@@ -149,7 +153,9 @@ export function VoiceTopActions({
                   onClick={() => setActiveNotificationId(item.id)}
                   type="button"
                 >
-                  <p className="line-clamp-1 text-[11px] font-medium">{item.title}</p>
+                  <p className="line-clamp-1 text-[11px] font-medium">
+                    {item.title}
+                  </p>
                   <p className="line-clamp-2 text-[11px] text-muted-foreground">
                     {item.message}
                   </p>
@@ -160,7 +166,9 @@ export function VoiceTopActions({
 
           {activeNotification && (
             <div className="mt-3 rounded-xl border border-border/60 bg-background/55 p-2">
-              <p className="text-[11px] font-medium">{activeNotification.title}</p>
+              <p className="text-[11px] font-medium">
+                {activeNotification.title}
+              </p>
               <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">
                 {activeNotification.message}
               </p>

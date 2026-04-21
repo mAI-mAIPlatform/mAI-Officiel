@@ -53,7 +53,9 @@ export function DocumentCanvas({
       const nextBlocks = current.map((block) =>
         block.id === id ? { ...block, text: nextText } : block
       );
-      const nextContent = nextBlocks.map((block) => block.text.trim()).join("\n\n");
+      const nextContent = nextBlocks
+        .map((block) => block.text.trim())
+        .join("\n\n");
       onSaveContent(nextContent, true);
       return nextBlocks;
     });
@@ -114,7 +116,9 @@ export function DocumentCanvas({
                     aria-label="Supprimer le bloc"
                     className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                     onClick={() => {
-                      const next = blocks.filter((item) => item.id !== block.id);
+                      const next = blocks.filter(
+                        (item) => item.id !== block.id
+                      );
                       setBlocks(next);
                       onSaveContent(
                         next.map((item) => item.text.trim()).join("\n\n"),

@@ -4,26 +4,28 @@ import { Ghost } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import { greetingPrompts } from "@/lib/constants";
-import { pickRandomSuggestions, suggestionPool } from "@/lib/suggestion-pool";
+import { getDefaultSuggestions, pickRandomSuggestions } from "@/lib/suggestion-pool";
 
 const GHOST_MODE_STORAGE_KEY = "mai.ghost-mode";
 const GHOST_MODE_UPDATED_EVENT = "mai:ghost-mode-updated";
 
 export function Preview() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
   const [isGhostModeEnabled, setIsGhostModeEnabled] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>(() =>
-    suggestionPool.slice(0, 4)
+    getDefaultSuggestions(4, language)
   );
 
   useEffect(() => {
     // Génération pseudo-aléatoire côté client uniquement (build-safe).
     const randomIndex = Math.floor(Math.random() * greetingPrompts.length);
     setGreetingText(greetingPrompts[randomIndex] ?? greetingPrompts[0]);
-    setSuggestions(pickRandomSuggestions(4));
-  }, []);
+    setSuggestions(pickRandomSuggestions(4, language));
+  }, [language]);
 
   useEffect(() => {
     const syncGhostState = () => {
@@ -85,7 +87,11 @@ export function Preview() {
             {greetingText}
           </h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Posez une question, écrivez du code, ou explorez des idées.
+            {language === "en"
+              ? "With mAI, take things to the next level!"
+              : language === "es"
+                ? "¡Con mAI, pasa al siguiente nivel!"
+                : "Avec mAI, passez à la vitesse supérieure !"}
           </p>
           {isGhostModeEnabled && (
             <>
@@ -93,16 +99,17 @@ export function Preview() {
                 ✅ Mode Fantôme activé.
               </p>
               <p className="mt-1 text-xs text-purple-300">
-                Le prochain message ne sera pas enregistré dans l&apos;historique.
+                Le prochain message ne sera pas enregistré dans
+                l&apos;historique.
               </p>
             </>
           )}
         </div>
 
-        <div className="grid w-full max-w-md grid-cols-2 gap-2">
+        <div className="flex w-full max-w-md flex-wrap justify-center gap-1.5">
           {suggestions.map((suggestion) => (
             <button
-              className="liquid-glass rounded-xl px-3 py-2.5 text-left text-[11px] leading-relaxed text-muted-foreground/70 transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground"
+              className="liquid-glass rounded-full px-3 py-1.5 text-left text-[10px] leading-snug text-muted-foreground/80 transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground"
               key={suggestion}
               onClick={() => handleAction(suggestion)}
               type="button"
@@ -119,7 +126,11 @@ export function Preview() {
           onClick={() => handleAction()}
           type="button"
         >
-          Écrivez votre message...
+          {language === "en"
+            ? "Write your message..."
+            : language === "es"
+              ? "Escribe tu mensaje..."
+              : "Écrivez votre message..."}
         </button>
       </div>
     </div>

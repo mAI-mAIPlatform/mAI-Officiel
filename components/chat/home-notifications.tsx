@@ -2,6 +2,8 @@
 
 import { Bell, CheckCheck, ChevronDown, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 import {
   type AppNotification,
   clearNotifications,
@@ -9,8 +11,6 @@ import {
   markAllNotificationsRead,
   subscribeNotifications,
 } from "@/lib/notifications";
-import { useLanguage } from "@/hooks/use-language";
-import { t } from "@/lib/i18n";
 import { Button } from "../ui/button";
 
 export function HomeNotifications() {
@@ -41,7 +41,10 @@ export function HomeNotifications() {
   );
 
   return (
-    <div className="fixed top-3 left-1/2 z-30 -translate-x-1/2" ref={containerRef}>
+    <div
+      className="fixed top-3 left-1/2 z-30 -translate-x-1/2"
+      ref={containerRef}
+    >
       <button
         aria-expanded={isOpen}
         aria-label={t("showNotifications", language)}

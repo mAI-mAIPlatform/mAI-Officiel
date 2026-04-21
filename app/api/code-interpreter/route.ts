@@ -21,7 +21,10 @@ type Runtime =
   | "cpp"
   | "go"
   | "ruby"
-  | "php";
+  | "php"
+  | "sql"
+  | "json"
+  | "markdown";
 
 type RuntimeFile = {
   contentBase64: string;
@@ -87,6 +90,30 @@ const runtimeConfigs: Record<Runtime, RuntimeConfig> = {
     command: "php",
     args: ["main.php"],
     entryFile: "main.php",
+  },
+  sql: {
+    command: "python3",
+    args: [
+      "-c",
+      "import sqlite3, pathlib; con=sqlite3.connect(':memory:'); cur=con.cursor(); sql=pathlib.Path('main.sql').read_text(encoding='utf-8'); stmts=[s.strip() for s in sql.split(';') if s.strip()]; last=[]; [cur.execute(stmt) or (last:=cur.fetchall() if cur.description else last) for stmt in stmts]; [print('\\t'.join(map(str,row))) for row in last]",
+    ],
+    entryFile: "main.sql",
+  },
+  json: {
+    command: "python3",
+    args: [
+      "-c",
+      "import json; data=json.load(open('main.json', encoding='utf-8')); print(json.dumps(data, indent=2, ensure_ascii=False))",
+    ],
+    entryFile: "main.json",
+  },
+  markdown: {
+    command: "bash",
+    args: [
+      "-lc",
+      "echo 'Markdown preview (first 120 lines):'; sed -n '1,120p' main.md",
+    ],
+    entryFile: "main.md",
   },
 };
 

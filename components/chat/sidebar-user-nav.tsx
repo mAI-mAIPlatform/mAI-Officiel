@@ -39,7 +39,9 @@ export function SidebarUserNav({ user }: { user: User }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
-  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(
+    null
+  );
   const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(
     null
   );

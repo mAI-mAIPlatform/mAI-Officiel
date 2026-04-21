@@ -1,6 +1,6 @@
-import type { AppLanguage } from "@/lib/i18n";
 import { MessageCircle } from "lucide-react";
 import Image from "next/image";
+import type { AppLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type AproposSectionProps = {
@@ -84,7 +84,13 @@ export function AproposSection({
           rel="noreferrer"
           target="_blank"
         >
-          <Image alt="Discord" className="size-5" height={20} src="/icons/discord.svg" width={20} />
+          <Image
+            alt="Discord"
+            className="size-5"
+            height={20}
+            src="/icons/discord.svg"
+            width={20}
+          />
           {t.talkDiscord}
         </a>
         <a
@@ -93,7 +99,13 @@ export function AproposSection({
           rel="noreferrer"
           target="_blank"
         >
-          <Image alt="Discord" className="size-5" height={20} src="/icons/discord.svg" width={20} />
+          <Image
+            alt="Discord"
+            className="size-5"
+            height={20}
+            src="/icons/discord.svg"
+            width={20}
+          />
           {t.joinDiscord}
         </a>
         <button

@@ -1,17 +1,20 @@
-const fs = require('fs');
-const file = 'components/chat/multimodal-input.tsx';
-let content = fs.readFileSync(file, 'utf-8');
+const fs = require("fs");
+const file = "components/chat/multimodal-input.tsx";
+let content = fs.readFileSync(file, "utf-8");
 
 // I made a mistake passing the props to ContextualActionsMenu vs PureContextualActionsMenu
 // and using them inside the render. Let's fix that properly.
 
-const menuTypeReplacementPoint = 'isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {';
-const newMenuType = 'isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {'; // already there, but let's make sure it's applied
+const menuTypeReplacementPoint =
+  "isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {";
+const newMenuType =
+  "isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {"; // already there, but let's make sure it's applied
 
 // Check where isGeolocationEnabled is used in PureContextualActionsMenu
 // It's in the button render, but maybe the parameters weren't updated correctly.
 
-const menuParamsPoint = 'isLearningEnabled,\n  isGeolocationEnabled,\n  setIsGeolocationEnabled,\n}: {\n  isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {';
+const menuParamsPoint =
+  "isLearningEnabled,\n  isGeolocationEnabled,\n  setIsGeolocationEnabled,\n}: {\n  isLearningEnabled: boolean;\n  isGeolocationEnabled?: boolean;\n  setIsGeolocationEnabled?: (v: boolean) => void;\n}) {";
 // Let's replace the whole function definition to be sure.
 const funcDefOld = `function PureContextualActionsMenu({
   isLearningEnabled,
@@ -50,5 +53,4 @@ const partialDef2 = `function PureContextualActionsMenu({
 }) {`;
 content = content.replace(partialDef2, funcDefNew);
 
-
-fs.writeFileSync(file, content, 'utf-8');
+fs.writeFileSync(file, content, "utf-8");

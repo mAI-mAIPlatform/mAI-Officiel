@@ -13,15 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-
 export interface AgentDTO {
-  id: string;
-  name: string;
-  description?: string | null;
-  instructions?: string | null;
-  model?: string | null;
   avatarUrl?: string | null;
   createdAt?: Date | string;
+  description?: string | null;
+  id: string;
+  instructions?: string | null;
+  model?: string | null;
+  name: string;
 }
 
 export function AgentForm({

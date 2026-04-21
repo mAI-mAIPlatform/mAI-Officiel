@@ -5,7 +5,6 @@ import {
   createTask,
   getProjectById,
   getSubtasksByTaskIds,
-  getSubtasksByTask,
   getTasksByProject,
 } from "@/lib/db/queries";
 
@@ -60,17 +59,22 @@ export async function GET(
   const taskIds = tasks.map((task) => task.id);
   const allSubtasks = await getSubtasksByTaskIds(taskIds);
 
-  const subtasksByTaskId = allSubtasks.reduce((acc, subtask) => {
-    if (!acc[subtask.taskId]) {
-      acc[subtask.taskId] = [];
-    }
-    acc[subtask.taskId].push(subtask);
-    return acc;
-  }, {} as Record<string, typeof allSubtasks>);
+  const subtasksByTaskId = allSubtasks.reduce(
+    (acc, subtask) => {
+      if (!acc[subtask.taskId]) {
+        acc[subtask.taskId] = [];
+      }
+      acc[subtask.taskId].push(subtask);
+      return acc;
+    },
+    {} as Record<string, typeof allSubtasks>
+  );
 
   const tasksWithSubtasks = tasks.map((task) => {
     const subtasks = subtasksByTaskId[task.id] || [];
-    const completedSubtasks = subtasks.filter((subtask) => subtask.status === "done").length;
+    const completedSubtasks = subtasks.filter(
+      (subtask) => subtask.status === "done"
+    ).length;
 
     return {
       ...task,
@@ -91,13 +95,19 @@ export async function GET(
   const sorted = [...tasksWithSubtasks];
 
   if (parsedQuery.data.sortBy === "priority") {
-    sorted.sort((a, b) => priorityValue[a.priority] - priorityValue[b.priority]);
+    sorted.sort(
+      (a, b) => priorityValue[a.priority] - priorityValue[b.priority]
+    );
   } else if (parsedQuery.data.sortBy === "status") {
     sorted.sort((a, b) => statusValue[a.status] - statusValue[b.status]);
   } else {
     sorted.sort((a, b) => {
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
+      if (!a.dueDate) {
+        return 1;
+      }
+      if (!b.dueDate) {
+        return -1;
+      }
       return a.dueDate.getTime() - b.dueDate.getTime();
     });
   }

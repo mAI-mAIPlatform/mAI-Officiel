@@ -77,7 +77,8 @@ export function ProductAnnouncements() {
               <p className="font-semibold">Quoi de neuf</p>
               <p className="text-sm text-muted-foreground">
                 Compteur mots/caractères, templates mAIs, snippets interpreter,
-                historique Speaky, bibliothèque améliorée, onboarding et support PWA.
+                historique Speaky, bibliothèque améliorée, onboarding et support
+                PWA.
               </p>
             </div>
             <button

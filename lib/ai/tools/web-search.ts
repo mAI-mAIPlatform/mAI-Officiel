@@ -18,12 +18,9 @@ const DEFAULT_ALLOWED_WEB_SEARCH_DOMAINS = [
   "vercel.com",
 ] as const;
 
-const allowedDomains = (
-  process.env.WEB_SEARCH_ALLOWED_DOMAINS
-    ?.split(",")
-    .map((domain) => domain.trim().toLowerCase())
-    .filter(Boolean) ?? [...DEFAULT_ALLOWED_WEB_SEARCH_DOMAINS]
-) as string[];
+const allowedDomains = (process.env.WEB_SEARCH_ALLOWED_DOMAINS?.split(",")
+  .map((domain) => domain.trim().toLowerCase())
+  .filter(Boolean) ?? [...DEFAULT_ALLOWED_WEB_SEARCH_DOMAINS]) as string[];
 
 function isAllowedDomain(url: string): boolean {
   try {
@@ -105,7 +102,10 @@ export const webSearch = tool({
       return {
         answer: data.answer ?? "",
         query: data.query ?? sanitizedQuery,
-        rejectedResultsCount: Math.max((data.results?.length ?? 0) - results.length, 0),
+        rejectedResultsCount: Math.max(
+          (data.results?.length ?? 0) - results.length,
+          0
+        ),
         results,
       };
     } catch (error) {

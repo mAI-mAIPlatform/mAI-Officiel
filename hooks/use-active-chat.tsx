@@ -19,13 +19,12 @@ import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
 import { useDataStream } from "@/components/chat/data-stream-provider";
 import { getChatHistoryPaginationKey } from "@/components/chat/sidebar-history";
-import { toast } from "@/components/chat/toast";
 import type { VisibilityType } from "@/components/chat/visibility-selector";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
-import { ChatbotError } from "@/lib/errors";
 import type { ChatMessage } from "@/lib/types";
+import { triggerHaptic } from "@/lib/haptics";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 
 type ActiveChatContextValue = {
@@ -193,14 +192,10 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     onError: (error) => {
       if (error.message?.includes("AI Gateway requires a valid credit card")) {
         setShowCreditCardAlert(true);
-      } else if (error instanceof ChatbotError) {
-        toast({ type: "error", description: error.message });
-      } else {
-        toast({
-          type: "error",
-          description: error.message || "Oops, an error occurred!",
-        });
+        return;
       }
+
+      console.warn("Chat error hidden from UI:", error);
     },
   });
 
@@ -278,6 +273,19 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   });
 
   const isReadonly = isNewChat ? false : (chatData?.isReadonly ?? false);
+
+
+
+  const previousStatusRef = useRef(status);
+  useEffect(() => {
+    if (previousStatusRef.current !== "streaming" && status === "streaming") {
+      triggerHaptic(25);
+    }
+    if (previousStatusRef.current === "streaming" && status === "ready") {
+      triggerHaptic([40, 60, 40]);
+    }
+    previousStatusRef.current = status;
+  }, [status]);
 
   const { data: votes } = useSWR<Vote[]>(
     !isReadonly && messages.length >= 2

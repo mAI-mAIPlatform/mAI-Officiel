@@ -62,7 +62,8 @@ export function NotificationsSection({
         <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-3">
           <p className="text-sm font-medium">Notifications appareil</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            mAI est installé en PWA. Activez les notifications système pour recevoir les réponses IA sur l&apos;appareil.
+            mAI est installé en PWA. Activez les notifications système pour
+            recevoir les réponses IA sur l&apos;appareil.
           </p>
           <button
             className="mt-3 rounded-lg border border-primary/40 bg-background/70 px-3 py-1.5 text-xs font-medium transition hover:bg-background"
@@ -84,7 +85,9 @@ export function NotificationsSection({
                 : "border-border/50 bg-background/50"
             )}
             key={notificationItem.key}
-            onClick={() => onToggle(notificationItem.key, !settings[notificationItem.key])}
+            onClick={() =>
+              onToggle(notificationItem.key, !settings[notificationItem.key])
+            }
             type="button"
           >
             <p className="font-medium">{notificationItem.label}</p>

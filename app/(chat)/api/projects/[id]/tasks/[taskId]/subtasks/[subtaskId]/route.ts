@@ -16,7 +16,9 @@ const updateSubtaskSchema = z.object({
 
 export async function PUT(
   request: Request,
-  context: { params: Promise<{ id: string; taskId: string; subtaskId: string }> }
+  context: {
+    params: Promise<{ id: string; taskId: string; subtaskId: string }>;
+  }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -42,7 +44,10 @@ export async function PUT(
 
   const parsed = updateSubtaskSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
   const [updated] = await updateSubtask(subtaskId, parsed.data);
@@ -51,7 +56,9 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  context: { params: Promise<{ id: string; taskId: string; subtaskId: string }> }
+  context: {
+    params: Promise<{ id: string; taskId: string; subtaskId: string }>;
+  }
 ) {
   const session = await auth();
   if (!session?.user?.id) {

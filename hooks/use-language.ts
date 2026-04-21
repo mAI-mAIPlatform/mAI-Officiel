@@ -29,10 +29,7 @@ export function useLanguage() {
     window.addEventListener("mai:language-updated", sync as EventListener);
     window.addEventListener("storage", syncOnStorage);
     return () => {
-      window.removeEventListener(
-        "mai:language-updated",
-        sync as EventListener
-      );
+      window.removeEventListener("mai:language-updated", sync as EventListener);
       window.removeEventListener("storage", syncOnStorage);
     };
   }, []);

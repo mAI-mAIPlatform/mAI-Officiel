@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { getPlanFromActivationCode } from "@/lib/subscription-codes";
 import { parsePlanKey } from "@/lib/subscription";
+import { getPlanFromActivationCode } from "@/lib/subscription-codes";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;

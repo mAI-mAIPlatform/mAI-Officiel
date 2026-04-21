@@ -28,7 +28,10 @@ export function useSubscriptionPlan() {
     setIsHydrated(true);
 
     const onStorage = (event: StorageEvent) => {
-      if (!event.key || !storageKeys.includes(event.key as typeof storageKeys[number])) {
+      if (
+        !event.key ||
+        !storageKeys.includes(event.key as (typeof storageKeys)[number])
+      ) {
         return;
       }
 

@@ -17,12 +17,12 @@ import {
   useArtifact,
   useArtifactSelector,
 } from "@/hooks/use-artifact";
+import { consumeTierCredit, getTierForModelId } from "@/lib/ai/credits";
 import {
   defaultShortcuts,
   SHORTCUTS_STORAGE_KEY,
   type ShortcutConfig,
 } from "@/lib/chat-preferences";
-import { consumeTierCredit, getTierForModelId } from "@/lib/ai/credits";
 import { createAiResponseNotification } from "@/lib/notifications";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";

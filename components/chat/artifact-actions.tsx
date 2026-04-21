@@ -36,8 +36,9 @@ function PureArtifactActions({
     throw new Error("Artifact definition not found!");
   }
 
-
-  const availableExportFormats = useMemo<(typeof exportFormats)[number][]>(() => {
+  const availableExportFormats = useMemo<
+    (typeof exportFormats)[number][]
+  >(() => {
     if (artifact.kind === "image") {
       return [];
     }

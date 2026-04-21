@@ -12,8 +12,8 @@ import {
   Waves,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocalStorage } from "usehooks-ts";
 import { toast } from "sonner";
+import { useLocalStorage } from "usehooks-ts";
 
 type SpeakyResponse = {
   audioBase64: string;
@@ -87,12 +87,14 @@ export default function SpeakyPage() {
     null
   );
   const [provider, setProvider] = useState<string | null>(null);
-  const [history, setHistory] = useLocalStorage<Array<{
-    createdAt: string;
-    text: string;
-    voice: string;
-    url: string;
-  }>>("mai.speaky.history.v1", []);
+  const [history, setHistory] = useLocalStorage<
+    Array<{
+      createdAt: string;
+      text: string;
+      voice: string;
+      url: string;
+    }>
+  >("mai.speaky.history.v1", []);
   const [favoriteVoices, setFavoriteVoices] = useLocalStorage<string[]>(
     "mai.speaky.favorite-voices.v1",
     []
@@ -180,10 +182,12 @@ export default function SpeakyPage() {
       setAudioUrl(nextUrl);
       setEstimatedDuration(payload.durationEstimateSec);
       setProvider(payload.provider);
-      setHistory([
-        { createdAt: new Date().toISOString(), text, voice, url: nextUrl },
-        ...history,
-      ].slice(0, 20));
+      setHistory(
+        [
+          { createdAt: new Date().toISOString(), text, voice, url: nextUrl },
+          ...history,
+        ].slice(0, 20)
+      );
       if (payload.selectedVoice) {
         setVoice(payload.selectedVoice);
       }
@@ -244,7 +248,6 @@ export default function SpeakyPage() {
     utterance.onerror = () => setIsPlaying(false);
     window.speechSynthesis.speak(utterance);
   };
-
 
   const previewFiveSeconds = () => {
     if (!audioRef.current || !audioUrl) {
@@ -603,7 +606,8 @@ export default function SpeakyPage() {
                   }}
                   type="button"
                 >
-                  {item.voice} · {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
+                  {item.voice} ·{" "}
+                  {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
                 </button>
               ))}
             </div>

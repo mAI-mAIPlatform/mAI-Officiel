@@ -11,6 +11,8 @@ export type PlanLimits = {
   newsSearchesPerDay: number;
   mealsSearchesPerDay: number;
   healthRequestsPerMonth: number;
+  studioImagesPerDay: number;
+  musicGenerationsPerWeek: number;
 };
 
 export type PlanDefinition = {
@@ -41,6 +43,8 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 3,
       mealsSearchesPerDay: 3,
       healthRequestsPerMonth: 5,
+      studioImagesPerDay: 7,
+      musicGenerationsPerWeek: 2,
     },
   },
   plus: {
@@ -58,6 +62,8 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 5,
       mealsSearchesPerDay: 5,
       healthRequestsPerMonth: 10,
+      studioImagesPerDay: 15,
+      musicGenerationsPerWeek: 5,
     },
   },
   pro: {
@@ -74,6 +80,8 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 10,
       mealsSearchesPerDay: 10,
       healthRequestsPerMonth: 15,
+      studioImagesPerDay: 30,
+      musicGenerationsPerWeek: 10,
     },
   },
   max: {
@@ -90,6 +98,8 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 20,
       mealsSearchesPerDay: 20,
       healthRequestsPerMonth: 25,
+      studioImagesPerDay: 75,
+      musicGenerationsPerWeek: 20,
     },
   },
 };

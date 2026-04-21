@@ -1,6 +1,6 @@
-const fs = require('fs');
-const file = 'components/chat/multimodal-input.tsx';
-let content = fs.readFileSync(file, 'utf-8');
+const fs = require("fs");
+const file = "components/chat/multimodal-input.tsx";
+let content = fs.readFileSync(file, "utf-8");
 
 // 1. Add to Menu component definition
 const defTarget = `function PureContextualActionsMenu({
@@ -49,4 +49,4 @@ const usageReplacement = `<ContextualActionsMenu
             />`;
 content = content.replace(usageTarget, usageReplacement);
 
-fs.writeFileSync(file, content, 'utf-8');
+fs.writeFileSync(file, content, "utf-8");

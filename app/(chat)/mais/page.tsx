@@ -1,14 +1,14 @@
 "use client";
 
 import {
+  BarChart3,
   Bot,
   Languages,
   Pin,
   PinOff,
   Plus,
-  Sparkles,
   Share2,
-  BarChart3,
+  Sparkles,
   SquarePen,
   Trash2,
   UploadCloud,
@@ -264,7 +264,6 @@ export default function MaisPage() {
     localStorage.setItem(MAI_PINNED_STORAGE_KEY, JSON.stringify(nextPinned));
   };
 
-
   const incrementUsage = (agentId: string) => {
     setUsageById((current) => {
       const next = { ...current, [agentId]: (current[agentId] ?? 0) + 1 };
@@ -429,7 +428,8 @@ export default function MaisPage() {
                   {agent.description || "Aucune description"}
                 </p>
                 <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <BarChart3 className="size-3" /> Utilisations: {usageById[agent.id] ?? 0}
+                  <BarChart3 className="size-3" /> Utilisations:{" "}
+                  {usageById[agent.id] ?? 0}
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">

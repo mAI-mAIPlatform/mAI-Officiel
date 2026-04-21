@@ -4,6 +4,8 @@ export type UsageFeature =
   | "meals"
   | "websearch"
   | "files"
+  | "studio"
+  | "wave"
   | "tier1"
   | "tier2"
   | "tier3";
@@ -96,8 +98,9 @@ function readSnapshot(feature: UsageFeature): UsageSnapshot {
       return { count: 0, periodKey: "" };
     }
 
+    const numericCount = Number(parsed.count);
     return {
-      count: Math.max(0, Math.floor(parsed.count)),
+      count: Number.isFinite(numericCount) ? Math.max(0, numericCount) : 0,
       periodKey: parsed.periodKey,
     };
   } catch {
@@ -134,20 +137,22 @@ export function getUsageCount(
 export function canConsumeUsage(
   feature: UsageFeature,
   period: UsagePeriod,
-  limit: number
+  limit: number,
+  amount = 1
 ): boolean {
-  return getUsageCount(feature, period) < limit;
+  return getUsageCount(feature, period) + amount <= limit;
 }
 
 export function consumeUsage(
   feature: UsageFeature,
-  period: UsagePeriod
+  period: UsagePeriod,
+  amount = 1
 ): { count: number; remaining: number | null } {
   const snapshot = readSnapshot(feature);
   const currentPeriod = getPeriodKey(period);
   const baseCount = snapshot.periodKey === currentPeriod ? snapshot.count : 0;
 
-  const nextCount = baseCount + 1;
+  const nextCount = Math.max(0, Number((baseCount + amount).toFixed(2)));
   writeSnapshot(feature, { count: nextCount, periodKey: currentPeriod });
 
   return { count: nextCount, remaining: null };

@@ -73,14 +73,14 @@ export default async function ProjectDetailPage({
           id: chat.id,
           title: chat.title,
         }))}
-        projectId={project.id}
-        projectInstructions={project.instructions ?? ""}
-        projectName={project.name}
         projectChats={projectChats.map((chat) => ({
           id: chat.id,
           title: chat.title,
           createdAt: chat.createdAt.toISOString(),
         }))}
+        projectId={project.id}
+        projectInstructions={project.instructions ?? ""}
+        projectName={project.name}
       />
     </main>
   );

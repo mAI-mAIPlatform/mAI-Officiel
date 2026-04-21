@@ -60,7 +60,9 @@ export async function POST(request: Request) {
         if (content.includes("debugger;")) {
           content = content.replaceAll("debugger;", "// debugger;");
           touched = true;
-          history.push(`[Fix] Statement debugger neutralisé dans ${file.path}.`);
+          history.push(
+            `[Fix] Statement debugger neutralisé dans ${file.path}.`
+          );
         }
 
         if (content.includes("alert(")) {
@@ -70,9 +72,7 @@ export async function POST(request: Request) {
         }
 
         if (content.includes("eval(")) {
-          history.push(
-            `[Sécurité] eval() détecté dans ${file.path}.`
-          );
+          history.push(`[Sécurité] eval() détecté dans ${file.path}.`);
         }
 
         if (content.includes("TODO")) {

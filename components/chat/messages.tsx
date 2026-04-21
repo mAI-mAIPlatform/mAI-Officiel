@@ -126,14 +126,30 @@ function PureMessages({
 }
 
 export const Messages = memo(PureMessages, (prevProps, nextProps) => {
-  if (prevProps.chatId !== nextProps.chatId) return false;
-  if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.isLoading !== nextProps.isLoading) return false;
-  if (prevProps.isReadonly !== nextProps.isReadonly) return false;
-  if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) return false;
-  if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
-  if (prevProps.messages !== nextProps.messages) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
+  if (prevProps.chatId !== nextProps.chatId) {
+    return false;
+  }
+  if (prevProps.status !== nextProps.status) {
+    return false;
+  }
+  if (prevProps.isLoading !== nextProps.isLoading) {
+    return false;
+  }
+  if (prevProps.isReadonly !== nextProps.isReadonly) {
+    return false;
+  }
+  if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) {
+    return false;
+  }
+  if (prevProps.selectedModelId !== nextProps.selectedModelId) {
+    return false;
+  }
+  if (prevProps.messages !== nextProps.messages) {
+    return false;
+  }
+  if (!equal(prevProps.votes, nextProps.votes)) {
+    return false;
+  }
 
   // We deliberately ignore callback props (like onEditMessage, setMessages)
   // to prevent re-renders caused by inline functions in the parent during keystrokes.

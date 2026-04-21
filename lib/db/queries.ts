@@ -10,8 +10,8 @@ import {
   gte,
   inArray,
   lt,
-  sql,
   type SQL,
+  sql,
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -294,14 +294,19 @@ export async function saveMessages({ messages }: { messages: DBMessage[] }) {
 }
 
 export async function upsertMessages({ messages }: { messages: DBMessage[] }) {
-  if (!messages || messages.length === 0) return;
+  if (!messages || messages.length === 0) {
+    return;
+  }
   try {
-    return await db.insert(message).values(messages).onConflictDoUpdate({
-      target: message.id,
-      set: {
-        parts: sql`excluded.parts`,
-      },
-    });
+    return await db
+      .insert(message)
+      .values(messages)
+      .onConflictDoUpdate({
+        target: message.id,
+        set: {
+          parts: sql`excluded.parts`,
+        },
+      });
   } catch (_error) {
     throw new ChatbotError("bad_request:database", "Failed to upsert messages");
   }
@@ -336,10 +341,10 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   }
 }
 
-
-
 export async function getMessagesByChatIds({ ids }: { ids: string[] }) {
-  if (!ids || ids.length === 0) return [];
+  if (!ids || ids.length === 0) {
+    return [];
+  }
   try {
     return await db
       .select()
@@ -965,8 +970,12 @@ export async function getSubtasksByTask(taskId: string): Promise<Subtask[]> {
   }
 }
 
-export async function getSubtasksByTaskIds(taskIds: string[]): Promise<Subtask[]> {
-  if (taskIds.length === 0) return [];
+export async function getSubtasksByTaskIds(
+  taskIds: string[]
+): Promise<Subtask[]> {
+  if (taskIds.length === 0) {
+    return [];
+  }
 
   try {
     return await db
@@ -994,7 +1003,11 @@ export async function createSubtask(
 
 export async function updateSubtask(id: string, data: Partial<Subtask>) {
   try {
-    return await db.update(subtask).set(data).where(eq(subtask.id, id)).returning();
+    return await db
+      .update(subtask)
+      .set(data)
+      .where(eq(subtask.id, id))
+      .returning();
   } catch (error) {
     console.error("Failed to update subtask:", error);
     throw new Error("Failed to update subtask");

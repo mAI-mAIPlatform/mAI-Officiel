@@ -1,9 +1,23 @@
-import OpenAI from "openai";
 import type { ModelMessage } from "ai";
+import OpenAI from "openai";
 
 const FS_API_BASE_URL =
   process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1/";
 const FS_API_KEY = process.env.FS_API_KEY;
+const OLLAMA_BASE_URL =
+  process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434/v1";
+const OLLAMA_API_KEY =
+  process.env.OLLAMA_API_KEY ?? process.env.OLLAMA_API_TOKEN;
+const AI_HORDE_OAI_BASE_URL =
+  process.env.AI_HORDE_OAI_BASE_URL ?? "https://oai.aihorde.net/v1";
+const AI_HORDE_API_KEY = process.env.AI_HORDE_API_KEY ?? "0000000000";
+const OPENROUTER_BASE_URL =
+  process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
+const OPENROUTER_API_KEYS = [
+  process.env.OPENROUTER_API_KEY_1,
+  process.env.OPENROUTER_API_KEY_2,
+  process.env.OPENROUTER_API_KEY_3,
+].filter((value): value is string => Boolean(value && value.trim()));
 
 const fsModelMapping: Record<string, string> = {
   "openai/gpt-5.4": "gpt-5.4",
@@ -15,6 +29,7 @@ const fsModelMapping: Record<string, string> = {
   "openai/gpt-oss-120b": "gpt-oss-120b",
   "azure/deepseek-v3.2": "DeepSeek-V3.2",
   "azure/kimi-k2.5": "Kimi-K2.5",
+  "azure/kimi-k2.6": "Kimi-K2.6",
   "azure/mistral-large-3": "Mistral-Large-3",
   // Anthropic/Claude (à aligner avec les IDs exposés par FranceStudent).
   "anthropic/claude-opus-4-6": "claude-opus-4-20250601",
@@ -24,12 +39,65 @@ const fsModelMapping: Record<string, string> = {
   "anthropic/claude-haiku-4-5": "claude-haiku-4-5-20250401",
 };
 
-export const fsTextModels = new Set(Object.keys(fsModelMapping));
+const ollamaModelMapping: Record<string, string> = {
+  "ollama/qwen3:14b": "qwen3:14b",
+  "ollama/llama3.1:8b": "llama3.1:8b",
+  "ollama/mixtral:8x7b": "mixtral:8x7b",
+  "ollama/deepseek-r1": "deepseek-r1",
+  "ollama/gemma2:9b": "gemma2:9b",
+};
+
+const hordeModelMapping: Record<string, string> = {
+  "horde/Cydonia-24B-v4.3": "Cydonia-24B-v4.3",
+  "horde/Skyfall-31B-v4.1": "Skyfall-31B-v4.1",
+  "horde/Gemma-4-31B-it": "Gemma-4-31B-it",
+  "horde/Behemoth-R1-123B-v2-w4a16": "Behemoth-R1-123B-v2-w4a16",
+  "horde/Ministral-3-8B-Instruct-2512": "Ministral-3-8B-Instruct-2512",
+  "horde/Rocinante-XL-16B-v1a-Q4_K_M": "Rocinante-XL-16B-v1a-Q4_K_M",
+  "horde/L3-8B-Stheno-v3.2": "L3-8B-Stheno-v3.2",
+  "horde/mini-magnum-12b-v1.1": "mini-magnum-12b-v1.1",
+  "horde/MN-12B-Mag-Mell-R1.Q5_K_M": "MN-12B-Mag-Mell-R1.Q5_K_M",
+  "horde/Artemis-31B-v1b-Q4_K_M": "Artemis-31B-v1b-Q4_K_M",
+  "horde/pygmalion-2-7b.Q4_K_M": "pygmalion-2-7b.Q4_K_M",
+  "horde/L3-Super-Nova-RP-8B": "L3-Super-Nova-RP-8B",
+  "horde/WizzGPTv8": "WizzGPTv8",
+  "horde/Qwen_Qwen3-0.6B-IQ4_XS": "Qwen_Qwen3-0.6B-IQ4_XS",
+  "horde/LFM2.5-1.2B-Instruct": "LFM2.5-1.2B-Instruct",
+  "horde/HY-MT1.5-1.8B": "HY-MT1.5-1.8B",
+  "horde/Qwen3-30B-A3B-abliterated-erotic":
+    "Qwen3-30B-A3B-abliterated-erotic",
+};
+
+const openRouterModelMapping: Record<string, string> = {
+  "openrouter/qwen/qwen3.6-plus:free": "qwen/qwen3.6-plus:free",
+  "openrouter/qwen/qwen3.6-plus-preview:free":
+    "qwen/qwen3.6-plus-preview:free",
+  "openrouter/qwen/qwen3-coder:free": "qwen/qwen3-coder:free",
+  "openrouter/qwen/qwen3-next-80b-a3b-instruct:free":
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openrouter/meta-llama/llama-3.3-70b-instruct:free":
+    "meta-llama/llama-3.3-70b-instruct:free",
+  "openrouter/nvidia/nemotron-3-super-120b:free":
+    "nvidia/nemotron-3-super-120b:free",
+  "openrouter/mistralai/mistral-large": "mistralai/mistral-large",
+  "openrouter/anthropic/claude-3-haiku": "anthropic/claude-3-haiku",
+  "openrouter/openai/gpt-oss-20b": "openai/gpt-oss-20b",
+};
+
+export const fsTextModels = new Set([
+  ...Object.keys(fsModelMapping),
+  ...Object.keys(ollamaModelMapping),
+  ...Object.keys(hordeModelMapping),
+  ...Object.keys(openRouterModelMapping),
+]);
 
 // Comet image provider has been intentionally disabled.
 export const cometImageModels = new Set<string>();
 
 let cachedFsClient: OpenAI | null | undefined;
+let cachedOllamaClient: OpenAI | null | undefined;
+let cachedHordeClient: OpenAI | null | undefined;
+let cachedOpenRouterClients: OpenAI[] | undefined;
 
 function normalizeBaseUrl(baseURL: string): string {
   return baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
@@ -56,6 +124,52 @@ function getFsClient(): OpenAI | null {
   return cachedFsClient;
 }
 
+function getOllamaClient(): OpenAI | null {
+  if (cachedOllamaClient !== undefined) {
+    return cachedOllamaClient;
+  }
+
+  if (!OLLAMA_API_KEY) {
+    cachedOllamaClient = null;
+    return cachedOllamaClient;
+  }
+
+  cachedOllamaClient = new OpenAI({
+    baseURL: normalizeBaseUrl(OLLAMA_BASE_URL),
+    apiKey: OLLAMA_API_KEY,
+  });
+
+  return cachedOllamaClient;
+}
+
+function getHordeClient(): OpenAI {
+  if (cachedHordeClient !== undefined && cachedHordeClient) {
+    return cachedHordeClient;
+  }
+
+  cachedHordeClient = new OpenAI({
+    baseURL: normalizeBaseUrl(AI_HORDE_OAI_BASE_URL),
+    apiKey: AI_HORDE_API_KEY,
+  });
+
+  return cachedHordeClient;
+}
+
+function getOpenRouterClients(): OpenAI[] {
+  if (cachedOpenRouterClients !== undefined) {
+    return cachedOpenRouterClients;
+  }
+
+  cachedOpenRouterClients = OPENROUTER_API_KEYS.map(
+    (apiKey) =>
+      new OpenAI({
+        baseURL: normalizeBaseUrl(OPENROUTER_BASE_URL),
+        apiKey,
+      })
+  );
+  return cachedOpenRouterClients;
+}
+
 interface ChatCompletionMessage {
   content?: string | Array<{ text?: string }> | null;
 }
@@ -66,19 +180,19 @@ interface ChatCompletionResponse {
 }
 
 interface ResponsesApiResponse {
-  output_text?: string;
   output?: Array<{
     content?: Array<{
       type?: string;
       text?: string;
     }>;
   }>;
+  output_text?: string;
 }
 
 interface ResponseTextDeltaEvent {
-  type?: string;
   delta?: string;
   text?: string;
+  type?: string;
 }
 
 function extractTextFromChatCompletion(
@@ -103,7 +217,10 @@ function extractTextFromChatCompletion(
 function extractTextFromResponsesOutput(
   data: ResponsesApiResponse | undefined | null
 ): string {
-  if (typeof data?.output_text === "string" && data.output_text.trim().length > 0) {
+  if (
+    typeof data?.output_text === "string" &&
+    data.output_text.trim().length > 0
+  ) {
     return data.output_text.trim();
   }
 
@@ -111,7 +228,8 @@ function extractTextFromResponsesOutput(
     data?.output
       ?.flatMap((outputItem) => outputItem.content ?? [])
       .map((contentItem) =>
-        contentItem.type === "output_text" && typeof contentItem.text === "string"
+        contentItem.type === "output_text" &&
+        typeof contentItem.text === "string"
           ? contentItem.text
           : ""
       )
@@ -142,7 +260,8 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
     const completedText = parsedEvents
       .filter(
         (event) =>
-          event.type === "response.output_text.done" && typeof event.text === "string"
+          event.type === "response.output_text.done" &&
+          typeof event.text === "string"
       )
       .at(-1)?.text;
 
@@ -203,13 +322,13 @@ function extractJsonObjectsFromStream(raw: string): unknown[] {
         continue;
       }
 
-      if (currentCharacter === "\"") {
+      if (currentCharacter === '"') {
         isInsideString = false;
       }
       continue;
     }
 
-    if (currentCharacter === "\"") {
+    if (currentCharacter === '"') {
       isInsideString = true;
       continue;
     }
@@ -241,13 +360,18 @@ function extractJsonObjectsFromStream(raw: string): unknown[] {
 
 export async function generateResponse(input: {
   model: string;
-  messages: Array<{ role: "user" | "assistant" | "developer"; content: string }>;
+  messages: Array<{
+    role: "user" | "assistant" | "developer";
+    content: string;
+  }>;
   systemInstruction?: string;
 }): Promise<{ provider: string; text: string }> {
   const fsClient = getFsClient();
 
   if (!fsClient) {
-    throw new Error("FranceStudent provider non initialisé (FS_API_KEY manquante)");
+    throw new Error(
+      "FranceStudent provider non initialisé (FS_API_KEY manquante)"
+    );
   }
 
   const normalizedMessages = [
@@ -300,8 +424,11 @@ export async function runExternalTextModel(
   modelMessages: ModelMessage[],
   options?: { systemInstruction?: string }
 ): Promise<{ provider: string; text: string }> {
-  const providerModelId = fsModelMapping[modelId];
-
+  const providerModelId =
+    fsModelMapping[modelId] ??
+    ollamaModelMapping[modelId] ??
+    hordeModelMapping[modelId] ??
+    openRouterModelMapping[modelId];
   if (!providerModelId) {
     throw new Error(`Unsupported external text model: ${modelId}`);
   }
@@ -344,12 +471,93 @@ export async function runExternalTextModel(
       return { role, content };
     })
     .filter(
-      (message): message is { role: "user" | "assistant" | "developer"; content: string } =>
-        message !== null
+      (
+        message
+      ): message is {
+        role: "user" | "assistant" | "developer";
+        content: string;
+      } => message !== null
     );
 
   if (messages.length === 0) {
     throw new Error("External model requires at least one text message");
+  }
+
+  if (modelId.startsWith("ollama/")) {
+    const ollamaClient = getOllamaClient();
+    if (!ollamaClient) {
+      throw new Error("Ollama provider non initialisé (OLLAMA_API_KEY manquante)");
+    }
+    const completion = await ollamaClient.chat.completions.create({
+      model: providerModelId,
+      messages: messages.map((message) => ({
+        role:
+          message.role === "developer"
+            ? ("system" as const)
+            : (message.role as "assistant" | "user"),
+        content: message.content,
+      })),
+    });
+    const text = extractTextFromChatCompletion(completion);
+    if (!text) {
+      throw new Error("Ollama API returned an empty response");
+    }
+    return { provider: "ollama", text };
+  }
+
+  if (modelId.startsWith("horde/")) {
+    const hordeClient = getHordeClient();
+    const completion = await hordeClient.chat.completions.create({
+      model: providerModelId,
+      messages: messages.map((message) => ({
+        role:
+          message.role === "developer"
+            ? ("system" as const)
+            : (message.role as "assistant" | "user"),
+        content: message.content,
+      })),
+    });
+    const text = extractTextFromChatCompletion(completion);
+    if (!text) {
+      throw new Error("AI Horde API returned an empty response");
+    }
+    return { provider: "horde", text };
+  }
+
+  if (modelId.startsWith("openrouter/")) {
+    const openRouterClients = getOpenRouterClients();
+    if (openRouterClients.length === 0) {
+      throw new Error(
+        "OpenRouter provider non initialisé (OPENROUTER_API_KEY_1/2/3 manquantes)"
+      );
+    }
+
+    let lastError: unknown = null;
+    for (const openRouterClient of openRouterClients) {
+      try {
+        const completion = await openRouterClient.chat.completions.create({
+          model: providerModelId,
+          messages: messages.map((message) => ({
+            role:
+              message.role === "developer"
+                ? ("system" as const)
+                : (message.role as "assistant" | "user"),
+            content: message.content,
+          })),
+        });
+        const text = extractTextFromChatCompletion(completion);
+        if (!text) {
+          throw new Error("OpenRouter API returned an empty response");
+        }
+        return { provider: "openrouter", text };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("OpenRouter API failed on all configured API keys");
   }
 
   return generateResponse({

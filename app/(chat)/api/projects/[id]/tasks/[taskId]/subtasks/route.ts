@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
-import {
-  createSubtask,
-  getProjectById,
-  getTaskById,
-} from "@/lib/db/queries";
+import { createSubtask, getProjectById, getTaskById } from "@/lib/db/queries";
 
 const subtaskSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -34,7 +30,10 @@ export async function POST(
 
   const parsed = subtaskSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
   const [created] = await createSubtask({

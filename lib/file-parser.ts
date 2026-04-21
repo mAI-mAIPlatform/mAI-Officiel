@@ -31,8 +31,7 @@ export async function parseFileForAi(file: File): Promise<ParsedFileResult> {
 
   if (mediaType === "application/pdf") {
     return {
-      extractedText:
-        `[PDF importé: ${file.name}]\nLe texte complet du PDF n'est pas extrait localement.`,
+      extractedText: `[PDF importé: ${file.name}]\nLe texte complet du PDF n'est pas extrait localement.`,
       mediaType,
     };
   }
@@ -45,7 +44,7 @@ export async function parseFileForAi(file: File): Promise<ParsedFileResult> {
 
 export function validateFileBeforeUpload(file: File): string | null {
   if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-    return `Le fichier \"${file.name}\" dépasse la limite de 5MB.`;
+    return `Le fichier "${file.name}" dépasse la limite de 5MB.`;
   }
 
   if (!SUPPORTED_FILE_TYPES.has(file.type)) {

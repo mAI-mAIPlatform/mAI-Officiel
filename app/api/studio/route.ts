@@ -5,12 +5,14 @@ import {
   runCometImageModel,
   runExternalTextModel,
 } from "@/lib/ai/external-providers";
+import { launchHordeGeneration } from "@/lib/ai/horde";
 
 type StudioRequest = {
   action: "text" | "generate-image" | "edit-image";
   model: string;
   prompt: string;
   image?: string;
+  size?: string;
 };
 
 export async function POST(request: Request) {
@@ -49,6 +51,21 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "generate-image" || body.action === "edit-image") {
+      if (body.model.startsWith("horde/")) {
+        const result = await launchHordeGeneration({
+          model: body.model,
+          prompt,
+          size: body.size || "1024x1024",
+        });
+
+        return Response.json({
+          type: "image",
+          provider: "AI Horde",
+          id: result.id,
+          pending: true,
+        });
+      }
+
       if (!cometImageModels.has(body.model)) {
         return Response.json(
           { error: "Modèle image non supporté" },

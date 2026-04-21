@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { Artifact } from "@/components/chat/create-artifact";
 import { DiffView } from "@/components/chat/diffview";
+import { DocumentCanvas } from "@/components/chat/document-canvas";
 import { DocumentSkeleton } from "@/components/chat/document-skeleton";
 import {
   ClockRewind,
@@ -10,7 +11,6 @@ import {
   RedoIcon,
   UndoIcon,
 } from "@/components/chat/icons";
-import { DocumentCanvas } from "@/components/chat/document-canvas";
 import { Editor } from "@/components/chat/text-editor";
 import type { Suggestion } from "@/lib/db/schema";
 import { getSuggestions } from "../actions";
@@ -97,7 +97,9 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
             isCurrentVersion={isCurrentVersion}
             onSaveContent={onSaveContent}
             status={status}
-            suggestions={isCurrentVersion && metadata ? metadata.suggestions : []}
+            suggestions={
+              isCurrentVersion && metadata ? metadata.suggestions : []
+            }
           />
 
           {metadata?.suggestions && metadata.suggestions.length > 0 ? (

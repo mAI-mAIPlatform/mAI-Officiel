@@ -39,7 +39,10 @@ export async function POST(request: Request) {
 
   const uiMessages = convertToUIMessages(dbMessages);
   const conversation = uiMessages
-    .map((message) => `${message.role.toUpperCase()}: ${getTextFromMessage(message)}`)
+    .map(
+      (message) =>
+        `${message.role.toUpperCase()}: ${getTextFromMessage(message)}`
+    )
     .join("\n")
     .slice(0, 20_000);
 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-
 interface SearchResultItem {
   link?: string;
   snippet?: string;

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
-import { computeNextDueDate } from "@/lib/tasks";
 import {
   createTask,
   deleteTask,
@@ -9,6 +8,7 @@ import {
   getTaskById,
   updateTask,
 } from "@/lib/db/queries";
+import { computeNextDueDate } from "@/lib/tasks";
 
 const updateTaskSchema = z.object({
   title: z.string().trim().min(1).max(180).optional(),
@@ -53,7 +53,10 @@ export async function PUT(
   const parsed = updateTaskSchema.safeParse(payload);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
   const [updated] = await updateTask(taskId, {

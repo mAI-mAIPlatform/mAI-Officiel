@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { test, describe } from "node:test";
-import { getMessageByErrorCode, ErrorCode } from "@/lib/errors";
+import { describe, test } from "node:test";
+import { type ErrorCode, getMessageByErrorCode } from "@/lib/errors";
 
 describe("getMessageByErrorCode", () => {
   test("handles database errors", () => {

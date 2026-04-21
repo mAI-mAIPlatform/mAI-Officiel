@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     status: 200,
     headers: {
       "Content-Type": contentTypeByFormat[format],
-      "Content-Disposition": `attachment; filename=\"${fileName}\"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
       "Cache-Control": "no-store",
     },
   });

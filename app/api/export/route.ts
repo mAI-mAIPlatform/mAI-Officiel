@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { getChatsByUserId, getMessagesByChatIds } from "@/lib/db/queries";
-import { type Chat, type DBMessage } from "@/lib/db/schema";
+import type { Chat, DBMessage } from "@/lib/db/schema";
 
 export async function GET(_req: NextRequest) {
   const session = await auth();
@@ -27,13 +27,16 @@ export async function GET(_req: NextRequest) {
       const chatIds = chats.chats.map((chat) => chat.id);
       const allMessages = await getMessagesByChatIds({ ids: chatIds });
 
-      const messagesByChatId = allMessages.reduce((acc, message) => {
-        if (!acc[message.chatId]) {
-          acc[message.chatId] = [];
-        }
-        acc[message.chatId].push(message);
-        return acc;
-      }, {} as Record<string, DBMessage[]>);
+      const messagesByChatId = allMessages.reduce(
+        (acc, message) => {
+          if (!acc[message.chatId]) {
+            acc[message.chatId] = [];
+          }
+          acc[message.chatId].push(message);
+          return acc;
+        },
+        {} as Record<string, DBMessage[]>
+      );
 
       for (const chat of chats.chats) {
         exportData.chats.push({

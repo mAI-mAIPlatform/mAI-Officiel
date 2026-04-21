@@ -251,7 +251,10 @@ function PureArtifact({
     };
 
     window.addEventListener("beforeunload", flushPendingSave);
-    window.document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
 
     return () => {
       flushPendingSave();
@@ -472,7 +475,8 @@ function PureArtifact({
           <DialogHeader>
             <DialogTitle>Résumé du Canvas</DialogTitle>
             <DialogDescription>
-              Génération rapide du résumé via GPT-5.4-nano avec options de longueur.
+              Génération rapide du résumé via GPT-5.4-nano avec options de
+              longueur.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 text-xs">
@@ -514,7 +518,12 @@ function PureArtifact({
               onClick={() => {
                 sendMessage({
                   role: "user",
-                  parts: [{ type: "text", text: "Refais le résumé du canvas avec un angle différent." }],
+                  parts: [
+                    {
+                      type: "text",
+                      text: "Refais le résumé du canvas avec un angle différent.",
+                    },
+                  ],
                 });
                 setIsCanvasSummaryOpen(false);
               }}
@@ -524,7 +533,10 @@ function PureArtifact({
             </Button>
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsCanvasSummaryOpen(false)} variant="ghost">
+            <Button
+              onClick={() => setIsCanvasSummaryOpen(false)}
+              variant="ghost"
+            >
               Fermer
             </Button>
           </DialogFooter>
