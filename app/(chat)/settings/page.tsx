@@ -530,6 +530,7 @@ export default function SettingsPage() {
   });
   const [fileUsageToday, setFileUsageToday] = useState(0);
   const [studioUsageToday, setStudioUsageToday] = useState(0);
+  const [waveUsageWeek, setWaveUsageWeek] = useState(0);
   const [vibrationsEnabled, setVibrationsEnabled] = useState(true);
   const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
     tier1: 0,
@@ -598,6 +599,7 @@ export default function SettingsPage() {
     const refreshUsage = () => {
       setFileUsageToday(getUsageCount("files", "day"));
       setStudioUsageToday(getUsageCount("studio", "day"));
+      setWaveUsageWeek(getUsageCount("wave", "week"));
       setTierUsage({
         tier1: getTierUsage("tier1"),
         tier2: getTierUsage("tier2"),
@@ -1714,11 +1716,11 @@ export default function SettingsPage() {
         used: studioUsageToday,
       },
       {
-        key: "tasks",
-        limit: currentPlanDefinition.limits.taskSchedules,
-        period: "month",
-        title: "Tâches",
-        used: tasks.length,
+        key: "wave",
+        limit: currentPlanDefinition.limits.musicGenerationsPerWeek,
+        period: "week",
+        title: "Musiques (Wave)",
+        used: waveUsageWeek,
       },
     ];
   }, [
@@ -1728,7 +1730,7 @@ export default function SettingsPage() {
     isAuthenticated,
     isHydrated,
     plan,
-    tasks.length,
+    waveUsageWeek,
     tierUsage.tier1,
     tierUsage.tier2,
     tierUsage.tier3,
@@ -1749,7 +1751,6 @@ export default function SettingsPage() {
     { href: "#parental", key: "parental", label: uiLabels.parental },
     { href: "#donnees", key: "donnees", label: uiLabels.data },
     { href: "#credits", key: "credits", label: uiLabels.credits },
-    { href: "#taches", key: "taches", label: uiLabels.tasks },
     { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
   const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
@@ -3249,7 +3250,7 @@ export default function SettingsPage() {
       <section
         className={cn(
           "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
-          sectionVisibility("taches")
+          "hidden"
         )}
         id="taches"
       >

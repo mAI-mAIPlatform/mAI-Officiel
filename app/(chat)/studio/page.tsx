@@ -33,6 +33,7 @@ type OutputPreset = "square" | "landscape" | "portrait" | "story" | "custom";
 type StudioSection = "explorer" | "images" | "likes";
 type LibrarySection = "mes-medias" | "favoris" | "telechargements" | "dechets";
 type SortMode = "date" | "style" | "popularite" | "chronologique";
+type ImageDownloadFormat = "png" | "jpeg" | "webp";
 
 type StudioImageItem = {
   createdAt: string;
@@ -98,6 +99,7 @@ export default function StudioPage() {
   const [selectedStyle, setSelectedStyle] = useState("");
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState<ImageDownloadFormat>("png");
   const [gallery, setGallery] = useState<StudioImageItem[]>([]);
   const [activeImage, setActiveImage] = useState<StudioImageItem | null>(null);
   const [editorBrightness, setEditorBrightness] = useState(100);
@@ -308,15 +310,53 @@ export default function StudioPage() {
     triggerHaptic(12);
   };
 
-  const downloadImage = (item: StudioImageItem) => {
-    const anchor = document.createElement("a");
-    anchor.href = item.url;
-    anchor.download = `mai-studio-${item.id}.png`;
-    anchor.click();
-    setGallery((current) =>
-      current.map((x) => (x.id === item.id ? { ...x, downloads: x.downloads + 1 } : x))
-    );
-    triggerHaptic(12);
+  const downloadImage = async (
+    item: StudioImageItem,
+    format: ImageDownloadFormat = "png"
+  ) => {
+    try {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        image.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth || image.width;
+          canvas.height = image.naturalHeight || image.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Contexte canvas indisponible"));
+            return;
+          }
+          ctx.drawImage(image, 0, 0);
+          const mimeType =
+            format === "jpeg"
+              ? "image/jpeg"
+              : format === "webp"
+                ? "image/webp"
+                : "image/png";
+          resolve(canvas.toDataURL(mimeType, 0.92));
+        };
+        image.onerror = () => reject(new Error("Chargement image impossible"));
+        image.src = item.url;
+      });
+
+      const anchor = document.createElement("a");
+      anchor.href = dataUrl;
+      anchor.download = `mai-studio-${item.id}.${format}`;
+      anchor.click();
+      setGallery((current) =>
+        current.map((x) =>
+          x.id === item.id ? { ...x, downloads: x.downloads + 1 } : x
+        )
+      );
+      triggerHaptic(12);
+    } catch {
+      const anchor = document.createElement("a");
+      anchor.href = item.url;
+      anchor.download = `mai-studio-${item.id}.${format}`;
+      anchor.click();
+      toast.warning("Téléchargement direct utilisé (conversion indisponible).");
+    }
   };
 
   const addToLibrary = (item: StudioImageItem) => {
@@ -806,7 +846,22 @@ export default function StudioPage() {
               {activeImage.style} • {activeImage.model} • {new Date(activeImage.createdAt).toLocaleString("fr-FR")}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={() => downloadImage(activeImage)} size="sm" variant="outline">
+              <select
+                className="h-9 rounded-md border border-border/60 bg-background px-2 text-xs"
+                onChange={(event) =>
+                  setDownloadFormat(event.target.value as ImageDownloadFormat)
+                }
+                value={downloadFormat}
+              >
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WEBP</option>
+              </select>
+              <Button
+                onClick={() => downloadImage(activeImage, downloadFormat)}
+                size="sm"
+                variant="outline"
+              >
                 <Download className="mr-1 size-4" /> Télécharger
               </Button>
               <Button onClick={() => toggleFavorite(activeImage.id)} size="sm" variant="outline">
