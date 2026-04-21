@@ -9,7 +9,7 @@ import {
   Upload,
   WandSparkles,
 } from "lucide-react";
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -50,6 +50,11 @@ export default function StudioPage() {
   const [outputPreset, setOutputPreset] = useState<OutputPreset>("portrait");
   const [customWidth, setCustomWidth] = useState("1024");
   const [customHeight, setCustomHeight] = useState("1024");
+  const [editorBrightness, setEditorBrightness] = useState(100);
+  const [editorContrast, setEditorContrast] = useState(100);
+  const [editorSaturation, setEditorSaturation] = useState(100);
+  const [editorBlur, setEditorBlur] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const selectedSize = useMemo(() => {
     if (outputPreset !== "custom") {
@@ -231,6 +236,37 @@ export default function StudioPage() {
     }
   };
 
+  const applyEditorAdjustments = () => {
+    const source = resultImage || imageInput;
+    if (!source) {
+      toast.error("Aucune image à éditer.");
+      return;
+    }
+
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const canvas = canvasRef.current ?? document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        toast.error("Éditeur indisponible.");
+        return;
+      }
+
+      ctx.filter = `brightness(${editorBrightness}%) contrast(${editorContrast}%) saturate(${editorSaturation}%) blur(${editorBlur}px)`;
+      ctx.drawImage(image, 0, 0);
+      const updated = canvas.toDataURL("image/png");
+      setImageInput(updated);
+      setResultImage(updated);
+      triggerHaptic([12, 30, 12]);
+      toast.success("Retouches appliquées.");
+    };
+    image.onerror = () => toast.error("Impossible de charger l'image à éditer.");
+    image.src = source;
+  };
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-4 text-black md:p-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -383,6 +419,74 @@ export default function StudioPage() {
                 placeholder="https://... ou data:image/..."
                 value={imageInput}
               />
+              <div className="mt-3 rounded-2xl border border-black/20 bg-white/80 p-3">
+                <p className="mb-2 text-xs font-semibold text-black/70">
+                  Éditeur intégré (rapide)
+                </p>
+                <div className="grid gap-2 text-xs">
+                  <label>
+                    Luminosité ({editorBrightness}%)
+                    <input
+                      className="w-full"
+                      max={180}
+                      min={40}
+                      onChange={(event) =>
+                        setEditorBrightness(Number(event.target.value))
+                      }
+                      type="range"
+                      value={editorBrightness}
+                    />
+                  </label>
+                  <label>
+                    Contraste ({editorContrast}%)
+                    <input
+                      className="w-full"
+                      max={180}
+                      min={40}
+                      onChange={(event) =>
+                        setEditorContrast(Number(event.target.value))
+                      }
+                      type="range"
+                      value={editorContrast}
+                    />
+                  </label>
+                  <label>
+                    Saturation ({editorSaturation}%)
+                    <input
+                      className="w-full"
+                      max={220}
+                      min={0}
+                      onChange={(event) =>
+                        setEditorSaturation(Number(event.target.value))
+                      }
+                      type="range"
+                      value={editorSaturation}
+                    />
+                  </label>
+                  <label>
+                    Flou ({editorBlur}px)
+                    <input
+                      className="w-full"
+                      max={8}
+                      min={0}
+                      onChange={(event) => setEditorBlur(Number(event.target.value))}
+                      step={0.5}
+                      type="range"
+                      value={editorBlur}
+                    />
+                  </label>
+                </div>
+                <Button
+                  className="mt-2 w-full"
+                  onClick={applyEditorAdjustments}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Appliquer les retouches
+                </Button>
+                <canvas className="hidden" ref={canvasRef} />
+              </div>
             </>
           ) : null}
 

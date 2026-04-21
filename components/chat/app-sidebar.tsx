@@ -62,7 +62,7 @@ import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
   { href: "/", key: "discussion", icon: PenSquareIcon },
-    { href: "/library", key: "library", icon: BookOpenIcon },
+  { href: "/library", key: "library", icon: BookOpenIcon },
   { href: "/projects", key: "projects", icon: FolderIcon },
   { href: "/settings", key: "settings", icon: Settings2Icon },
   { href: "/pricing", key: "pricing", icon: CreditCardIcon },

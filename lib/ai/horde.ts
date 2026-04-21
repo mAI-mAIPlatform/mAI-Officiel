@@ -33,7 +33,8 @@ export type HordeStatusResponse = {
 
 const getHordeHeaders = () => {
   const apiKey = process.env.AI_HORDE_API_KEY || "0000000000";
-  const clientAgent = process.env.AI_HORDE_CLIENT_AGENT || "mAI:v1.0";
+  const clientAgent =
+    process.env.AI_HORDE_CLIENT_AGENT || "mAI:1.0.0:mdevlopers";
   return {
     apikey: apiKey,
     "Client-Agent": clientAgent,

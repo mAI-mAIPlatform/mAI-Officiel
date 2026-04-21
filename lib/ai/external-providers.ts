@@ -15,6 +15,7 @@ const fsModelMapping: Record<string, string> = {
   "openai/gpt-oss-120b": "gpt-oss-120b",
   "azure/deepseek-v3.2": "DeepSeek-V3.2",
   "azure/kimi-k2.5": "Kimi-K2.5",
+  "azure/kimi-k2.6": "Kimi-K2.6",
   "azure/mistral-large-3": "Mistral-Large-3",
   // Anthropic/Claude (à aligner avec les IDs exposés par FranceStudent).
   "anthropic/claude-opus-4-6": "claude-opus-4-20250601",
@@ -22,6 +23,21 @@ const fsModelMapping: Record<string, string> = {
   "claude/claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
   "anthropic/claude-sonnet-4-6": "claude-sonnet-4-20250601",
   "anthropic/claude-haiku-4-5": "claude-haiku-4-5-20250401",
+  "horde/Cydonia-24B-v4.3": "Cydonia-24B-v4.3",
+  "horde/Skyfall-31B-v4.1": "Skyfall-31B-v4.1",
+  "horde/Gemma-4-31B-it": "Gemma-4-31B-it",
+  "horde/Behemoth-R1-123B-v2-w4a16": "Behemoth-R1-123B-v2-w4a16",
+  "horde/Ministral-3-8B-Instruct-2512": "Ministral-3-8B-Instruct-2512",
+  "horde/Rocinante-XL-16B-v1a-Q4_K_M": "Rocinante-XL-16B-v1a-Q4_K_M",
+  "horde/L3-8B-Stheno-v3.2": "L3-8B-Stheno-v3.2",
+  "horde/mini-magnum-12b-v1.1": "mini-magnum-12b-v1.1",
+  "horde/MN-12B-Mag-Mell-R1.Q5_K_M": "MN-12B-Mag-Mell-R1.Q5_K_M",
+  "horde/Artemis-31B-v1b-Q4_K_M": "Artemis-31B-v1b-Q4_K_M",
+  "horde/pygmalion-2-7b.Q4_K_M": "pygmalion-2-7b.Q4_K_M",
+  "horde/L3-Super-Nova-RP-8B": "L3-Super-Nova-RP-8B",
+  "horde/WizzGPTv8": "WizzGPTv8",
+  "horde/Qwen3-30B-A3B-abliterated-erotic":
+    "Qwen3-30B-A3B-abliterated-erotic",
 };
 
 export const fsTextModels = new Set(Object.keys(fsModelMapping));
