@@ -50,6 +50,7 @@ import {
   setLanguageInStorage,
 } from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
+import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
 import {
   defaultSecuritySettings,
   hashPinCode,
@@ -72,6 +73,7 @@ const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
 const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
+const IMPROVE_MAI_FOR_ALL_KEY = "mai.settings.improve-for-all.v1";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -527,6 +529,8 @@ export default function SettingsPage() {
     outputTokens: 0,
   });
   const [fileUsageToday, setFileUsageToday] = useState(0);
+  const [studioUsageToday, setStudioUsageToday] = useState(0);
+  const [vibrationsEnabled, setVibrationsEnabled] = useState(true);
   const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
     tier1: 0,
     tier2: 0,
@@ -548,6 +552,7 @@ export default function SettingsPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
+  const [improveMaiForAll, setImproveMaiForAll] = useState(false);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -591,6 +596,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const refreshUsage = () => {
       setFileUsageToday(getUsageCount("files", "day"));
+      setStudioUsageToday(getUsageCount("studio", "day"));
       setTierUsage({
         tier1: getTierUsage("tier1"),
         tier2: getTierUsage("tier2"),
@@ -607,6 +613,19 @@ export default function SettingsPage() {
       window.removeEventListener("mai:usage-updated", refreshUsage);
     };
   }, []);
+
+  useEffect(() => {
+    setVibrationsEnabled(
+      window.localStorage.getItem(HAPTICS_ENABLED_STORAGE_KEY) !== "false"
+    );
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      HAPTICS_ENABLED_STORAGE_KEY,
+      vibrationsEnabled ? "true" : "false"
+    );
+  }, [vibrationsEnabled]);
 
   useEffect(() => {
     const rawTags = window.localStorage.getItem(TAG_DEFINITIONS_STORAGE_KEY);
@@ -900,6 +919,19 @@ export default function SettingsPage() {
       JSON.stringify(notifications)
     );
   }, [notifications]);
+
+  useEffect(() => {
+    setImproveMaiForAll(
+      window.localStorage.getItem(IMPROVE_MAI_FOR_ALL_KEY) === "true"
+    );
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      IMPROVE_MAI_FOR_ALL_KEY,
+      improveMaiForAll ? "true" : "false"
+    );
+  }, [improveMaiForAll]);
 
   useEffect(() => {
     setInterfaceLanguage(
@@ -1664,6 +1696,13 @@ export default function SettingsPage() {
         used: fileUsageToday,
       },
       {
+        key: "images",
+        limit: currentPlanDefinition.limits.studioImagesPerDay,
+        period: "day",
+        title: "Images (Studio)",
+        used: studioUsageToday,
+      },
+      {
         key: "tasks",
         limit: currentPlanDefinition.limits.taskSchedules,
         period: "month",
@@ -1674,6 +1713,7 @@ export default function SettingsPage() {
   }, [
     currentPlanDefinition,
     fileUsageToday,
+    studioUsageToday,
     isAuthenticated,
     isHydrated,
     plan,
@@ -2080,6 +2120,32 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="text-sm font-medium">Vibrations</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Active un retour haptique sur mobile (début/fin de réponse IA et
+            interactions).
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              onClick={() => setVibrationsEnabled(true)}
+              size="sm"
+              type="button"
+              variant={vibrationsEnabled ? "default" : "outline"}
+            >
+              Activer
+            </Button>
+            <Button
+              onClick={() => setVibrationsEnabled(false)}
+              size="sm"
+              type="button"
+              variant={vibrationsEnabled ? "outline" : "default"}
+            >
+              Désactiver
+            </Button>
+          </div>
+        </div>
       </CompteSection>
 
       <NotificationsSection
@@ -2303,6 +2369,24 @@ export default function SettingsPage() {
           Définissez la hauteur par défaut de la barre de saisie. Le mode
           compact est désormais recommandé pour une interface plus dense.
         </p>
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background/60 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              checked={improveMaiForAll}
+              className="mt-1"
+              onChange={(event) => setImproveMaiForAll(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Améliorer mAI pour tous</span>
+              <span className="block text-xs text-muted-foreground">
+                Autorisez l'utilisation de votre contenu pour entraîner les modèles et améliorer les performances d'mAI pour vous et tous ceux qui l'utilisent. Nous prenons des mesures pour protéger votre vie privée.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           {[
             { label: "Compacte", value: "compact" as const },
@@ -2679,6 +2763,24 @@ export default function SettingsPage() {
             sont temporairement bloquées.
           </p>
         )}
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background/60 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              checked={improveMaiForAll}
+              className="mt-1"
+              onChange={(event) => setImproveMaiForAll(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Améliorer mAI pour tous</span>
+              <span className="block text-xs text-muted-foreground">
+                Autorisez l'utilisation de votre contenu pour entraîner les modèles et améliorer les performances d'mAI pour vous et tous ceux qui l'utilisent. Nous prenons des mesures pour protéger votre vie privée.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           <Button
             className="justify-start"

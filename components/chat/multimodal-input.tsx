@@ -1075,6 +1075,13 @@ ${extractedFileContext}`
 
   const processFiles = useCallback(
     async (files: File[]) => {
+      if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+        toast.error(
+          "Crédits IA épuisés: ajout de fichiers bloqué jusqu'à réinitialisation."
+        );
+        return;
+      }
+
       const rejectedFiles = files
         .map((file) => validateFileBeforeUpload(file))
         .filter((error): error is string => Boolean(error));
@@ -1126,7 +1133,7 @@ ${extractedFileContext}`
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile]
+    [isAuthenticated, plan, setAttachments, uploadFile]
   );
 
   const handleFileChange = useCallback(
@@ -1139,6 +1146,13 @@ ${extractedFileContext}`
 
   const handlePaste = useCallback(
     async (event: ClipboardEvent) => {
+      if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+        toast.error(
+          "Crédits IA épuisés: ajout d'image bloqué jusqu'à réinitialisation."
+        );
+        return;
+      }
+
       const items = event.clipboardData?.items;
       if (!items) {
         return;
@@ -1187,7 +1201,7 @@ ${extractedFileContext}`
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile]
+    [isAuthenticated, plan, setAttachments, uploadFile]
   );
 
   useEffect(() => {

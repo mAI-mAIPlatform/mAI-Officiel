@@ -37,7 +37,7 @@ export function CreditsSection({
         Crédits
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Suivi des crédits IA par tier, des tâches et des fichiers.
+        Suivi des crédits IA par tier, des tâches, des fichiers et des images.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -82,11 +82,12 @@ export function CreditsSection({
       <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
         <h3 className="text-sm font-semibold">Infos</h3>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
-          Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2, Claude
-          Opus 4.6, Claude Opus 4.7 et Mistral Large 3 tandis que le Tier 2
-          comporte GPT-5.1, GPT-5, Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek
-          3.2, Kimi K2.5 et que le Tier 3 ont les modèles les moins performants,
-          GPT-5.4 Mini, GPT-5.4 Nano, Claude Haïku 4.5.
+          Tier 1 : GPT-5.4, GPT-5.2, Claude Opus 4.6/4.7 et Mistral Large 3.
+          Tier 2 : GPT-5.1, GPT-5, Claude Sonnet 4/4.6, DeepSeek 3.2, Kimi
+          K2.5/K2.6 et les modèles AI Horde les plus coûteux. Tier 3 : modèles
+          rapides/économiques (GPT-5.4 Mini/Nano, Claude Haïku 4.5 et AI Horde
+          compacts). Les images Studio disposent aussi d&apos;un quota quotidien
+          dédié selon le forfait.
         </p>
       </div>
     </section>

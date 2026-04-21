@@ -42,7 +42,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 3,
       mealsSearchesPerDay: 3,
       healthRequestsPerMonth: 5,
-      studioImagesPerDay: 5,
+      studioImagesPerDay: 7,
     },
   },
   plus: {
@@ -94,7 +94,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
       newsSearchesPerDay: 20,
       mealsSearchesPerDay: 20,
       healthRequestsPerMonth: 25,
-      studioImagesPerDay: 100,
+      studioImagesPerDay: 75,
     },
   },
 };
