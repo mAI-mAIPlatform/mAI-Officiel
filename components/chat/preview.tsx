@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { greetingPrompts } from "@/lib/constants";
-import { pickRandomSuggestions } from "@/lib/suggestion-pool";
+import { getDefaultSuggestions, pickRandomSuggestions } from "@/lib/suggestion-pool";
 
 const GHOST_MODE_STORAGE_KEY = "mai.ghost-mode";
 const GHOST_MODE_UPDATED_EVENT = "mai:ghost-mode-updated";
@@ -17,7 +17,7 @@ export function Preview() {
   const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
   const [isGhostModeEnabled, setIsGhostModeEnabled] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>(() =>
-    pickRandomSuggestions(4, language)
+    getDefaultSuggestions(4, language)
   );
 
   useEffect(() => {

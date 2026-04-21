@@ -81,6 +81,14 @@ const suggestionPoolByLanguage: Record<AppLanguage, string[]> = {
   ],
 };
 
+export function getDefaultSuggestions(
+  count = 4,
+  language: AppLanguage = "fr"
+): string[] {
+  const pool = suggestionPoolByLanguage[language] ?? suggestionPoolByLanguage.fr;
+  return pool.slice(0, Math.min(count, pool.length));
+}
+
 export function pickRandomSuggestions(
   count = 4,
   language: AppLanguage = "fr"
