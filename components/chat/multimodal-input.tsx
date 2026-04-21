@@ -13,6 +13,7 @@ import {
   ImageIcon,
   LockIcon,
   MicIcon,
+  Music2Icon,
   Paperclip,
   PinIcon,
   PlusIcon,
@@ -131,6 +132,7 @@ const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
 const PLUGIN_MODE_STORAGE_KEY = "mai.plugin-mode";
 const PLUGIN_ENABLED_STORAGE_KEY = "mai.plugins.enabled.v1";
 const IMAGE_CREATION_MODE_STORAGE_KEY = "mai.image-creation-mode.enabled";
+const MUSIC_CREATION_MODE_STORAGE_KEY = "mai.music-creation-mode.enabled";
 const reflectionLevels: ReflectionLevel[] = [
   "light",
   "moderate",
@@ -911,6 +913,10 @@ function PureMultimodalInput({
         typeof window === "undefined"
           ? false
           : localStorage.getItem(IMAGE_CREATION_MODE_STORAGE_KEY) === "true";
+      const isMusicCreationModeEnabled =
+        typeof window === "undefined"
+          ? false
+          : localStorage.getItem(MUSIC_CREATION_MODE_STORAGE_KEY) === "true";
       const pluginContextBlock =
         pluginMode === "none"
           ? ""
@@ -937,6 +943,24 @@ function PureMultimodalInput({
             "Attends la réponse utilisateur avant d'aller plus loin.",
           ].join("\n")
         : "";
+      const musicCreationBlock = isMusicCreationModeEnabled
+        ? [
+            "[MODE CRÉATION DE MUSIQUE]",
+            "L'utilisateur veut créer une musique (Wave).",
+            "Avant de proposer la génération, pose un mini-formulaire:",
+            "1) style/genre musical,",
+            "2) instrumental ou chanté,",
+            "3) modèle Wave (V5_5, V5, V4_5PLUS, V4_5ALL, V4_5, V4),",
+            "4) durée/structure souhaitée.",
+            "Attends les réponses avant d'aller plus loin.",
+          ].join("\n")
+        : "";
+      if (isMusicCreationModeEnabled && typeof window !== "undefined") {
+        const key = "mai.wave.prefill.prompts.v1";
+        const raw = localStorage.getItem(key);
+        const current = raw ? (JSON.parse(raw) as string[]) : [];
+        localStorage.setItem(key, JSON.stringify([prompt, ...current].slice(0, 20)));
+      }
 
       sendMessage({
         role: "user",
@@ -953,6 +977,8 @@ function PureMultimodalInput({
               ? `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
                 }${
+                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
+                }${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}
 
@@ -960,6 +986,8 @@ function PureMultimodalInput({
 ${extractedFileContext}`
               : `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
+                }${
+                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
                 }${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}`,
@@ -1631,6 +1659,8 @@ function PureContextualActionsMenu({
   );
   const [isImageCreationModeEnabled, setIsImageCreationModeEnabled] =
     useLocalStorage(IMAGE_CREATION_MODE_STORAGE_KEY, false);
+  const [isMusicCreationModeEnabled, setIsMusicCreationModeEnabled] =
+    useLocalStorage(MUSIC_CREATION_MODE_STORAGE_KEY, false);
   const [selectedPlugin, setSelectedPlugin] = useLocalStorage<string>(
     PLUGIN_MODE_STORAGE_KEY,
     "none"
@@ -1688,6 +1718,9 @@ function PureContextualActionsMenu({
   }
   if (isImageCreationModeEnabled) {
     selectedActions.push("Création d'images");
+  }
+  if (isMusicCreationModeEnabled) {
+    selectedActions.push("Créer de la musique");
   }
   if (selectedPlugin !== "none") {
     const pluginLabel =
@@ -1960,6 +1993,25 @@ function PureContextualActionsMenu({
             size={16}
           />
           Création d'images
+        </Button>
+        <Button
+          className={cn(
+            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
+            isMusicCreationModeEnabled &&
+              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          )}
+          onClick={() => setIsMusicCreationModeEnabled(!isMusicCreationModeEnabled)}
+          variant="ghost"
+        >
+          <Music2Icon
+            className={
+              isMusicCreationModeEnabled
+                ? "text-primary"
+                : "text-muted-foreground"
+            }
+            size={16}
+          />
+          Créer de la musique
         </Button>
 
         <Button

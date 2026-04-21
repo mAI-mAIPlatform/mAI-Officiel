@@ -5,6 +5,7 @@ export type UsageFeature =
   | "websearch"
   | "files"
   | "studio"
+  | "wave"
   | "tier1"
   | "tier2"
   | "tier3";

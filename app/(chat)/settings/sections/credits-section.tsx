@@ -37,7 +37,7 @@ export function CreditsSection({
         Crédits
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Suivi des crédits IA par tier, des tâches, des fichiers et des images.
+        Suivi des crédits IA par tier, des fichiers, des images et de la musique.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
