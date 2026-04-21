@@ -66,6 +66,21 @@ function normalizeChatTitle(title: string): string {
   return title.trim().slice(0, MAX_CHAT_TITLE_LENGTH);
 }
 
+function buildFallbackTitleFromMessage(message?: ChatMessage): string {
+  const text = message?.parts
+    ?.filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text) {
+    return "Nouvelle discussion";
+  }
+
+  return normalizeChatTitle(text.split(" ").slice(0, 8).join(" "));
+}
+
 function getStreamContext() {
   try {
     return createResumableStreamContext({ waitUntil: after });
@@ -397,7 +412,11 @@ export async function POST(request: Request) {
         );
 
         if (titlePromise && !isGhostMode) {
-          const title = normalizeChatTitle(await titlePromise);
+          const generatedTitle = normalizeChatTitle(await titlePromise);
+          const title =
+            generatedTitle.length > 0
+              ? generatedTitle
+              : buildFallbackTitleFromMessage(message as ChatMessage);
           dataStream.write({ type: "data-chat-title", data: title });
           await updateChatTitleById({ chatId: id, title });
         }

@@ -1,6 +1,5 @@
 "use client";
 
-import { isToday, isYesterday, subMonths, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "next-auth";
@@ -31,14 +30,6 @@ import { fetcher } from "@/lib/utils";
 import { LoaderIcon } from "./icons";
 import { ChatItem } from "./sidebar-history-item";
 
-type GroupedChats = {
-  today: Chat[];
-  yesterday: Chat[];
-  lastWeek: Chat[];
-  lastMonth: Chat[];
-  older: Chat[];
-};
-
 export type ChatHistory = {
   chats: Chat[];
   hasMore: boolean;
@@ -57,39 +48,6 @@ const parseLocalStorageArray = (key: string) => {
   } catch {
     return [];
   }
-};
-
-const groupChatsByDate = (chats: Chat[]): GroupedChats => {
-  const now = new Date();
-  const oneWeekAgo = subWeeks(now, 1);
-  const oneMonthAgo = subMonths(now, 1);
-
-  return chats.reduce(
-    (groups, chat) => {
-      const chatDate = new Date(chat.createdAt);
-
-      if (isToday(chatDate)) {
-        groups.today.push(chat);
-      } else if (isYesterday(chatDate)) {
-        groups.yesterday.push(chat);
-      } else if (chatDate > oneWeekAgo) {
-        groups.lastWeek.push(chat);
-      } else if (chatDate > oneMonthAgo) {
-        groups.lastMonth.push(chat);
-      } else {
-        groups.older.push(chat);
-      }
-
-      return groups;
-    },
-    {
-      today: [],
-      yesterday: [],
-      lastWeek: [],
-      lastMonth: [],
-      older: [],
-    } as GroupedChats
-  );
 };
 
 export function getChatHistoryPaginationKey(
@@ -290,16 +248,13 @@ export function SidebarHistory({
     toast.success("Discussion supprimée");
   };
 
-  const renderChatSection = (label: string, chats: Chat[]) => {
+  const renderChatList = (chats: Chat[]) => {
     if (chats.length === 0) {
       return null;
     }
 
     return (
       <div>
-        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
-          {label}
-        </div>
         {chats.map((chat) => (
           <ChatItem
             chat={chat}
@@ -419,21 +374,9 @@ export function SidebarHistory({
                     new Date(a.createdAt).getTime()
                   );
                 });
-                const groupedChats = groupChatsByDate(sortedChats);
-
                 return (
                   <div className="flex flex-col gap-4">
-                    {renderChatSection("Aujourd'hui", groupedChats.today)}
-                    {renderChatSection("Hier", groupedChats.yesterday)}
-                    {renderChatSection(
-                      "7 derniers jours",
-                      groupedChats.lastWeek
-                    )}
-                    {renderChatSection(
-                      "30 derniers jours",
-                      groupedChats.lastMonth
-                    )}
-                    {renderChatSection("Anciennes", groupedChats.older)}
+                    {renderChatList(sortedChats)}
                   </div>
                 );
               })()}

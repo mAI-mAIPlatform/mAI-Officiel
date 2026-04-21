@@ -1,5 +1,5 @@
 import equal from "fast-deep-equal";
-import { Flag, Pause, Pin, Play, Square } from "lucide-react";
+import { Flag, Pin, Play } from "lucide-react";
 import { memo } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -127,11 +127,11 @@ export function PureMessageActions({
 
   if (message.role === "user") {
     return (
-      <Actions className="-mr-0.5 justify-end opacity-0 transition-opacity duration-150 group-hover/message:opacity-100">
+      <Actions className="-mr-0.5 justify-end opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover/message:opacity-100">
         <div className="flex items-center gap-0.5">
           {onEdit && (
             <Action
-              className="size-7 text-muted-foreground/50 hover:text-foreground"
+              className="size-7 text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
               data-testid="message-edit-button"
               onClick={onEdit}
               tooltip="Edit"
@@ -140,21 +140,21 @@ export function PureMessageActions({
             </Action>
           )}
           <Action
-            className="size-7 text-muted-foreground/50 hover:text-foreground"
+            className="size-7 text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
             onClick={handleCopy}
             tooltip="Copy"
           >
             <CopyIcon />
           </Action>
           <Action
-            className="size-7 text-muted-foreground/50 hover:text-foreground"
+            className="size-7 text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
             onClick={handlePinMessage}
             tooltip="Épingler"
           >
             <Pin className="size-3.5" />
           </Action>
           <Action
-            className="size-7 text-muted-foreground/50 hover:text-foreground"
+            className="size-7 text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
             onClick={handleReportMessage}
             tooltip="Signaler"
           >
@@ -166,7 +166,7 @@ export function PureMessageActions({
   }
 
   return (
-    <Actions className="-ml-0.5 opacity-0 transition-opacity duration-150 group-hover/message:opacity-100">
+    <Actions className="-ml-0.5 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover/message:opacity-100">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -203,50 +203,36 @@ export function PureMessageActions({
         </DropdownMenuContent>
       </DropdownMenu>
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         onClick={handleCopy}
         tooltip="Copy"
       >
         <CopyIcon />
       </Action>
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         onClick={handlePinMessage}
         tooltip="Épingler"
       >
         <Pin className="size-3.5" />
       </Action>
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         onClick={handleReportMessage}
         tooltip="Signaler"
       >
         <Flag className="size-3.5" />
       </Action>
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         onClick={speakText}
         tooltip="Écouter"
       >
         <Play className="size-3.5" />
       </Action>
-      <Action
-        className="text-muted-foreground/50 hover:text-foreground"
-        onClick={() => window.speechSynthesis.pause()}
-        tooltip="Pause"
-      >
-        <Pause className="size-3.5" />
-      </Action>
-      <Action
-        className="text-muted-foreground/50 hover:text-foreground"
-        onClick={() => window.speechSynthesis.cancel()}
-        tooltip="Stop"
-      >
-        <Square className="size-3.5" />
-      </Action>
 
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         data-testid="message-upvote"
         disabled={vote?.isUpvoted}
         onClick={() => {
@@ -299,7 +285,7 @@ export function PureMessageActions({
       </Action>
 
       <Action
-        className="text-muted-foreground/50 hover:text-foreground"
+        className="text-black/70 hover:text-black dark:text-white/70 dark:hover:text-white"
         data-testid="message-downvote"
         disabled={vote && !vote.isUpvoted}
         onClick={() => {
