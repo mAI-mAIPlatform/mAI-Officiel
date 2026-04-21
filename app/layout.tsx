@@ -7,6 +7,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { SessionGuard } from "@/components/security/session-guard";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://chat.vercel.ai"),
@@ -91,6 +92,7 @@ export default function RootLayout({
             </TooltipProvider>
           </SessionProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
