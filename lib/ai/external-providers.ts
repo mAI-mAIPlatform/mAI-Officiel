@@ -20,23 +20,23 @@ const OPENROUTER_API_KEYS = [
 ].filter((value): value is string => Boolean(value && value.trim()));
 
 const fsModelMapping: Record<string, string> = {
-  "openai/gpt-5.4": "gpt-5.4",
-  "openai/gpt-5.4-mini": "gpt-5.4-mini",
-  "openai/gpt-5.4-nano": "gpt-5.4-nano",
-  "openai/gpt-5.2": "gpt-5.2",
-  "openai/gpt-5.1": "gpt-5.1",
-  "openai/gpt-5": "gpt-5.4",
-  "openai/gpt-oss-120b": "gpt-oss-120b",
-  "azure/deepseek-v3.2": "DeepSeek-V3.2",
-  "azure/kimi-k2.5": "Kimi-K2.5",
-  "azure/kimi-k2.6": "Kimi-K2.6",
-  "azure/mistral-large-3": "Mistral-Large-3",
+  "gpt-5.4": "gpt-5.4",
+  "gpt-5.4-mini": "gpt-5.4-mini",
+  "gpt-5.4-nano": "gpt-5.4-nano",
+  "gpt-5.2": "gpt-5.2",
+  "gpt-5.1": "gpt-5.1",
+  "gpt-5": "gpt-5.4",
+  "gpt-oss-120b": "gpt-oss-120b",
+  "deepseek-v3.2": "DeepSeek-V3.2",
+  "kimi-k2.5": "Kimi-K2.5",
+  "kimi-k2.6": "Kimi-K2.6",
+  "mistral-large-3": "Mistral-Large-3",
   // Anthropic/Claude (à aligner avec les IDs exposés par FranceStudent).
-  "anthropic/claude-opus-4-6": "claude-opus-4-20250601",
-  "anthropic/claude-opus-4-7": "claude-opus-4-20250714",
-  "claude/claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
-  "anthropic/claude-sonnet-4-6": "claude-sonnet-4-20250601",
-  "anthropic/claude-haiku-4-5": "claude-haiku-4-5-20250401",
+  "claude-opus-4-6": "claude-opus-4.6",
+  "claude-opus-4-7": "claude-opus-4.7",
+  "claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
+  "claude-sonnet-4-6": "claude-sonnet-4.6",
+  "claude-haiku-4-5": "claude-haiku-4.5",
 };
 
 const ollamaModelMapping: Record<string, string> = {
