@@ -45,6 +45,20 @@ test("extractTextFromResponsesPayload - parse une chaîne d'événements concat�
   assert.equal(extractTextFromResponsesPayload(rawStream), "Salut !");
 });
 
+test("extractTextFromResponsesPayload - gère un objet événement avec clé response", () => {
+  const wrappedEvent = {
+    type: "response.completed",
+    response: {
+      output_text: "Bonjour depuis response.completed",
+    },
+  };
+
+  assert.equal(
+    extractTextFromResponsesPayload(wrappedEvent),
+    "Bonjour depuis response.completed"
+  );
+});
+
 test("extractTextFromResponsesPayload - fallback output_text.done si pas de deltas", () => {
   const streamEvents = [
     { type: "response.created" },

@@ -201,7 +201,8 @@ function extractTextFromChatCompletion(
   const content = data?.choices?.[0]?.message?.content;
 
   if (typeof content === "string") {
-    return content.trim();
+    const normalized = extractTextFromPotentialResponsesStream(content);
+    return normalized.length > 0 ? normalized : content.trim();
   }
 
   if (Array.isArray(content)) {
@@ -212,6 +213,17 @@ function extractTextFromChatCompletion(
   }
 
   return (data?.output_text ?? "").trim();
+}
+
+function extractTextFromPotentialResponsesStream(rawContent: string): string {
+  const trimmedContent = rawContent.trim();
+
+  if (!trimmedContent.startsWith("{")) {
+    return "";
+  }
+
+  const parsed = extractTextFromResponsesPayload(trimmedContent);
+  return parsed.length > 0 ? parsed : "";
 }
 
 function extractTextFromResponsesOutput(
@@ -296,6 +308,19 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
       }
       return "";
     }
+  }
+
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "type" in payload &&
+    typeof payload.type === "string" &&
+    payload.type.startsWith("response.") &&
+    "response" in payload
+  ) {
+    return extractTextFromResponsesPayload(
+      (payload as { response?: unknown }).response
+    );
   }
 
   return extractTextFromResponsesOutput(payload as ResponsesApiResponse);
