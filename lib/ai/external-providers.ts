@@ -426,14 +426,28 @@ export async function generateResponse(input: {
       input: normalizedMessages,
       stream: false,
     })) as ResponsesApiResponse;
+
     text = extractTextFromResponsesPayload(response);
   } catch (error) {
     const errorStatus = getErrorStatus(error);
+
+    const isRetryable =
       errorStatus === 400 || errorStatus === 404 || errorStatus === 422;
+
+    if (!isRetryable) {
+      throw error;
+    }
+
+    try {
+      const completion = await fsClient.chat.completions.create({
+        model: input.model,
+        messages: normalizedMessages,
       });
+
       text = extractTextFromChatCompletion(completion);
     } catch (completionError) {
       const completionStatus = getErrorStatus(completionError);
+
       const canRetryWithMiniModel =
         input.model === "gpt-5.4" &&
         (completionStatus === 400 || completionStatus === 404);
@@ -446,18 +460,9 @@ export async function generateResponse(input: {
         model: "gpt-5.4-mini",
         messages: normalizedMessages,
       });
+
       text = extractTextFromChatCompletion(fallbackCompletion);
     }
-
-    if (!isNotFoundError) {
-      throw error;
-    }
-
-    const completion = await fsClient.chat.completions.create({
-      model: input.model,
-      messages: normalizedMessages,
-    });
-    text = extractTextFromChatCompletion(completion);
   }
 
   if (!text) {
