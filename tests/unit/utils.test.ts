@@ -59,6 +59,18 @@ test("sanitizeText", () => {
     ),
     "Salut final"
   );
+  assert.equal(
+    sanitizeText(
+      '{\n  "type": "response.output_text.done",\n  "text": "Texte final avec espaces JSON"\n}'
+    ),
+    "Texte final avec espaces JSON"
+  );
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.completed","response":{"output_text":"Texte depuis response.output_text"}}'
+    ),
+    "Texte depuis response.output_text"
+  );
 });
 
 test("getTextFromMessage", () => {
