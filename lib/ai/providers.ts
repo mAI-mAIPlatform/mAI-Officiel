@@ -196,7 +196,7 @@ export function getLanguageModel(modelId: string) {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(modelId));
+    return fsProvider.chat(normalizeModelId(modelId));
   }
 
   const gatewayProvider = getGatewayProvider();
@@ -216,7 +216,7 @@ export function getTitleModel() {
 
   const fsProvider = getFsProvider();
   if (fsProvider) {
-    return fsProvider.responses(normalizeModelId(titleModel.id));
+    return fsProvider.chat(normalizeModelId(titleModel.id));
   }
 
   const gatewayProvider = getGatewayProvider();

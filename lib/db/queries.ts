@@ -1096,7 +1096,18 @@ export async function getSubscriptionPlan(userId: string) {
       .where(eq(subscription.userId, userId));
     return record?.plan ?? "free";
   } catch (error) {
-    console.error("Failed to get subscription plan:", error);
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : null;
+
+    if (code !== "42P01") {
+      console.error("Failed to get subscription plan:", error);
+    }
+
     return "free";
   }
 }
