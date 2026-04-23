@@ -80,6 +80,34 @@ function buildFallbackTitleFromMessage(message?: ChatMessage): string {
   return normalizeChatTitle(text.split(" ").slice(0, 8).join(" "));
 }
 
+function toUserFacingChatErrorMessage(message: string, model: string): string {
+  if (
+    message.includes(
+      "AI Gateway requires a valid credit card on file to service requests"
+    )
+  ) {
+    return "AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.";
+  }
+
+  if (message.toLowerCase().includes("api key")) {
+    return "Clé API manquante ou invalide. Vérifie FS_API_KEY.";
+  }
+
+  if (message.toLowerCase().includes("model")) {
+    return `Modèle "${model}" non reconnu par le provider.`;
+  }
+
+  if (message.toLowerCase().includes("not found")) {
+    return `Le provider IA n'expose pas encore l'endpoint/modèle demandé pour "${model}". Essaie "openai/gpt-5" ou "openai/gpt-5-mini".`;
+  }
+
+  if (message.toLowerCase().includes("bad request")) {
+    return `Le provider IA a rejeté la requête pour "${model}" (agent inactif ou modèle indisponible). Essaie "openai/gpt-5.4-mini".`;
+  }
+
+  return "Une erreur est survenue. Réessaie ou change de modèle.";
+}
+
 function getStreamContext() {
   try {
     return createResumableStreamContext({ waitUntil: after });
@@ -353,13 +381,26 @@ export async function POST(request: Request) {
           isExternalTextModel(chatModel) && !isToolApprovalFlow;
 
         if (shouldDisableStreamingForModel) {
-          const { text } = await runExternalTextModel(chatModel, modelMessages, {
-            systemInstruction: computedSystemPrompt.concat(
-              forceWebSearch
-                ? "\n\n[Instruction système] La recherche web est obligatoire pour cette requête: appelle d'abord l'outil webSearch, puis réponds en t'appuyant sur ses résultats."
-                : ""
-            ),
-          });
+          let text = "";
+          try {
+            const result = await runExternalTextModel(chatModel, modelMessages, {
+              systemInstruction: computedSystemPrompt.concat(
+                forceWebSearch
+                  ? "\n\n[Instruction système] La recherche web est obligatoire pour cette requête: appelle d'abord l'outil webSearch, puis réponds en t'appuyant sur ses résultats."
+                  : ""
+              ),
+            });
+            text = result.text;
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "Unknown streaming error";
+            console.error("[mAI Chat Error] runExternalTextModel failed", {
+              model: chatModel,
+              message,
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+            text = toUserFacingChatErrorMessage(message, chatModel);
+          }
 
           dataStream.write({ type: "start" });
           dataStream.write({ type: "start-step" });
@@ -491,31 +532,7 @@ export async function POST(request: Request) {
           stack: error instanceof Error ? error.stack : undefined,
         });
 
-        if (
-          message.includes(
-            "AI Gateway requires a valid credit card on file to service requests"
-          )
-        ) {
-          return "AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.";
-        }
-
-        if (message.toLowerCase().includes("api key")) {
-          return "Clé API manquante ou invalide. Vérifie FS_API_KEY.";
-        }
-
-        if (message.toLowerCase().includes("model")) {
-          return `Modèle "${chatModel}" non reconnu par le provider.`;
-        }
-
-        if (message.toLowerCase().includes("not found")) {
-          return `Le provider IA n'expose pas encore l'endpoint/modèle demandé pour "${chatModel}". Essaie "openai/gpt-5" ou "openai/gpt-5-mini".`;
-        }
-
-        if (message.toLowerCase().includes("bad request")) {
-          return `Le provider IA a rejeté la requête pour "${chatModel}" (agent inactif ou modèle indisponible). Essaie "openai/gpt-5.4" ou "openai/gpt-5.4-mini".`;
-        }
-
-        return "Une erreur est survenue. Réessaie ou change de modèle.";
+        return toUserFacingChatErrorMessage(message, chatModel);
       },
     });
 

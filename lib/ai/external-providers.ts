@@ -416,11 +416,30 @@ export async function generateResponse(input: {
     })) as ResponsesApiResponse;
     text = extractTextFromResponsesPayload(response);
   } catch (error) {
-    const isNotFoundError =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      error.status === 404;
+    try {
+      const completion = await fsClient.chat.completions.create({
+        model: input.model,
+        messages: normalizedMessages,
+      });
+      text = extractTextFromChatCompletion(completion);
+    } catch (completionError) {
+      const canRetryWithMiniModel =
+        input.model === "gpt-5.4" &&
+        typeof completionError === "object" &&
+        completionError !== null &&
+        "status" in completionError &&
+        (completionError.status === 400 || completionError.status === 404);
+
+      if (!canRetryWithMiniModel) {
+        throw completionError;
+      }
+
+      const fallbackCompletion = await fsClient.chat.completions.create({
+        model: "gpt-5.4-mini",
+        messages: normalizedMessages,
+      });
+      text = extractTextFromChatCompletion(fallbackCompletion);
+    }
 
     if (!isNotFoundError) {
       throw error;
