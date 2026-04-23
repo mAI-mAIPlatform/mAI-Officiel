@@ -383,6 +383,18 @@ function extractJsonObjectsFromStream(raw: string): unknown[] {
   return events;
 }
 
+function getErrorStatus(error: unknown): number | null {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof error.status === "number"
+  ) {
+    return error.status;
+  }
+  return null;
+}
+
 export async function generateResponse(input: {
   model: string;
   messages: Array<{
@@ -416,19 +428,15 @@ export async function generateResponse(input: {
     })) as ResponsesApiResponse;
     text = extractTextFromResponsesPayload(response);
   } catch (error) {
-    try {
-      const completion = await fsClient.chat.completions.create({
-        model: input.model,
-        messages: normalizedMessages,
+    const errorStatus = getErrorStatus(error);
+      errorStatus === 400 || errorStatus === 404 || errorStatus === 422;
       });
       text = extractTextFromChatCompletion(completion);
     } catch (completionError) {
+      const completionStatus = getErrorStatus(completionError);
       const canRetryWithMiniModel =
         input.model === "gpt-5.4" &&
-        typeof completionError === "object" &&
-        completionError !== null &&
-        "status" in completionError &&
-        (completionError.status === 400 || completionError.status === 404);
+        (completionStatus === 400 || completionStatus === 404);
 
       if (!canRetryWithMiniModel) {
         throw completionError;
