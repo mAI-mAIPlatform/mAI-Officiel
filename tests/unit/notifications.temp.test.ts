@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { interpolateTemplate } from "@/lib/notifications";
+import { interpolateTemplate } from "../../lib/notifications";
 
 test("interpolateTemplate - basic variable replacement", () => {
   const result = interpolateTemplate("Hello {{name}}!", { name: "World" });
@@ -93,7 +93,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   subscribeNotifications,
-} from "@/lib/notifications";
+} from "../../lib/notifications";
 
 // --- Mocking the Browser Environment ---
 let mockStorage: Record<string, string> = {};
@@ -292,8 +292,12 @@ test("createAiResponseNotification - error phase", () => {
   });
 
   const history = getNotificationHistory();
-  // Error phase notifications are intentionally disabled for UX.
-  assert.equal(history.length, 0);
+  assert.equal(history[0].level, "error");
+  // Testing fallback behavior for missing conversation title
+  assert.equal(
+    history[0].message,
+    "Une erreur est survenue sur la conversation « Sans titre »."
+  );
 });
 
 test("markNotificationRead - updates specific notification read status", () => {

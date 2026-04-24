@@ -220,7 +220,7 @@ export default function PricingPage() {
                       ? "Passer à Plus"
                       : planItem.key === "pro"
                         ? "Passer à Pro"
-                      : `Passer à ${planItem.label}`}
+                        : `Passer à ${planItem.label}`}
                   </Button>
                 ) : (
                   <Button className="w-full" disabled variant="outline">

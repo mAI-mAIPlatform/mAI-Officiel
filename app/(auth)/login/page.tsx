@@ -45,7 +45,9 @@ export default function Page() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Bon retour sur mAI !</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Bon retour sur mAI !
+      </h1>
       <p className="text-sm text-muted-foreground">
         Connectez vous à votre compte.
       </p>

@@ -1,6 +1,7 @@
 import type { ModelMessage } from "ai";
 import OpenAI from "openai";
 import { extractTextFromResponsesPayload } from "@/lib/responses-text-extractor";
+
 export { extractTextFromResponsesPayload } from "@/lib/responses-text-extractor";
 
 const FS_API_BASE_URL =
@@ -67,14 +68,12 @@ const hordeModelMapping: Record<string, string> = {
   "horde/Qwen_Qwen3-0.6B-IQ4_XS": "Qwen_Qwen3-0.6B-IQ4_XS",
   "horde/LFM2.5-1.2B-Instruct": "LFM2.5-1.2B-Instruct",
   "horde/HY-MT1.5-1.8B": "HY-MT1.5-1.8B",
-  "horde/Qwen3-30B-A3B-abliterated-erotic":
-    "Qwen3-30B-A3B-abliterated-erotic",
+  "horde/Qwen3-30B-A3B-abliterated-erotic": "Qwen3-30B-A3B-abliterated-erotic",
 };
 
 const openRouterModelMapping: Record<string, string> = {
   "openrouter/qwen/qwen3.6-plus:free": "qwen/qwen3.6-plus:free",
-  "openrouter/qwen/qwen3.6-plus-preview:free":
-    "qwen/qwen3.6-plus-preview:free",
+  "openrouter/qwen/qwen3.6-plus-preview:free": "qwen/qwen3.6-plus-preview:free",
   "openrouter/qwen/qwen3-coder:free": "qwen/qwen3-coder:free",
   "openrouter/qwen/qwen3-next-80b-a3b-instruct:free":
     "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -339,7 +338,9 @@ export async function runExternalTextModel(
   if (modelId.startsWith("ollama/")) {
     const ollamaClient = getOllamaClient();
     if (!ollamaClient) {
-      throw new Error("Ollama provider non initialisé (OLLAMA_API_KEY manquante)");
+      throw new Error(
+        "Ollama provider non initialisé (OLLAMA_API_KEY manquante)"
+      );
     }
     const completion = await ollamaClient.chat.completions.create({
       model: providerModelId,

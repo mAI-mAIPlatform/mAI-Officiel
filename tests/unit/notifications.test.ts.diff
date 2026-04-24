@@ -1,0 +1,31 @@
+<<<<<<< SEARCH
+test("createAiResponseNotification - error phase", () => {
+  setupWindow();
+
+  createAiResponseNotification({
+    phase: "error",
+    chatId: "chat-1",
+  });
+
+  const history = getNotificationHistory();
+  assert.equal(history[0].level, "error");
+  // Testing fallback behavior for missing conversation title
+  assert.equal(
+    history[0].message,
+    "Une erreur est survenue sur la conversation « Sans titre »."
+  );
+});
+=======
+test("createAiResponseNotification - error phase", () => {
+  setupWindow();
+
+  createAiResponseNotification({
+    phase: "error",
+    chatId: "chat-1",
+  });
+
+  const history = getNotificationHistory();
+  // Error phase notifications are intentionally disabled for UX.
+  assert.equal(history.length, 0);
+});
+>>>>>>> REPLACE

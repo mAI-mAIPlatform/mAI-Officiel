@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AudioWaveformIcon,
   BookOpenIcon,
   BotIcon,
   CreditCardIcon,
@@ -12,7 +13,6 @@ import {
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
-  AudioWaveformIcon,
   TerminalSquareIcon,
   TrashIcon,
   Volume2Icon,
@@ -48,6 +48,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAppLogo } from "@/hooks/use-app-logo";
 import { useLanguage } from "@/hooks/use-language";
 import {
   AlertDialog,
@@ -225,6 +226,7 @@ const sidebarI18n = {
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
+  const { appLogo } = useAppLogo();
   const { mutate } = useSWRConfig();
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const { language } = useLanguage();
@@ -340,7 +342,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     href="/"
                     onClick={closeMobileSidebar}
                   >
-                    <BrandStarLogoIcon size={22} />
+                    <BrandStarLogoIcon size={22} src={appLogo} />
                     <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded-md border border-sidebar-border/70 bg-sidebar/90 p-0.5 opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100">
                       <PenSquareIcon className="size-3 text-sidebar-foreground/80" />
                     </span>

@@ -23,8 +23,8 @@ import type { VisibilityType } from "@/components/chat/visibility-selector";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
-import type { ChatMessage } from "@/lib/types";
 import { triggerHaptic } from "@/lib/haptics";
+import type { ChatMessage } from "@/lib/types";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 
 type ActiveChatContextValue = {
@@ -273,8 +273,6 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   });
 
   const isReadonly = isNewChat ? false : (chatData?.isReadonly ?? false);
-
-
 
   const previousStatusRef = useRef(status);
   useEffect(() => {

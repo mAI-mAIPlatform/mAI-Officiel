@@ -144,7 +144,9 @@ export function VoiceTopActions({
                   <div className="mt-2 hidden grid-cols-3 gap-1 group-hover/item:grid">
                     <button
                       className="inline-flex items-center justify-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] transition hover:bg-background/70"
-                      onClick={() => navigator.clipboard.writeText(item.message)}
+                      onClick={() =>
+                        navigator.clipboard.writeText(item.message)
+                      }
                       type="button"
                     >
                       <Copy className="size-3.5" /> Copier

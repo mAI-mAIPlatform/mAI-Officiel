@@ -30,6 +30,7 @@ import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { availableLogos, maxPlanLogos, useAppLogo } from "@/hooks/use-app-logo";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
   getTierRemaining,
@@ -43,6 +44,7 @@ import {
   TAG_PALETTE,
   type TagDefinition,
 } from "@/lib/chat-preferences";
+import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
 import {
   type AppLanguage,
   LANGUAGE_STORAGE_KEY,
@@ -50,7 +52,6 @@ import {
   setLanguageInStorage,
 } from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
-import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
 import {
   defaultSecuritySettings,
   hashPinCode,
@@ -506,6 +507,7 @@ export default function SettingsPage() {
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
+  const { appLogo, setAppLogo } = useAppLogo();
   const [profession, setProfession] = useState("");
   const [aiBehavior, setAiBehavior] = useState({
     concision: 50,
@@ -1248,7 +1250,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
     const dismissed = window.localStorage.getItem("mai.pwa.install.dismissed");
     if (dismissed === "1") {
       setShowPwaInstallCard(false);
@@ -2025,6 +2029,72 @@ export default function SettingsPage() {
           )}
         </div>
 
+        <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-primary/5 p-4 shadow-sm backdrop-blur-xl">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Logo de l&apos;application & Favicon
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {availableLogos.map((logo) => (
+              <button
+                className={cn(
+                  "relative flex size-12 items-center justify-center rounded-xl border transition-all hover:scale-105",
+                  appLogo === `/images/${logo}`
+                    ? "border-primary bg-primary/20 shadow-sm ring-2 ring-primary/30"
+                    : "border-border/50 bg-background/50 hover:bg-accent"
+                )}
+                key={logo}
+                onClick={() => setAppLogo(`/images/${logo}`)}
+                type="button"
+              >
+                {/* biome-ignore lint/performance/noImgElement: user logo preview */}
+                <img
+                  alt="App logo"
+                  className="size-8 object-contain"
+                  src={`/images/${logo}`}
+                />
+              </button>
+            ))}
+            {maxPlanLogos.map((logo) => {
+              const isMax = plan === "max";
+              return (
+                <button
+                  className={cn(
+                    "relative flex size-12 items-center justify-center rounded-xl border transition-all",
+                    appLogo === `/images/${logo}`
+                      ? "border-primary bg-primary/20 shadow-sm ring-2 ring-primary/30"
+                      : "border-border/50 bg-background/50",
+                    isMax
+                      ? "hover:scale-105 hover:bg-accent"
+                      : "opacity-60 cursor-not-allowed"
+                  )}
+                  key={logo}
+                  onClick={() => {
+                    if (isMax) {
+                      setAppLogo(`/images/${logo}`);
+                    } else {
+                      window.location.href = "/pricing";
+                    }
+                  }}
+                  title={isMax ? undefined : "Réservé au forfait Max"}
+                  type="button"
+                >
+                  {/* biome-ignore lint/performance/noImgElement: user logo preview */}
+                  <img
+                    alt="App logo"
+                    className="size-8 object-contain"
+                    src={`/images/${logo}`}
+                  />
+                  {!isMax && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+                      <Lock className="size-4 text-primary" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {showPwaInstallCard ? (
           <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
             <p className="text-sm font-medium">Installation PWA</p>
@@ -2244,8 +2314,8 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">Réflexion</p>
             <div className="rounded-xl border border-border/60 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground">
-                Disponible selon votre forfait : Free/Plus (Aucun, Faible),
-                Pro (+ Moyen), Max (+ Élevé).
+                Disponible selon votre forfait : Free/Plus (Aucun, Faible), Pro
+                (+ Moyen), Max (+ Élevé).
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {[

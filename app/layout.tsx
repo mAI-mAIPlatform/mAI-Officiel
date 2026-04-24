@@ -4,10 +4,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SessionProvider } from "next-auth/react";
+import { AppLogoUpdater } from "@/components/app-logo-updater";
 import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { SessionGuard } from "@/components/security/session-guard";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mai-officiel.vercel.app"),
@@ -86,6 +87,7 @@ export default function RootLayout({
             basePath={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/auth`}
           >
             <TooltipProvider>
+              <AppLogoUpdater />
               <RegisterServiceWorker />
               <SessionGuard />
               {children}

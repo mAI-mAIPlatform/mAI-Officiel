@@ -19,10 +19,14 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
-import { areAllTierCreditsExhausted } from "@/lib/ai/credits";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
+import { areAllTierCreditsExhausted } from "@/lib/ai/credits";
 import { triggerHaptic } from "@/lib/haptics";
-import { canConsumeUsage, consumeUsage, getUsageCount } from "@/lib/usage-limits";
+import {
+  canConsumeUsage,
+  consumeUsage,
+  getUsageCount,
+} from "@/lib/usage-limits";
 
 const imageModels = affordableImageModels;
 const LIBRARY_STORAGE_KEY = "mai.library.assets";
@@ -68,9 +72,15 @@ const quickStyles = [
 ];
 
 const getStudioCreditCost = (imageCount: number): number => {
-  if (imageCount <= 1) return 1;
-  if (imageCount === 2) return 1.5;
-  if (imageCount === 3) return 2;
+  if (imageCount <= 1) {
+    return 1;
+  }
+  if (imageCount === 2) {
+    return 1.5;
+  }
+  if (imageCount === 3) {
+    return 2;
+  }
   return 2.5;
 };
 
@@ -99,7 +109,8 @@ export default function StudioPage() {
   const [selectedStyle, setSelectedStyle] = useState("");
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [downloadFormat, setDownloadFormat] = useState<ImageDownloadFormat>("png");
+  const [downloadFormat, setDownloadFormat] =
+    useState<ImageDownloadFormat>("png");
   const [gallery, setGallery] = useState<StudioImageItem[]>([]);
   const [activeImage, setActiveImage] = useState<StudioImageItem | null>(null);
   const [editorBrightness, setEditorBrightness] = useState(100);
@@ -112,7 +123,9 @@ export default function StudioPage() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STUDIO_GALLERY_STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        return;
+      }
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         setGallery(parsed);
@@ -127,7 +140,9 @@ export default function StudioPage() {
   }, [gallery]);
 
   const selectedSize = useMemo(() => {
-    if (outputPreset !== "custom") return outputPresetSizes[outputPreset];
+    if (outputPreset !== "custom") {
+      return outputPresetSizes[outputPreset];
+    }
     const width = Number(customWidth);
     const height = Number(customHeight);
     const safeWidth = Number.isFinite(width)
@@ -158,13 +173,19 @@ export default function StudioPage() {
       next = gallery.filter((item) => item.deleted);
     }
 
-    if (filterFavoritesOnly) next = next.filter((item) => item.favorite);
+    if (filterFavoritesOnly) {
+      next = next.filter((item) => item.favorite);
+    }
     if (styleFilter !== "all") {
-      next = next.filter((item) => item.style.toLowerCase() === styleFilter.toLowerCase());
+      next = next.filter(
+        (item) => item.style.toLowerCase() === styleFilter.toLowerCase()
+      );
     }
     if (normalized) {
       next = next.filter((item) =>
-        `${item.prompt} ${item.model} ${item.style}`.toLowerCase().includes(normalized)
+        `${item.prompt} ${item.model} ${item.style}`
+          .toLowerCase()
+          .includes(normalized)
       );
     }
 
@@ -176,11 +197,13 @@ export default function StudioPage() {
     }
     if (sortMode === "chronologique") {
       return next.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
     }
     return next.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [
     activeLibrarySection,
@@ -218,15 +241,21 @@ export default function StudioPage() {
         const statusRes = await fetch(`/api/studio/result/${payload.id}`);
         const statusPayload = await statusRes.json();
         if (statusPayload.finished) {
-          if (statusPayload.error) throw new Error(statusPayload.error);
+          if (statusPayload.error) {
+            throw new Error(statusPayload.error);
+          }
           return statusPayload.imageUrl as string;
         }
       }
       throw new Error("Génération trop longue.");
     }
 
-    if (payload.imageUrl) return payload.imageUrl as string;
-    if (payload.imageBase64) return `data:image/png;base64,${payload.imageBase64}`;
+    if (payload.imageUrl) {
+      return payload.imageUrl as string;
+    }
+    if (payload.imageBase64) {
+      return `data:image/png;base64,${payload.imageBase64}`;
+    }
     throw new Error("Aucune image retournée par le modèle.");
   };
 
@@ -274,7 +303,9 @@ export default function StudioPage() {
       }
 
       if (nextItems.length === 0) {
-        throw new Error("Aucune image générée (quota atteint ou réponse vide).");
+        throw new Error(
+          "Aucune image générée (quota atteint ou réponse vide)."
+        );
       }
       consumeUsage("studio", "day", getStudioCreditCost(nextItems.length));
 
@@ -287,7 +318,9 @@ export default function StudioPage() {
         )} crédits.`
       );
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : "Erreur inconnue");
+      setError(
+        runError instanceof Error ? runError.message : "Erreur inconnue"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -304,7 +337,9 @@ export default function StudioPage() {
 
   const deleteImage = (id: string) => {
     setGallery((current) =>
-      current.map((item) => (item.id === id ? { ...item, deleted: true } : item))
+      current.map((item) =>
+        item.id === id ? { ...item, deleted: true } : item
+      )
     );
     setActiveImage(null);
     triggerHaptic(12);
@@ -396,15 +431,21 @@ export default function StudioPage() {
       canvas.width = image.width;
       canvas.height = image.height;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) {
+        return;
+      }
       ctx.filter = `brightness(${editorBrightness}%) contrast(${editorContrast}%) saturate(${editorSaturation}%) blur(${editorBlur}px)`;
       ctx.drawImage(image, 0, 0);
       const updated = canvas.toDataURL("image/png");
       if (activeImage) {
         setGallery((current) =>
-          current.map((item) => (item.id === activeImage.id ? { ...item, url: updated } : item))
+          current.map((item) =>
+            item.id === activeImage.id ? { ...item, url: updated } : item
+          )
         );
-        setActiveImage((current) => (current ? { ...current, url: updated } : current));
+        setActiveImage((current) =>
+          current ? { ...current, url: updated } : current
+        );
       } else {
         setImageInput(updated);
       }
@@ -413,13 +454,19 @@ export default function StudioPage() {
     image.src = source;
   };
 
-  const onPromptImagesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+  const onPromptImagesSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
     const allFiles = Array.from(event.target.files ?? []);
     if (allFiles.length > 2) {
-      toast.warning("Maximum 2 images importées. Les 2 premières ont été conservées.");
+      toast.warning(
+        "Maximum 2 images importées. Les 2 premières ont été conservées."
+      );
     }
     const files = allFiles.slice(0, 2);
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      return;
+    }
 
     if (files.some((file) => !file.type.startsWith("image/"))) {
       toast.error("Seules les images sont acceptées.");
@@ -437,7 +484,9 @@ export default function StudioPage() {
       });
 
     try {
-      const loaded = (await Promise.all(files.map(readFileAsDataUrl))).filter(Boolean);
+      const loaded = (await Promise.all(files.map(readFileAsDataUrl))).filter(
+        Boolean
+      );
       if (loaded.length === 0) {
         toast.error("Import impossible.");
         return;
@@ -458,7 +507,9 @@ export default function StudioPage() {
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-background text-foreground">
       <aside className="hidden w-64 shrink-0 border-r border-border/60 bg-card/70 p-4 lg:block">
-        <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Navigation</p>
+        <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+          Navigation
+        </p>
         <div className="space-y-2">
           {[
             { id: "explorer", label: "Explorer" },
@@ -467,7 +518,9 @@ export default function StudioPage() {
           ].map((item) => (
             <button
               className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${
-                activeSection === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                activeSection === item.id
+                  ? "bg-primary/10 text-primary"
+                  : "hover:bg-muted"
               }`}
               key={item.id}
               onClick={() => setActiveSection(item.id as StudioSection)}
@@ -478,7 +531,9 @@ export default function StudioPage() {
           ))}
         </div>
 
-        <p className="mt-6 mb-3 text-xs font-semibold uppercase text-muted-foreground">Bibliothèque</p>
+        <p className="mt-6 mb-3 text-xs font-semibold uppercase text-muted-foreground">
+          Bibliothèque
+        </p>
         <div className="space-y-2">
           {[
             { id: "mes-medias", label: "Mes médias" },
@@ -488,7 +543,9 @@ export default function StudioPage() {
           ].map((item) => (
             <button
               className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${
-                activeLibrarySection === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                activeLibrarySection === item.id
+                  ? "bg-primary/10 text-primary"
+                  : "hover:bg-muted"
               }`}
               key={item.id}
               onClick={() => setActiveLibrarySection(item.id as LibrarySection)}
@@ -500,15 +557,20 @@ export default function StudioPage() {
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Studio: {getUsageCount("studio", "day")} / {currentPlanDefinition.limits.studioImagesPerDay} images
+          Studio: {getUsageCount("studio", "day")} /{" "}
+          {currentPlanDefinition.limits.studioImagesPerDay} images
         </p>
       </aside>
 
       <aside className="hidden w-64 shrink-0 border-r border-border/60 bg-card/50 p-4 xl:block">
-        <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Filtres</p>
+        <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+          Filtres
+        </p>
         <div className="space-y-3 text-sm">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">IA utilisée</label>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              IA utilisée
+            </label>
             <select
               className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setImageModel(event.target.value)}
@@ -522,7 +584,9 @@ export default function StudioPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Style visuel</label>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              Style visuel
+            </label>
             <select
               className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setStyleFilter(event.target.value)}
@@ -537,7 +601,9 @@ export default function StudioPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Tri</label>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              Tri
+            </label>
             <select
               className="h-9 w-full rounded-xl border border-border bg-background px-3"
               onChange={(event) => setSortMode(event.target.value as SortMode)}
@@ -580,7 +646,11 @@ export default function StudioPage() {
               "Favoris",
               "Téléchargées",
             ].map((chip) => (
-              <button className="rounded-2xl border border-border px-3 py-1 text-xs hover:bg-muted" key={chip} type="button">
+              <button
+                className="rounded-2xl border border-border px-3 py-1 text-xs hover:bg-muted"
+                key={chip}
+                type="button"
+              >
                 {chip}
               </button>
             ))}
@@ -611,14 +681,21 @@ export default function StudioPage() {
                   src={item.url}
                 />
                 <div className="space-y-1 p-2 text-xs">
-                  <p className="line-clamp-1 text-muted-foreground">{item.style}</p>
+                  <p className="line-clamp-1 text-muted-foreground">
+                    {item.style}
+                  </p>
                   <p className="line-clamp-2">{item.prompt}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">
                       {new Date(item.createdAt).toLocaleDateString("fr-FR")}
                     </span>
-                    <button onClick={() => toggleFavorite(item.id)} type="button">
-                      <Heart className={`size-4 ${item.favorite ? "fill-current text-rose-500" : ""}`} />
+                    <button
+                      onClick={() => toggleFavorite(item.id)}
+                      type="button"
+                    >
+                      <Heart
+                        className={`size-4 ${item.favorite ? "fill-current text-rose-500" : ""}`}
+                      />
                     </button>
                   </div>
                 </div>
@@ -633,8 +710,8 @@ export default function StudioPage() {
               <button
                 className="rounded-2xl border border-border p-2.5"
                 onClick={() => imageUploadRef.current?.click()}
-                type="button"
                 title="Importer 1 à 2 images"
+                type="button"
               >
                 <Plus className="size-4" />
               </button>
@@ -665,7 +742,9 @@ export default function StudioPage() {
               ].map(([id, label]) => (
                 <button
                   className={`rounded-2xl border px-3 py-1 ${
-                    outputPreset === id ? "border-primary text-primary" : "border-border"
+                    outputPreset === id
+                      ? "border-primary text-primary"
+                      : "border-border"
                   }`}
                   key={id}
                   onClick={() => setOutputPreset(id as OutputPreset)}
@@ -676,7 +755,9 @@ export default function StudioPage() {
               ))}
               <select
                 className="h-8 rounded-2xl border border-border bg-background px-3"
-                onChange={(event) => setVariationCount(Number(event.target.value))}
+                onChange={(event) =>
+                  setVariationCount(Number(event.target.value))
+                }
                 value={variationCount}
               >
                 <option value={1}>1v</option>
@@ -700,7 +781,13 @@ export default function StudioPage() {
               </button>
               <button
                 className="rounded-2xl border border-border px-3 py-1"
-                onClick={() => setMode((current) => (current === "generate-image" ? "edit-image" : "generate-image"))}
+                onClick={() =>
+                  setMode((current) =>
+                    current === "generate-image"
+                      ? "edit-image"
+                      : "generate-image"
+                  )
+                }
                 type="button"
               >
                 <WandSparkles className="mr-1 inline size-3.5" />
@@ -713,7 +800,9 @@ export default function StudioPage() {
                 {quickStyles.map((style) => (
                   <button
                     className={`rounded-full border px-3 py-1 text-xs ${
-                      selectedStyle === style ? "border-primary text-primary" : "border-border"
+                      selectedStyle === style
+                        ? "border-primary text-primary"
+                        : "border-border"
                     }`}
                     key={style}
                     onClick={() => {
@@ -731,7 +820,10 @@ export default function StudioPage() {
             {uploadedImages.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/70 p-2">
                 {uploadedImages.map((imageSrc, index) => (
-                  <div className="relative" key={`${imageSrc.slice(0, 24)}-${index}`}>
+                  <div
+                    className="relative"
+                    key={`${imageSrc.slice(0, 24)}-${index}`}
+                  >
                     {/* biome-ignore lint/performance/noImgElement: local image preview */}
                     <img
                       alt={`Import ${index + 1}`}
@@ -752,15 +844,17 @@ export default function StudioPage() {
                 >
                   Retirer
                 </button>
-                <span className="text-[11px] text-muted-foreground">Max 2 images</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Max 2 images
+                </span>
               </div>
             )}
 
             {showHelp && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Conseil: indique le sujet, le style, la lumière, l&apos;ambiance et les
-                détails de composition. Exemple: "portrait cinématique, lumière douce,
-                profondeur de champ, rendu ultra détaillé".
+                Conseil: indique le sujet, le style, la lumière, l&apos;ambiance
+                et les détails de composition. Exemple: "portrait cinématique,
+                lumière douce, profondeur de champ, rendu ultra détaillé".
               </p>
             )}
 
@@ -780,7 +874,9 @@ export default function StudioPage() {
                       className="w-full"
                       max={180}
                       min={40}
-                      onChange={(event) => setEditorBrightness(Number(event.target.value))}
+                      onChange={(event) =>
+                        setEditorBrightness(Number(event.target.value))
+                      }
                       type="range"
                       value={editorBrightness}
                     />
@@ -791,7 +887,9 @@ export default function StudioPage() {
                       className="w-full"
                       max={180}
                       min={40}
-                      onChange={(event) => setEditorContrast(Number(event.target.value))}
+                      onChange={(event) =>
+                        setEditorContrast(Number(event.target.value))
+                      }
                       type="range"
                       value={editorContrast}
                     />
@@ -802,7 +900,9 @@ export default function StudioPage() {
                       className="w-full"
                       max={220}
                       min={0}
-                      onChange={(event) => setEditorSaturation(Number(event.target.value))}
+                      onChange={(event) =>
+                        setEditorSaturation(Number(event.target.value))
+                      }
                       type="range"
                       value={editorSaturation}
                     />
@@ -813,14 +913,22 @@ export default function StudioPage() {
                       className="w-full"
                       max={8}
                       min={0}
-                      onChange={(event) => setEditorBlur(Number(event.target.value))}
+                      onChange={(event) =>
+                        setEditorBlur(Number(event.target.value))
+                      }
                       step={0.5}
                       type="range"
                       value={editorBlur}
                     />
                   </label>
                 </div>
-                <Button className="mt-2" onClick={applyEditorAdjustments} size="sm" type="button" variant="outline">
+                <Button
+                  className="mt-2"
+                  onClick={applyEditorAdjustments}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   Appliquer les retouches
                 </Button>
                 <canvas className="hidden" ref={canvasRef} />
@@ -840,10 +948,17 @@ export default function StudioPage() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
           <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-background p-3">
             {/* biome-ignore lint/performance/noImgElement: generated images */}
-            <img alt={activeImage.prompt} className="max-h-[70vh] w-full rounded-lg object-contain" src={activeImage.url} />
-            <p className="mt-2 text-sm text-muted-foreground">{activeImage.prompt}</p>
+            <img
+              alt={activeImage.prompt}
+              className="max-h-[70vh] w-full rounded-lg object-contain"
+              src={activeImage.url}
+            />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {activeImage.prompt}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {activeImage.style} • {activeImage.model} • {new Date(activeImage.createdAt).toLocaleString("fr-FR")}
+              {activeImage.style} • {activeImage.model} •{" "}
+              {new Date(activeImage.createdAt).toLocaleString("fr-FR")}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <select
@@ -864,10 +979,18 @@ export default function StudioPage() {
               >
                 <Download className="mr-1 size-4" /> Télécharger
               </Button>
-              <Button onClick={() => toggleFavorite(activeImage.id)} size="sm" variant="outline">
+              <Button
+                onClick={() => toggleFavorite(activeImage.id)}
+                size="sm"
+                variant="outline"
+              >
                 <Heart className="mr-1 size-4" /> Favori
               </Button>
-              <Button onClick={() => addToLibrary(activeImage)} size="sm" variant="outline">
+              <Button
+                onClick={() => addToLibrary(activeImage)}
+                size="sm"
+                variant="outline"
+              >
                 <Library className="mr-1 size-4" /> Bibliothèque
               </Button>
               <Button
@@ -891,10 +1014,18 @@ export default function StudioPage() {
               >
                 <RefreshCw className="mr-1 size-4" /> Remix
               </Button>
-              <Button onClick={() => deleteImage(activeImage.id)} size="sm" variant="destructive">
+              <Button
+                onClick={() => deleteImage(activeImage.id)}
+                size="sm"
+                variant="destructive"
+              >
                 <Trash2 className="mr-1 size-4" /> Supprimer
               </Button>
-              <Button onClick={() => setActiveImage(null)} size="sm" variant="ghost">
+              <Button
+                onClick={() => setActiveImage(null)}
+                size="sm"
+                variant="ghost"
+              >
                 Fermer
               </Button>
               <Button size="sm" variant="outline">

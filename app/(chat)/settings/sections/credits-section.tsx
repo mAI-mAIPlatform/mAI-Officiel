@@ -37,7 +37,8 @@ export function CreditsSection({
         Crédits
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Suivi des crédits IA par tier, des fichiers, des images et de la musique.
+        Suivi des crédits IA par tier, des fichiers, des images et de la
+        musique.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -111,8 +112,8 @@ export function CreditsSection({
             LFM2.5-1.2B-Instruct, mini-magnum-12b-v1.1,
             MN-12B-Mag-Mell-R1.Q5_K_M, pygmalion-2-7b.Q4_K_M.
             <br />
-            Limites: Invité 15/j • Gratuit 100/j • mAI+ 500/j • Pro 1000/j •
-            Max 2000/j.
+            Limites: Invité 15/j • Gratuit 100/j • mAI+ 500/j • Pro 1000/j • Max
+            2000/j.
           </p>
         </div>
       </div>

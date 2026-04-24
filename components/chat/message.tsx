@@ -2,6 +2,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import Image from "next/image";
 import { memo } from "react";
+import { useAppLogo } from "@/hooks/use-app-logo";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
@@ -14,7 +15,6 @@ import {
   ToolInput,
   ToolOutput,
 } from "../ai-elements/tool";
-
 import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
 import { MessageActions } from "./message-actions";
@@ -66,6 +66,7 @@ const PurePreviewMessage = ({
 
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
+  const { appLogo } = useAppLogo();
 
   const hasAnyContent = message.parts?.some(
     (part) =>
@@ -133,7 +134,8 @@ const PurePreviewMessage = ({
           className={cn("text-[13px] leading-[1.65]", {
             "w-fit max-w-[min(80%,56ch)] overflow-hidden break-words rounded-2xl rounded-br-lg border border-border/30 bg-gradient-to-br from-secondary to-muted px-3.5 py-2 shadow-[var(--shadow-card)]":
               message.role === "user",
-            "animate-[fade-up_0.22s_ease-out]": message.role === "assistant" && isLoading,
+            "animate-[fade-up_0.22s_ease-out]":
+              message.role === "assistant" && isLoading,
           })}
           data-testid="message-content"
           key={key}
@@ -367,7 +369,7 @@ const PurePreviewMessage = ({
                 alt="mAI"
                 className="size-4 object-contain"
                 height={16}
-                src="/images/logo.png"
+                src={appLogo}
                 width={16}
               />
             </div>
@@ -409,6 +411,7 @@ export const PreviewMessage = memo(
 );
 
 export const ThinkingMessage = () => {
+  const { appLogo } = useAppLogo();
   return (
     <div
       className="group/message w-full"
@@ -422,7 +425,7 @@ export const ThinkingMessage = () => {
               alt="mAI"
               className="size-4 object-contain"
               height={16}
-              src="/images/logo.png"
+              src={appLogo}
               width={16}
             />
           </div>

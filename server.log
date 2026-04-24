@@ -1,0 +1,122 @@
+
+> mai@0.9.9 start /app
+> next start
+
+▲ Next.js 16.2.0
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 229ms
+[31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
+[31m[auth][cause][0m: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+    at /app/.next/server/chunks/_0idug__._.js:1:66223
+    at /app/.next/server/chunks/_0idug__._.js:395:44666
+    at new l0 (/app/.next/server/chunks/_0idug__._.js:395:45638)
+    at ch (/app/.next/server/chunks/_0idug__._.js:395:55094)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.authorize (/app/.next/server/chunks/_0idug__._.js:395:69590)
+    at async rq (/app/.next/server/chunks/_0idug__._.js:368:41360)
+    at async rG (/app/.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (/app/.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (/app/.next/server/chunks/_0idug__._.js:368:57729)
+[31m[auth][details][0m: {
+  "provider": "guest"
+}
+⨯ f: Read more at https://errors.authjs.dev#callbackrouteerror
+    at rq (.next/server/chunks/_0idug__._.js:368:43466)
+    at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (.next/server/chunks/_0idug__._.js:368:57729)
+    at async l (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:10680)
+    at async o (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:11721) {
+  type: 'CallbackRouteError',
+  kind: 'error',
+  [cause]: {
+    err: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+        at <unknown> (.next/server/chunks/_0idug__._.js:1:66223)
+        at <unknown> (.next/server/chunks/_0idug__._.js:395:44666)
+        at new l0 (.next/server/chunks/_0idug__._.js:395:45638)
+        at ch (.next/server/chunks/_0idug__._.js:395:55094)
+        at async Object.authorize (.next/server/chunks/_0idug__._.js:395:69590)
+        at async rq (.next/server/chunks/_0idug__._.js:368:41360)
+        at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+        at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+        at async r7 (.next/server/chunks/_0idug__._.js:368:57729),
+    provider: 'guest'
+  }
+}
+[31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
+[31m[auth][cause][0m: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+    at /app/.next/server/chunks/_0idug__._.js:1:66223
+    at /app/.next/server/chunks/_0idug__._.js:395:44666
+    at new l0 (/app/.next/server/chunks/_0idug__._.js:395:45638)
+    at ch (/app/.next/server/chunks/_0idug__._.js:395:55094)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.authorize (/app/.next/server/chunks/_0idug__._.js:395:69590)
+    at async rq (/app/.next/server/chunks/_0idug__._.js:368:41360)
+    at async rG (/app/.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (/app/.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (/app/.next/server/chunks/_0idug__._.js:368:57729)
+[31m[auth][details][0m: {
+  "provider": "guest"
+}
+⨯ f: Read more at https://errors.authjs.dev#callbackrouteerror
+    at rq (.next/server/chunks/_0idug__._.js:368:43466)
+    at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (.next/server/chunks/_0idug__._.js:368:57729)
+    at async l (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:10680)
+    at async o (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:11721) {
+  type: 'CallbackRouteError',
+  kind: 'error',
+  [cause]: {
+    err: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+        at <unknown> (.next/server/chunks/_0idug__._.js:1:66223)
+        at <unknown> (.next/server/chunks/_0idug__._.js:395:44666)
+        at new l0 (.next/server/chunks/_0idug__._.js:395:45638)
+        at ch (.next/server/chunks/_0idug__._.js:395:55094)
+        at async Object.authorize (.next/server/chunks/_0idug__._.js:395:69590)
+        at async rq (.next/server/chunks/_0idug__._.js:368:41360)
+        at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+        at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+        at async r7 (.next/server/chunks/_0idug__._.js:368:57729),
+    provider: 'guest'
+  }
+}
+[31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
+[31m[auth][cause][0m: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+    at /app/.next/server/chunks/_0idug__._.js:1:66223
+    at /app/.next/server/chunks/_0idug__._.js:395:44666
+    at new l0 (/app/.next/server/chunks/_0idug__._.js:395:45638)
+    at ch (/app/.next/server/chunks/_0idug__._.js:395:55094)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.authorize (/app/.next/server/chunks/_0idug__._.js:395:69590)
+    at async rq (/app/.next/server/chunks/_0idug__._.js:368:41360)
+    at async rG (/app/.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (/app/.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (/app/.next/server/chunks/_0idug__._.js:368:57729)
+[31m[auth][details][0m: {
+  "provider": "guest"
+}
+⨯ f: Read more at https://errors.authjs.dev#callbackrouteerror
+    at rq (.next/server/chunks/_0idug__._.js:368:43466)
+    at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+    at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+    at async r7 (.next/server/chunks/_0idug__._.js:368:57729)
+    at async l (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:10680)
+    at async o (.next/server/chunks/[root-of-the-server]__04rbg~t._.js:1:11721) {
+  type: 'CallbackRouteError',
+  kind: 'error',
+  [cause]: {
+    err: Error: Attempted to call t() from the server but t is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.
+        at <unknown> (.next/server/chunks/_0idug__._.js:1:66223)
+        at <unknown> (.next/server/chunks/_0idug__._.js:395:44666)
+        at new l0 (.next/server/chunks/_0idug__._.js:395:45638)
+        at ch (.next/server/chunks/_0idug__._.js:395:55094)
+        at async Object.authorize (.next/server/chunks/_0idug__._.js:395:69590)
+        at async rq (.next/server/chunks/_0idug__._.js:368:41360)
+        at async rG (.next/server/chunks/_0idug__._.js:368:50876)
+        at async rY (.next/server/chunks/_0idug__._.js:368:52407)
+        at async r7 (.next/server/chunks/_0idug__._.js:368:57729),
+    provider: 'guest'
+  }
+}

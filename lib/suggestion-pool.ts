@@ -97,7 +97,8 @@ export function getDefaultSuggestions(
   count = 4,
   language: AppLanguage = "fr"
 ): string[] {
-  const pool = suggestionPoolByLanguage[language] ?? suggestionPoolByLanguage.fr;
+  const pool =
+    suggestionPoolByLanguage[language] ?? suggestionPoolByLanguage.fr;
   return pool.slice(0, Math.min(count, pool.length));
 }
 
@@ -105,7 +106,9 @@ export function pickRandomSuggestions(
   count = 4,
   language: AppLanguage = "fr"
 ): string[] {
-  const copy = [...(suggestionPoolByLanguage[language] ?? suggestionPoolByLanguage.fr)];
+  const copy = [
+    ...(suggestionPoolByLanguage[language] ?? suggestionPoolByLanguage.fr),
+  ];
 
   for (let i = copy.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));

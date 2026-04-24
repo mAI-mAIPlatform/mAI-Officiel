@@ -86,10 +86,10 @@ import {
   DEFAULT_CHAT_MODEL,
 } from "@/lib/ai/models";
 import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
+import { triggerHaptic } from "@/lib/haptics";
 import { createNotification } from "@/lib/notifications";
 import { pluginRegistry } from "@/lib/plugins/registry";
 import type { Attachment, ChatMessage } from "@/lib/types";
-import { triggerHaptic } from "@/lib/haptics";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
 import {
@@ -954,7 +954,10 @@ function PureMultimodalInput({
         const key = "mai.wave.prefill.prompts.v1";
         const raw = localStorage.getItem(key);
         const current = raw ? (JSON.parse(raw) as string[]) : [];
-        localStorage.setItem(key, JSON.stringify([prompt, ...current].slice(0, 20)));
+        localStorage.setItem(
+          key,
+          JSON.stringify([prompt, ...current].slice(0, 20))
+        );
       }
 
       sendMessage({
@@ -971,9 +974,7 @@ function PureMultimodalInput({
             text: extractedFileContext
               ? `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
-                }${
-                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
+                }${musicCreationBlock ? `${musicCreationBlock}\n\n` : ""}${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}
 
@@ -981,9 +982,7 @@ function PureMultimodalInput({
 ${extractedFileContext}`
               : `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
-                }${
-                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
+                }${musicCreationBlock ? `${musicCreationBlock}\n\n` : ""}${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}`,
           },
@@ -2125,9 +2124,9 @@ function PureContextualActionsMenu({
                     ? "border-primary/45 bg-primary/10 text-primary"
                     : "border-border/60 hover:border-primary/35 hover:bg-primary/5"
                 )}
-                      onClick={() => {
-                        resetPlusModes();
-                      }}
+                onClick={() => {
+                  resetPlusModes();
+                }}
                 type="button"
               >
                 Aucun plugin actif

@@ -24,8 +24,14 @@ export const affordableTextModels: AffordableModelOption[] = [
   { id: "horde/Skyfall-31B-v4.1", label: "Skyfall-31B-v4.1" },
   { id: "horde/Gemma-4-31B-it", label: "Gemma-4-31B-it" },
   { id: "horde/Behemoth-R1-123B-v2-w4a16", label: "Behemoth-R1-123B-v2-w4a16" },
-  { id: "horde/Ministral-3-8B-Instruct-2512", label: "Ministral-3-8B-Instruct-2512" },
-  { id: "horde/Rocinante-XL-16B-v1a-Q4_K_M", label: "Rocinante-XL-16B-v1a-Q4_K_M" },
+  {
+    id: "horde/Ministral-3-8B-Instruct-2512",
+    label: "Ministral-3-8B-Instruct-2512",
+  },
+  {
+    id: "horde/Rocinante-XL-16B-v1a-Q4_K_M",
+    label: "Rocinante-XL-16B-v1a-Q4_K_M",
+  },
   { id: "horde/L3-8B-Stheno-v3.2", label: "L3-8B-Stheno-v3.2" },
   { id: "horde/mini-magnum-12b-v1.1", label: "mini-magnum-12b-v1.1" },
   { id: "horde/MN-12B-Mag-Mell-R1.Q5_K_M", label: "MN-12B-Mag-Mell-R1.Q5_K_M" },
@@ -33,7 +39,10 @@ export const affordableTextModels: AffordableModelOption[] = [
   { id: "horde/pygmalion-2-7b.Q4_K_M", label: "pygmalion-2-7b.Q4_K_M" },
   { id: "horde/L3-Super-Nova-RP-8B", label: "L3-Super-Nova-RP-8B" },
   { id: "horde/WizzGPTv8", label: "WizzGPTv8" },
-  { id: "horde/Qwen3-30B-A3B-abliterated-erotic", label: "Qwen3-30B-A3B-abliterated-erotic" },
+  {
+    id: "horde/Qwen3-30B-A3B-abliterated-erotic",
+    label: "Qwen3-30B-A3B-abliterated-erotic",
+  },
   { id: "horde/Qwen_Qwen3-0.6B-IQ4_XS", label: "Qwen_Qwen3-0.6B-IQ4_XS" },
   { id: "horde/LFM2.5-1.2B-Instruct", label: "LFM2.5-1.2B-Instruct" },
   { id: "horde/HY-MT1.5-1.8B", label: "HY-MT1.5-1.8B" },

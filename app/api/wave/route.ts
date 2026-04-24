@@ -76,9 +76,7 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error:
-            error instanceof Error
-              ? error.message
-              : "Erreur génération lyrics",
+            error instanceof Error ? error.message : "Erreur génération lyrics",
         },
         { status: 500 }
       );

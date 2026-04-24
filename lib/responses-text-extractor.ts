@@ -21,18 +21,18 @@ interface ResponsesApiResponse {
 
 interface ResponseTextDeltaEvent {
   delta?: string;
-  text?: string;
-  type?: string;
-  part?: {
-    text?: string;
-    type?: string;
-  };
   item?: {
     content?: Array<{
       text?: string;
       type?: string;
     }>;
   };
+  part?: {
+    text?: string;
+    type?: string;
+  };
+  text?: string;
+  type?: string;
 }
 
 export function extractTextFromResponsesOutput(
@@ -111,15 +111,16 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
 
     const outputItemDoneText = parsedEvents
       .filter((event) => event.type === "response.output_item.done")
-      .map((event) =>
-        event.item?.content
-          ?.filter(
-            (contentPart) =>
-              contentPart.type === "output_text" &&
-              typeof contentPart.text === "string"
-          )
-          .map((contentPart) => contentPart.text ?? "")
-          .join("") ?? ""
+      .map(
+        (event) =>
+          event.item?.content
+            ?.filter(
+              (contentPart) =>
+                contentPart.type === "output_text" &&
+                typeof contentPart.text === "string"
+            )
+            .map((contentPart) => contentPart.text ?? "")
+            .join("") ?? ""
       )
       .find((value) => value.trim().length > 0);
 
@@ -159,11 +160,17 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
   if (typeof payload === "object" && payload !== null && "type" in payload) {
     const event = payload as ResponseTextDeltaEvent;
 
-    if (event.type === "response.output_text.done" && typeof event.text === "string") {
+    if (
+      event.type === "response.output_text.done" &&
+      typeof event.text === "string"
+    ) {
       return event.text.trim();
     }
 
-    if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+    if (
+      event.type === "response.output_text.delta" &&
+      typeof event.delta === "string"
+    ) {
       return event.delta.trim();
     }
 

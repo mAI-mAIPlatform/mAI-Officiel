@@ -1,5 +1,9 @@
 import { getClient } from "./ratelimit";
-import { type UsageFeature, type UsagePeriod, getNextResetDate } from "./usage-limits";
+import {
+  getNextResetDate,
+  type UsageFeature,
+  type UsagePeriod,
+} from "./usage-limits";
 
 export async function checkServerUsageLimit(
   userId: string,
@@ -8,7 +12,9 @@ export async function checkServerUsageLimit(
   limit: number
 ): Promise<boolean> {
   const redis = await getClient();
-  if (!redis?.isReady) return true; // Fallback to allowing if Redis is down
+  if (!redis?.isReady) {
+    return true; // Fallback to allowing if Redis is down
+  }
 
   try {
     const key = `mai.usage.${userId}.${feature}.${period}`;
@@ -16,7 +22,10 @@ export async function checkServerUsageLimit(
     // Get time until next reset in seconds
     const now = new Date();
     const resetDate = getNextResetDate(period, now);
-    const ttlSeconds = Math.max(1, Math.floor((resetDate.getTime() - now.getTime()) / 1000));
+    const ttlSeconds = Math.max(
+      1,
+      Math.floor((resetDate.getTime() - now.getTime()) / 1000)
+    );
 
     const luaScript = `
 local current = redis.call('INCR', KEYS[1])

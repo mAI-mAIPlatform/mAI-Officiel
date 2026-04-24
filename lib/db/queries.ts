@@ -1102,12 +1102,12 @@ export async function getSubscriptionPlan(userId: string) {
     const pgErrorCode = pgError?.code ?? pgError?.cause?.code;
     // Compat DB: certains environnements n'ont pas encore la table "Subscription".
     // On retombe proprement sur "free" sans polluer les logs d'erreurs bloquantes.
-    if (pgErrorCode !== "42P01") {
-      console.error("Failed to get subscription plan:", error);
-    } else {
+    if (pgErrorCode === "42P01") {
       console.warn(
         '[Subscription] table "Subscription" introuvable, fallback plan=free.'
       );
+    } else {
+      console.error("Failed to get subscription plan:", error);
     }
     return "free";
   }

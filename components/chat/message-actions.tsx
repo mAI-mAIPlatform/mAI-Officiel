@@ -54,7 +54,9 @@ export function PureMessageActions({
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
-  const usedToolPart = message.parts.find((part) => part.type.startsWith("tool-"));
+  const usedToolPart = message.parts.find((part) =>
+    part.type.startsWith("tool-")
+  );
   const toolIndicator = (() => {
     if (!usedToolPart) {
       return null;

@@ -115,8 +115,7 @@ export const dictionary = {
     "errors.gateway":
       "AI Gateway benötigt eine gültige Kreditkarte, um Anfragen zu verarbeiten.",
     "errors.authRequired": "Sie müssen sich anmelden, bevor Sie fortfahren.",
-    "errors.authForbidden":
-      "Ihr Konto hat keinen Zugriff auf diese Funktion.",
+    "errors.authForbidden": "Ihr Konto hat keinen Zugriff auf diese Funktion.",
     "errors.rateLimit":
       "Sie haben das Nachrichtenlimit erreicht. Kommen Sie in 1 Stunde zurück.",
     "errors.chatNotFound":
@@ -161,14 +160,12 @@ export const dictionary = {
     "errors.authRequired": "Devi accedere prima di continuare.",
     "errors.authForbidden":
       "Il tuo account non ha accesso a questa funzionalità.",
-    "errors.rateLimit":
-      "Hai raggiunto il limite di messaggi. Torna tra 1 ora.",
+    "errors.rateLimit": "Hai raggiunto il limite di messaggi. Torna tra 1 ora.",
     "errors.chatNotFound":
       "La chat richiesta non è stata trovata. Controlla l'ID chat.",
     "errors.chatForbidden":
       "Questa chat appartiene a un altro utente. Controlla l'ID chat.",
-    "errors.chatUnauthorized":
-      "Devi accedere per visualizzare questa chat.",
+    "errors.chatUnauthorized": "Devi accedere per visualizzare questa chat.",
     "errors.offline":
       "Problemi nell'invio del messaggio. Controlla la connessione Internet.",
     "errors.documentNotFound":

@@ -15,7 +15,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
-import { canConsumeUsage, consumeUsage, getUsageCount } from "@/lib/usage-limits";
+import {
+  canConsumeUsage,
+  consumeUsage,
+  getUsageCount,
+} from "@/lib/usage-limits";
 
 type WaveModel = "V5_5" | "V5" | "V4_5PLUS" | "V4_5ALL" | "V4_5" | "V4";
 type Gender = "m" | "f" | "n";
@@ -43,11 +47,10 @@ const WAVE_DRAFTS_KEY = "mai.wave.prefill.prompts.v1";
 const modelDescriptions: Record<WaveModel, string> = {
   V5_5: "Libérez votre voix : des modèles personnalisés adaptés à vos goûts uniques.",
   V5: "Expression musicale supérieure, génération plus rapide.",
-  V4_5PLUS: "V4.5+ est un son plus riche, de nouvelles façons de créer, max 8 minutes.",
-  V4_5ALL:
-    "V4.5 All - tout est une meilleure structure de chanson, max 8 min.",
-  V4_5:
-    "Mélange de genres supérieur avec des prompts plus intelligents et une production plus rapide, jusqu’à 8 minutes.",
+  V4_5PLUS:
+    "V4.5+ est un son plus riche, de nouvelles façons de créer, max 8 minutes.",
+  V4_5ALL: "V4.5 All - tout est une meilleure structure de chanson, max 8 min.",
+  V4_5: "Mélange de genres supérieur avec des prompts plus intelligents et une production plus rapide, jusqu’à 8 minutes.",
   V4: "Meilleure qualité audio avec une structure de chanson raffinée, jusqu’à 4 minutes.",
 };
 
@@ -116,20 +119,30 @@ export default function WavePage() {
   );
 
   const extractAudioUrl = (payload: unknown): string | undefined => {
-    if (!payload || typeof payload !== "object") return undefined;
+    if (!payload || typeof payload !== "object") {
+      return undefined;
+    }
     const values = Object.values(payload as Record<string, unknown>);
     for (const value of values) {
-      if (typeof value === "string" && value.startsWith("http") && value.includes("mp3")) {
+      if (
+        typeof value === "string" &&
+        value.startsWith("http") &&
+        value.includes("mp3")
+      ) {
         return value;
       }
       if (value && typeof value === "object") {
         const nested = extractAudioUrl(value);
-        if (nested) return nested;
+        if (nested) {
+          return nested;
+        }
       }
       if (Array.isArray(value)) {
         for (const item of value) {
           const nested = extractAudioUrl(item);
-          if (nested) return nested;
+          if (nested) {
+            return nested;
+          }
         }
       }
     }
@@ -156,7 +169,9 @@ export default function WavePage() {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error ?? "Erreur lyrics");
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Erreur lyrics");
+      }
       setGeneratedLyrics(payload.text || "");
       setPrompt((prev) => `${prev}\n\n${payload.text || ""}`.trim());
       toast.success("Lyrics générées avec GPT-5.4 Nano.");
@@ -235,21 +250,30 @@ export default function WavePage() {
     }
   };
 
-  const updateTrack = (id: string, updater: (track: WaveTrack) => WaveTrack) => {
-    setHistory((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
+  const updateTrack = (
+    id: string,
+    updater: (track: WaveTrack) => WaveTrack
+  ) => {
+    setHistory((prev) =>
+      prev.map((item) => (item.id === id ? updater(item) : item))
+    );
   };
 
   const addToLibrary = (track: WaveTrack) => {
     try {
       const raw = localStorage.getItem(LIBRARY_KEY);
-      const current = raw ? (JSON.parse(raw) as Array<Record<string, unknown>>) : [];
+      const current = raw
+        ? (JSON.parse(raw) as Array<Record<string, unknown>>)
+        : [];
       current.unshift({
         id: track.id,
         name: track.title,
         type: "document",
         pinned: track.pinned,
         favorite: track.favorite,
-        url: track.audioUrl ?? `data:text/plain,${encodeURIComponent(track.prompt)}`,
+        url:
+          track.audioUrl ??
+          `data:text/plain,${encodeURIComponent(track.prompt)}`,
         createdAt: track.createdAt,
       });
       localStorage.setItem(LIBRARY_KEY, JSON.stringify(current));
@@ -292,7 +316,7 @@ export default function WavePage() {
       for (let channel = 0; channel < numberOfChannels; channel += 1) {
         const sample = audioBuffer.getChannelData(channel)[i] ?? 0;
         const s = Math.max(-1, Math.min(1, sample));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        view.setInt16(offset, s < 0 ? s * 0x80_00 : s * 0x7f_ff, true);
         offset += 2;
       }
     }
@@ -335,13 +359,18 @@ export default function WavePage() {
           sourceBlob.type.split("/")[1] ||
           track.audioUrl.split(".").pop() ||
           "mp3";
-        triggerBlobDownload(sourceBlob, `${track.title || "wave-track"}.${extension}`);
+        triggerBlobDownload(
+          sourceBlob,
+          `${track.title || "wave-track"}.${extension}`
+        );
         return;
       }
 
       const arrayBuffer = await sourceBlob.arrayBuffer();
       const audioContext = new AudioContext();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      const audioBuffer = await audioContext.decodeAudioData(
+        arrayBuffer.slice(0)
+      );
       const wavBlob = encodeWav(audioBuffer);
       triggerBlobDownload(wavBlob, `${track.title || "wave-track"}.wav`);
       await audioContext.close();
@@ -359,10 +388,12 @@ export default function WavePage() {
           <Music2 className="size-6 text-primary" /> Wave
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Générez des musiques avec SUNO, personnalisez à fond, créez des lyrics avec GPT-5.4 Nano et gardez un historique complet.
+          Générez des musiques avec SUNO, personnalisez à fond, créez des lyrics
+          avec GPT-5.4 Nano et gardez un historique complet.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Quota hebdomadaire: {weeklyUsed}/{weeklyLimit} ({weeklyRemaining} restant)
+          Quota hebdomadaire: {weeklyUsed}/{weeklyLimit} ({weeklyRemaining}{" "}
+          restant)
         </p>
       </header>
 
@@ -370,36 +401,159 @@ export default function WavePage() {
         <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
           <h2 className="text-lg font-semibold">Génération musicale</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input className="rounded-md border bg-background/70 p-2" placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <select className="rounded-md border bg-background/70 p-2" value={model} onChange={(e) => setModel(e.target.value as WaveModel)}>
+            <input
+              className="rounded-md border bg-background/70 p-2"
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Titre"
+              value={title}
+            />
+            <select
+              className="rounded-md border bg-background/70 p-2"
+              onChange={(e) => setModel(e.target.value as WaveModel)}
+              value={model}
+            >
               {(Object.keys(modelDescriptions) as WaveModel[]).map((key) => (
-                <option key={key} value={key}>{key}</option>
+                <option key={key} value={key}>
+                  {key}
+                </option>
               ))}
             </select>
-            <input className="rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Style musical" value={style} onChange={(e) => setStyle(e.target.value)} />
-            <textarea className="min-h-24 rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Prompt musical détaillé" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-            <textarea className="min-h-20 rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Negative tags" value={negativeTags} onChange={(e) => setNegativeTags(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2" placeholder="Persona ID" value={personaId} onChange={(e) => setPersonaId(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2" placeholder="Persona model" value={personaModel} onChange={(e) => setPersonaModel(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Callback URL" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} />
-            <label className="flex items-center gap-2 text-sm"><input checked={instrumental} onChange={(e) => setInstrumental(e.target.checked)} type="checkbox" /> Instrumental</label>
-            <select className="rounded-md border bg-background/70 p-2" value={vocalGender} onChange={(e) => setVocalGender(e.target.value as Gender)}>
-              <option value="n">Neutre</option><option value="m">Voix masculine</option><option value="f">Voix féminine</option>
+            <input
+              className="rounded-md border bg-background/70 p-2 md:col-span-2"
+              onChange={(e) => setStyle(e.target.value)}
+              placeholder="Style musical"
+              value={style}
+            />
+            <textarea
+              className="min-h-24 rounded-md border bg-background/70 p-2 md:col-span-2"
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Prompt musical détaillé"
+              value={prompt}
+            />
+            <textarea
+              className="min-h-20 rounded-md border bg-background/70 p-2 md:col-span-2"
+              onChange={(e) => setNegativeTags(e.target.value)}
+              placeholder="Negative tags"
+              value={negativeTags}
+            />
+            <input
+              className="rounded-md border bg-background/70 p-2"
+              onChange={(e) => setPersonaId(e.target.value)}
+              placeholder="Persona ID"
+              value={personaId}
+            />
+            <input
+              className="rounded-md border bg-background/70 p-2"
+              onChange={(e) => setPersonaModel(e.target.value)}
+              placeholder="Persona model"
+              value={personaModel}
+            />
+            <input
+              className="rounded-md border bg-background/70 p-2 md:col-span-2"
+              onChange={(e) => setCallbackUrl(e.target.value)}
+              placeholder="Callback URL"
+              value={callbackUrl}
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                checked={instrumental}
+                onChange={(e) => setInstrumental(e.target.checked)}
+                type="checkbox"
+              />{" "}
+              Instrumental
+            </label>
+            <select
+              className="rounded-md border bg-background/70 p-2"
+              onChange={(e) => setVocalGender(e.target.value as Gender)}
+              value={vocalGender}
+            >
+              <option value="n">Neutre</option>
+              <option value="m">Voix masculine</option>
+              <option value="f">Voix féminine</option>
             </select>
-            <label className="text-xs">Style weight {styleWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} /></label>
-            <label className="text-xs">Weirdness {weirdnessConstraint.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={weirdnessConstraint} onChange={(e) => setWeirdnessConstraint(Number(e.target.value))} /></label>
-            <label className="text-xs md:col-span-2">Audio weight {audioWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={audioWeight} onChange={(e) => setAudioWeight(Number(e.target.value))} /></label>
+            <label className="text-xs">
+              Style weight {styleWeight.toFixed(2)}
+              <input
+                className="w-full"
+                max={1}
+                min={0}
+                onChange={(e) => setStyleWeight(Number(e.target.value))}
+                step={0.01}
+                type="range"
+                value={styleWeight}
+              />
+            </label>
+            <label className="text-xs">
+              Weirdness {weirdnessConstraint.toFixed(2)}
+              <input
+                className="w-full"
+                max={1}
+                min={0}
+                onChange={(e) => setWeirdnessConstraint(Number(e.target.value))}
+                step={0.01}
+                type="range"
+                value={weirdnessConstraint}
+              />
+            </label>
+            <label className="text-xs md:col-span-2">
+              Audio weight {audioWeight.toFixed(2)}
+              <input
+                className="w-full"
+                max={1}
+                min={0}
+                onChange={(e) => setAudioWeight(Number(e.target.value))}
+                step={0.01}
+                type="range"
+                value={audioWeight}
+              />
+            </label>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">{modelDescriptions[model]}</p>
-          <Button className="mt-4" disabled={isLoading} onClick={handleGenerateMusic}><Sparkles className="mr-2 size-4" />{isLoading ? "Génération..." : "Générer la musique"}</Button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {modelDescriptions[model]}
+          </p>
+          <Button
+            className="mt-4"
+            disabled={isLoading}
+            onClick={handleGenerateMusic}
+          >
+            <Sparkles className="mr-2 size-4" />
+            {isLoading ? "Génération..." : "Générer la musique"}
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
           <h2 className="text-lg font-semibold">Assistant lyrics</h2>
-          <textarea className="mt-3 min-h-24 w-full rounded-md border bg-background/70 p-2" placeholder="Sujet, émotion, thème..." value={lyricsPrompt} onChange={(e) => setLyricsPrompt(e.target.value)} />
-          <Button className="mt-3" disabled={isLoading} onClick={handleGenerateLyrics} variant="outline"><WandSparkles className="mr-2 size-4" />Générer les lyrics (GPT-5.4 Nano)</Button>
-          <textarea className="mt-3 min-h-52 w-full rounded-md border bg-background/70 p-2" placeholder="Lyrics générées" value={generatedLyrics} onChange={(e) => setGeneratedLyrics(e.target.value)} />
-          <Button className="mt-3" onClick={() => setPrompt((prev) => `${prev}\n\n${generatedLyrics}`.trim())} variant="ghost"><Plus className="mr-2 size-4" />Ajouter au prompt musical</Button>
+          <textarea
+            className="mt-3 min-h-24 w-full rounded-md border bg-background/70 p-2"
+            onChange={(e) => setLyricsPrompt(e.target.value)}
+            placeholder="Sujet, émotion, thème..."
+            value={lyricsPrompt}
+          />
+          <Button
+            className="mt-3"
+            disabled={isLoading}
+            onClick={handleGenerateLyrics}
+            variant="outline"
+          >
+            <WandSparkles className="mr-2 size-4" />
+            Générer les lyrics (GPT-5.4 Nano)
+          </Button>
+          <textarea
+            className="mt-3 min-h-52 w-full rounded-md border bg-background/70 p-2"
+            onChange={(e) => setGeneratedLyrics(e.target.value)}
+            placeholder="Lyrics générées"
+            value={generatedLyrics}
+          />
+          <Button
+            className="mt-3"
+            onClick={() =>
+              setPrompt((prev) => `${prev}\n\n${generatedLyrics}`.trim())
+            }
+            variant="ghost"
+          >
+            <Plus className="mr-2 size-4" />
+            Ajouter au prompt musical
+          </Button>
         </div>
       </section>
 
@@ -407,17 +561,67 @@ export default function WavePage() {
         <h2 className="text-lg font-semibold">Historique Wave</h2>
         <div className="mt-4 space-y-3">
           {sortedHistory.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune musique générée pour le moment.</p>
+            <p className="text-sm text-muted-foreground">
+              Aucune musique générée pour le moment.
+            </p>
           ) : (
             sortedHistory.map((track) => (
-              <article className="rounded-xl border border-border/50 bg-background/60 p-3" key={track.id}>
-                <input className="w-full bg-transparent text-sm font-semibold" value={track.title} onChange={(e) => updateTrack(track.id, (current) => ({ ...current, title: e.target.value }))} />
-                <p className="mt-1 text-xs text-muted-foreground">{track.model} • {new Date(track.createdAt).toLocaleString("fr-FR")}</p>
+              <article
+                className="rounded-xl border border-border/50 bg-background/60 p-3"
+                key={track.id}
+              >
+                <input
+                  className="w-full bg-transparent text-sm font-semibold"
+                  onChange={(e) =>
+                    updateTrack(track.id, (current) => ({
+                      ...current,
+                      title: e.target.value,
+                    }))
+                  }
+                  value={track.title}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {track.model} •{" "}
+                  {new Date(track.createdAt).toLocaleString("fr-FR")}
+                </p>
                 <p className="mt-2 text-sm">{track.prompt}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button onClick={() => updateTrack(track.id, (current) => ({ ...current, favorite: !current.favorite }))} size="sm" variant="outline"><Heart className="mr-1 size-4" />{track.favorite ? "Retirer favori" : "Favori"}</Button>
-                  <Button onClick={() => updateTrack(track.id, (current) => ({ ...current, pinned: !current.pinned }))} size="sm" variant="outline"><Pin className="mr-1 size-4" />{track.pinned ? "Désépingler" : "Épingler"}</Button>
-                  <Button onClick={() => addToLibrary(track)} size="sm" variant="outline"><Library className="mr-1 size-4" />{track.inLibrary ? "Déjà en bibliothèque" : "Ajouter à la bibliothèque"}</Button>
+                  <Button
+                    onClick={() =>
+                      updateTrack(track.id, (current) => ({
+                        ...current,
+                        favorite: !current.favorite,
+                      }))
+                    }
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Heart className="mr-1 size-4" />
+                    {track.favorite ? "Retirer favori" : "Favori"}
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      updateTrack(track.id, (current) => ({
+                        ...current,
+                        pinned: !current.pinned,
+                      }))
+                    }
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Pin className="mr-1 size-4" />
+                    {track.pinned ? "Désépingler" : "Épingler"}
+                  </Button>
+                  <Button
+                    onClick={() => addToLibrary(track)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Library className="mr-1 size-4" />
+                    {track.inLibrary
+                      ? "Déjà en bibliothèque"
+                      : "Ajouter à la bibliothèque"}
+                  </Button>
                   <select
                     className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs"
                     onChange={(event) =>
@@ -432,8 +636,13 @@ export default function WavePage() {
                     <option value="wav">WAV</option>
                     <option value="json">JSON (métadonnées)</option>
                   </select>
-                  <Button onClick={() => downloadTrack(track)} size="sm" variant="outline">
-                    <Download className="mr-1 size-4" />Télécharger
+                  <Button
+                    onClick={() => downloadTrack(track)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Download className="mr-1 size-4" />
+                    Télécharger
                   </Button>
                 </div>
               </article>

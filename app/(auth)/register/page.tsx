@@ -26,7 +26,10 @@ export default function Page() {
     if (state.status === "user_exists") {
       toast({ type: "error", description: "Un compte existe déjà !" });
     } else if (state.status === "failed") {
-      toast({ type: "error", description: "Erreur lors de la création du compte" });
+      toast({
+        type: "error",
+        description: "Erreur lors de la création du compte",
+      });
     } else if (state.status === "invalid_data") {
       toast({
         type: "error",

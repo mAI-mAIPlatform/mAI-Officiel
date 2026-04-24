@@ -47,13 +47,29 @@ export const Greeting = () => {
   useEffect(() => {
     const hour = new Date().getHours();
     if (language === "en") {
-      setTimePrefix(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
+      setTimePrefix(
+        hour < 12
+          ? "Good morning"
+          : hour < 18
+            ? "Good afternoon"
+            : "Good evening"
+      );
     } else if (language === "es") {
-      setTimePrefix(hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches");
+      setTimePrefix(
+        hour < 12
+          ? "Buenos días"
+          : hour < 18
+            ? "Buenas tardes"
+            : "Buenas noches"
+      );
     } else if (language === "de") {
-      setTimePrefix(hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend");
+      setTimePrefix(
+        hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend"
+      );
     } else if (language === "it") {
-      setTimePrefix(hour < 12 ? "Buongiorno" : hour < 18 ? "Buon pomeriggio" : "Buonasera");
+      setTimePrefix(
+        hour < 12 ? "Buongiorno" : hour < 18 ? "Buon pomeriggio" : "Buonasera"
+      );
     } else if (hour < 12) {
       setTimePrefix("Bonjour");
     } else if (hour < 18) {
@@ -103,7 +119,7 @@ export const Greeting = () => {
               ? "Mit mAI auf das nächste Level!"
               : language === "it"
                 ? "Con mAI, passa al livello successivo!"
-            : "Avec mAI, passez à la vitesse supérieure !"}
+                : "Avec mAI, passez à la vitesse supérieure !"}
       </motion.div>
 
       {isHydrated && (

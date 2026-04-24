@@ -67,7 +67,10 @@ export class ChatbotError extends Error {
       });
 
       return Response.json(
-        { code: "", message: "Quelque chose à mal fonctionné, réessayez plus tard" },
+        {
+          code: "",
+          message: "Quelque chose à mal fonctionné, réessayez plus tard",
+        },
         { status: statusCode }
       );
     }

@@ -286,12 +286,18 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => {
   );
 };
 
-export const BrandStarLogoIcon = ({ size = 28 }: { size?: number }) => {
+export const BrandStarLogoIcon = ({
+  size = 28,
+  src = "/images/logo.png",
+}: {
+  size?: number;
+  src?: string;
+}) => {
   return (
     <Image
       alt="mAI Logo"
       height={size}
-      src="/images/logo.png"
+      src={src}
       style={{ objectFit: "contain", width: size, height: size }}
       width={size}
     />
