@@ -18,6 +18,7 @@ const aboutI18n = {
     discordSupport: "Discord & Support",
     joinDiscord: "Join Discord server",
     language: "Language",
+    beta: "Beta",
     telegramSoon: "Chat with mAI in Telegram",
     talkDiscord: "Chat with mAI in Discord",
   },
@@ -26,14 +27,34 @@ const aboutI18n = {
     discordSupport: "Discord y Soporte",
     joinDiscord: "Unirse al servidor Discord",
     language: "Idioma",
+    beta: "Beta",
     telegramSoon: "Hablar con mAI en Telegram",
     talkDiscord: "Hablar con mAI en Discord",
+  },
+  de: {
+    defaultLanguage: "Standardsprache der Oberfläche:",
+    discordSupport: "Discord & Support",
+    joinDiscord: "Discord-Server beitreten",
+    language: "Sprache",
+    beta: "Beta",
+    telegramSoon: "Mit mAI in Telegram chatten",
+    talkDiscord: "Mit mAI in Discord chatten",
+  },
+  it: {
+    defaultLanguage: "Lingua predefinita dell'interfaccia:",
+    discordSupport: "Discord e Supporto",
+    joinDiscord: "Unisciti al server Discord",
+    language: "Lingua",
+    beta: "Beta",
+    telegramSoon: "Chatta con mAI su Telegram",
+    talkDiscord: "Chatta con mAI su Discord",
   },
   fr: {
     defaultLanguage: "Langue d'interface par défaut:",
     discordSupport: "Discord & Support",
     joinDiscord: "Rejoindre le serveur Discord",
     language: "Langue",
+    beta: "Bêta",
     telegramSoon: "Discuter avec mAI dans Telegram",
     talkDiscord: "Discuter avec mAI dans Discord",
   },
@@ -61,6 +82,9 @@ export function AproposSection({
       <div className="mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
         <label className="text-sm font-medium" htmlFor="language-selector">
           {t.language}
+          <span className="ml-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-500">
+            {t.beta}
+          </span>
         </label>
         <p className="mt-1 text-xs text-muted-foreground">
           {t.defaultLanguage} Français.
@@ -74,6 +98,8 @@ export function AproposSection({
           <option value="fr">Français</option>
           <option value="en">English</option>
           <option value="es">Español</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
         </select>
       </div>
 

@@ -31,6 +31,7 @@ import { DataStreamHandler } from "./data-stream-handler";
 import { submitEditedMessage } from "./message-editor";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
+import { ProductAnnouncements } from "./product-announcements";
 import { VoiceTopActions } from "./voice-top-actions";
 
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
@@ -288,6 +289,7 @@ export function ChatShell() {
 
   return (
     <>
+      <ProductAnnouncements />
       <div className="flex h-dvh w-full flex-row overflow-hidden">
         <div
           className={cn(

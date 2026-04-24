@@ -22,6 +22,7 @@ const OPENROUTER_API_KEYS = [
 ].filter((value): value is string => Boolean(value && value.trim()));
 
 const fsModelMapping: Record<string, string> = {
+  "gpt-5.5": "gpt-5.5",
   "gpt-5.4": "gpt-5.4",
   "gpt-5.4-mini": "gpt-5.4-mini",
   "gpt-5.4-nano": "gpt-5.4-nano",

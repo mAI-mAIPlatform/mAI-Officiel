@@ -126,7 +126,7 @@ export const systemPrompt = ({
   agentMemory?: string | null;
   userMemory?: string;
   isLearningEnabled?: boolean;
-  reasoningLevel?: "light" | "moderate" | "deep" | "very-deep";
+  reasoningLevel?: "none" | "low" | "medium" | "high";
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
@@ -148,13 +148,11 @@ export const systemPrompt = ({
       NonNullable<typeof reasoningLevel>,
       string
     > = {
-      light:
-        "Réflexion légère: réponse concise, analyse rapide et aller droit au résultat.",
-      moderate:
-        "Réflexion modérée: expliquer les choix clés sans alourdir la réponse.",
-      deep: "Réflexion approfondie: détailler le raisonnement, les alternatives et les compromis.",
-      "very-deep":
-        "Réflexion très approfondie: fournir une analyse structurée, exhaustive et robuste avec vérification des hypothèses.",
+      none: "Réflexion désactivée: réponse directe sans approfondissement.",
+      low: "Réflexion faible: réponse concise, analyse rapide et orientée résultat.",
+      medium:
+        "Réflexion moyenne: expliquer les choix clés sans alourdir la réponse.",
+      high: "Réflexion élevée: détailler le raisonnement, les alternatives et les compromis.",
     };
     basePrompt += `\n\n**Paramètre Réflexion activé:** ${reflectionStyleByLevel[reasoningLevel]}`;
   }

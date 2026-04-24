@@ -120,6 +120,30 @@ const settingsLabels = {
     settings: "Ajustes",
     tasks: "Tareas",
   },
+  de: {
+    about: "Über",
+    account: "Konto",
+    credits: "Credits",
+    data: "Daten",
+    navigation: "Einstellungsnavigation",
+    notifications: "Benachrichtigungen",
+    parental: "Kindersicherung",
+    personalization: "KI-Anpassung",
+    settings: "Einstellungen",
+    tasks: "Aufgaben",
+  },
+  it: {
+    about: "Informazioni",
+    account: "Account",
+    credits: "Crediti",
+    data: "Dati",
+    navigation: "Navigazione impostazioni",
+    notifications: "Notifiche",
+    parental: "Controllo genitori",
+    personalization: "Personalizzazione IA",
+    settings: "Impostazioni",
+    tasks: "Attività",
+  },
   fr: {
     about: "À propos",
     account: "Compte",
@@ -175,7 +199,7 @@ type ProfileSettingsShape = {
   stylisticDirectives: string;
 };
 
-type ReasoningPreference = "none" | "light" | "medium" | "high";
+type ReasoningPreference = "none" | "low" | "medium" | "high";
 
 type PersistedMemoryEntry = {
   content: string;
@@ -255,11 +279,11 @@ const defaultProfileSettings: ProfileSettingsShape = {
 
 const reasoningLevelByPreference: Record<
   Exclude<ReasoningPreference, "none">,
-  "light" | "moderate" | "deep"
+  "low" | "medium" | "high"
 > = {
-  light: "light",
-  medium: "moderate",
-  high: "deep",
+  low: "low",
+  medium: "medium",
+  high: "high",
 };
 
 function resolveReasoningPreferenceFromStorage(
@@ -270,14 +294,13 @@ function resolveReasoningPreferenceFromStorage(
     return "none";
   }
 
-  // Compat: "very-deep" hérité doit rester mappé au niveau le plus proche.
-  if (level === "deep" || level === "very-deep") {
+  if (level === "high" || level === "deep" || level === "very-deep") {
     return "high";
   }
-  if (level === "moderate") {
+  if (level === "medium" || level === "moderate") {
     return "medium";
   }
-  return "light";
+  return "low";
 }
 
 function clampPercentage(value: number): number {
@@ -562,12 +585,12 @@ export default function SettingsPage() {
   const uiLabels = settingsLabels[interfaceLanguage];
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
-      return ["none", "light", "medium", "high"];
+      return ["none", "low", "medium", "high"];
     }
     if (plan === "pro") {
-      return ["none", "light", "medium"];
+      return ["none", "low", "medium"];
     }
-    return ["none", "light"];
+    return ["none", "low"];
   }, [plan]);
 
   useEffect(() => {
@@ -2221,8 +2244,8 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">Réflexion</p>
             <div className="rounded-xl border border-border/60 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground">
-                Disponible selon votre forfait : Free/Plus (Aucun, Léger), Pro
-                (+ Moyen), Max (+ Approfondi).
+                Disponible selon votre forfait : Free/Plus (Aucun, Faible),
+                Pro (+ Moyen), Max (+ Élevé).
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {[
@@ -2232,8 +2255,8 @@ export default function SettingsPage() {
                     helper: "Par défaut",
                   },
                   {
-                    id: "light" as const,
-                    label: "Léger",
+                    id: "low" as const,
+                    label: "Faible",
                     helper: "Forfaits Free et +",
                   },
                   {
@@ -2243,7 +2266,7 @@ export default function SettingsPage() {
                   },
                   {
                     id: "high" as const,
-                    label: "Approfondi",
+                    label: "Élevé",
                     helper: "Forfait Max",
                   },
                 ].map((option) => {

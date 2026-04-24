@@ -5,4 +5,4 @@ import packageJson from "@/package.json";
  * Changer package.json suffit pour mettre à jour l'UI.
  */
 export const APP_NAME = packageJson.name;
-export const APP_VERSION = `${packageJson.version} (3)`;
+export const APP_VERSION = `${packageJson.version} (6)`;

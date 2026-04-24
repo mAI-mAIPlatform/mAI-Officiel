@@ -1,5 +1,5 @@
 import equal from "fast-deep-equal";
-import { Flag, Pin, Play } from "lucide-react";
+import { Flag, Pin, Play, Puzzle, Wrench } from "lucide-react";
 import { memo } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -54,6 +54,19 @@ export function PureMessageActions({
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
+  const usedToolPart = message.parts.find((part) => part.type.startsWith("tool-"));
+  const toolIndicator = (() => {
+    if (!usedToolPart) {
+      return null;
+    }
+    const rawType = usedToolPart.type.replace(/^tool-/, "").trim();
+    if (!rawType) {
+      return null;
+    }
+    const label = rawType.replace(/^plugin-/, "");
+    const Icon = rawType.startsWith("plugin-") ? Puzzle : Wrench;
+    return { Icon, label };
+  })();
 
   if (isLoading) {
     return null;
@@ -167,6 +180,12 @@ export function PureMessageActions({
 
   return (
     <Actions className="-ml-0.5 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover/message:opacity-100">
+      {toolIndicator && (
+        <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
+          <toolIndicator.Icon className="size-3" />
+          <span className="max-w-[120px] truncate">{toolIndicator.label}</span>
+        </div>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button

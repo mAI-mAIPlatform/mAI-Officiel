@@ -2,7 +2,7 @@
 
 export const LANGUAGE_STORAGE_KEY = "mai.language.v1";
 
-export const SUPPORTED_LANGUAGES = ["fr", "en", "es"] as const;
+export const SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it"] as const;
 
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
@@ -93,6 +93,93 @@ export const dictionary = {
       "La solicitud para crear o actualizar el documento no es válida. Por favor, comprueba tu entrada e inténtalo de nuevo.",
     "errors.default":
       "Algo ha ido mal. Por favor, inténtalo de nuevo más tarde.",
+  },
+  de: {
+    notifications: "Benachrichtigungen",
+    noNotifications: "Keine Benachrichtigungen.",
+    showNotifications: "Benachrichtigungen anzeigen",
+    ghostMode: "Geistermodus",
+    ghostModeActive: "Geistermodus aktiv",
+    voiceMode: "mAI Voice",
+    voiceModeLabel: "Reiner Sprachmodus (Experimentell)",
+    voiceListening: "Hört zu...",
+    voiceStart: "Sprachmodus starten",
+    voiceStop: "Stopp",
+    voiceTranscript: "Transkript",
+    voiceSend: "An den Chat senden",
+    voiceCaptions: "Untertitel",
+    "errors.database":
+      "Beim Ausführen einer Datenbankabfrage ist ein Fehler aufgetreten.",
+    "errors.badRequestApi":
+      "Die Anfrage konnte nicht verarbeitet werden. Bitte Eingabe prüfen und erneut versuchen.",
+    "errors.gateway":
+      "AI Gateway benötigt eine gültige Kreditkarte, um Anfragen zu verarbeiten.",
+    "errors.authRequired": "Sie müssen sich anmelden, bevor Sie fortfahren.",
+    "errors.authForbidden":
+      "Ihr Konto hat keinen Zugriff auf diese Funktion.",
+    "errors.rateLimit":
+      "Sie haben das Nachrichtenlimit erreicht. Kommen Sie in 1 Stunde zurück.",
+    "errors.chatNotFound":
+      "Der angeforderte Chat wurde nicht gefunden. Bitte die Chat-ID prüfen.",
+    "errors.chatForbidden":
+      "Dieser Chat gehört zu einem anderen Benutzer. Bitte die Chat-ID prüfen.",
+    "errors.chatUnauthorized":
+      "Sie müssen sich anmelden, um diesen Chat anzuzeigen.",
+    "errors.offline":
+      "Wir haben Probleme beim Senden Ihrer Nachricht. Bitte prüfen Sie Ihre Internetverbindung.",
+    "errors.documentNotFound":
+      "Das angeforderte Dokument wurde nicht gefunden. Bitte die Dokument-ID prüfen.",
+    "errors.documentForbidden":
+      "Dieses Dokument gehört zu einem anderen Benutzer. Bitte die Dokument-ID prüfen.",
+    "errors.documentUnauthorized":
+      "Sie müssen sich anmelden, um dieses Dokument anzuzeigen.",
+    "errors.documentBadRequest":
+      "Die Anfrage zum Erstellen oder Aktualisieren des Dokuments ist ungültig.",
+    "errors.default":
+      "Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut.",
+  },
+  it: {
+    notifications: "Notifiche",
+    noNotifications: "Nessuna notifica.",
+    showNotifications: "Mostra notifiche",
+    ghostMode: "Modalità fantasma",
+    ghostModeActive: "Modalità fantasma attiva",
+    voiceMode: "mAI Voice",
+    voiceModeLabel: "Modalità voce pura (Sperimentale)",
+    voiceListening: "In ascolto...",
+    voiceStart: "Avvia modalità voce",
+    voiceStop: "Stop",
+    voiceTranscript: "Trascrizione",
+    voiceSend: "Invia alla chat",
+    voiceCaptions: "Sottotitoli",
+    "errors.database":
+      "Si è verificato un errore durante l'esecuzione di una query del database.",
+    "errors.badRequestApi":
+      "La richiesta non può essere elaborata. Controlla l'input e riprova.",
+    "errors.gateway":
+      "AI Gateway richiede una carta di credito valida per elaborare le richieste.",
+    "errors.authRequired": "Devi accedere prima di continuare.",
+    "errors.authForbidden":
+      "Il tuo account non ha accesso a questa funzionalità.",
+    "errors.rateLimit":
+      "Hai raggiunto il limite di messaggi. Torna tra 1 ora.",
+    "errors.chatNotFound":
+      "La chat richiesta non è stata trovata. Controlla l'ID chat.",
+    "errors.chatForbidden":
+      "Questa chat appartiene a un altro utente. Controlla l'ID chat.",
+    "errors.chatUnauthorized":
+      "Devi accedere per visualizzare questa chat.",
+    "errors.offline":
+      "Problemi nell'invio del messaggio. Controlla la connessione Internet.",
+    "errors.documentNotFound":
+      "Il documento richiesto non è stato trovato. Controlla l'ID documento.",
+    "errors.documentForbidden":
+      "Questo documento appartiene a un altro utente. Controlla l'ID documento.",
+    "errors.documentUnauthorized":
+      "Devi accedere per visualizzare questo documento.",
+    "errors.documentBadRequest":
+      "La richiesta per creare o aggiornare il documento non è valida.",
+    "errors.default": "Si è verificato un problema. Riprova più tardi.",
   },
   fr: {
     notifications: "Notifications",

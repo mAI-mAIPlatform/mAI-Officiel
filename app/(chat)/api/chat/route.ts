@@ -252,13 +252,13 @@ export async function POST(request: Request) {
       contextualActions?.isReasoningEnabled === true;
     const supportsTools = capabilities?.tools === true;
     const contextualReasoningEffortMap = {
-      light: "minimal",
-      moderate: "low",
-      deep: "medium",
-      "very-deep": "high",
+      none: "none",
+      low: "low",
+      medium: "medium",
+      high: "high",
     } as const;
     const contextualReasoningLevel =
-      contextualActions?.reasoningLevel ?? "moderate";
+      contextualActions?.reasoningLevel ?? "medium";
     const contextualReasoningEffort =
       contextualReasoningEffortMap[contextualReasoningLevel];
     const openaiReasoningEffort =

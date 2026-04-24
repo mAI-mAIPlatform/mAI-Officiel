@@ -1,6 +1,18 @@
 import type { AppLanguage } from "./i18n";
 
 const suggestionPoolByLanguage: Record<AppLanguage, string[]> = {
+  de: [
+    "Erstelle einen Projektplan für den Start einer neuen KI-Funktion.",
+    "Erstelle eine priorisierte Wochenübersicht der Aufgaben.",
+    "Hilf mir, eine Wissensdatenbank für mein Team zu strukturieren.",
+    "Schlage 5 Content-Ideen vor, um mein Produkt zu präsentieren.",
+  ],
+  it: [
+    "Redigi un piano di progetto per lanciare una nuova funzionalità IA.",
+    "Crea un riepilogo settimanale delle azioni con priorità.",
+    "Aiutami a strutturare una base di conoscenza per il mio team.",
+    "Proponi 5 idee di contenuto per presentare il mio prodotto.",
+  ],
   fr: [
     "Rédige un plan projet pour lancer une nouvelle fonctionnalité IA.",
     "Crée un résumé des actions à faire cette semaine avec priorités.",

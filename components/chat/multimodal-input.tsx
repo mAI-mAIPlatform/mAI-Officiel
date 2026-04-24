@@ -113,7 +113,7 @@ import { SuggestedActions } from "./suggested-actions";
 import type { VisibilityType } from "./visibility-selector";
 
 type UploadSource = "device" | "mai-library";
-type ReflectionLevel = "light" | "moderate" | "deep" | "very-deep";
+type ReflectionLevel = "none" | "low" | "medium" | "high";
 type ProjectItem = { id: string; name: string };
 type MentionItem =
   | { id: string; label: string; type: "project" }
@@ -133,12 +133,7 @@ const PLUGIN_MODE_STORAGE_KEY = "mai.plugin-mode";
 const PLUGIN_ENABLED_STORAGE_KEY = "mai.plugins.enabled.v1";
 const IMAGE_CREATION_MODE_STORAGE_KEY = "mai.image-creation-mode.enabled";
 const MUSIC_CREATION_MODE_STORAGE_KEY = "mai.music-creation-mode.enabled";
-const reflectionLevels: ReflectionLevel[] = [
-  "light",
-  "moderate",
-  "deep",
-  "very-deep",
-];
+const reflectionLevels: ReflectionLevel[] = ["none", "low", "medium", "high"];
 
 const toolMentionItems: MentionItem[] = [];
 
@@ -871,14 +866,14 @@ function PureMultimodalInput({
           : localStorage.getItem("mai-reasoning-enabled") === "true";
       const reasoningLevel = (() => {
         if (typeof window === "undefined") {
-          return "moderate" as ReflectionLevel;
+          return "medium" as ReflectionLevel;
         }
 
         const storedLevel = localStorage.getItem("mai-reasoning-level");
         return storedLevel &&
           reflectionLevels.includes(storedLevel as ReflectionLevel)
           ? (storedLevel as ReflectionLevel)
-          : "moderate";
+          : "medium";
       })();
       const isWebSearchEnabled =
         typeof window === "undefined"
@@ -1688,7 +1683,7 @@ function PureContextualActionsMenu({
   const [quizDifficulty, setQuizDifficulty] = useState("moyen");
   const [reasoningLevel, setReasoningLevel] = useLocalStorage<ReflectionLevel>(
     "mai-reasoning-level",
-    "moderate"
+    "medium"
   );
   const { plan, isHydrated } = useSubscriptionPlan();
   const [quizTopic, setQuizTopic] = useState("culture générale");
@@ -1769,38 +1764,20 @@ function PureContextualActionsMenu({
     setIsMusicCreationModeEnabled(true);
   };
 
-  const canUseDeepReflection = plan === "max";
-  const canUseVeryDeepReflection = false;
-
   useEffect(() => {
     if (!isHydrated) {
       return;
     }
 
-    // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
-    if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
-      setReasoningLevel(
-        canUseDeepReflection ? "deep" : plan === "pro" ? "moderate" : "light"
-      );
+    if (reasoningLevel === "high" && plan !== "max") {
+      setReasoningLevel(plan === "pro" ? "medium" : "low");
       return;
     }
 
-    if (reasoningLevel === "deep" && !canUseDeepReflection) {
-      setReasoningLevel(plan === "pro" ? "moderate" : "light");
-      return;
+    if (reasoningLevel === "medium" && plan !== "pro" && plan !== "max") {
+      setReasoningLevel("low");
     }
-
-    if (reasoningLevel === "moderate" && plan !== "pro" && plan !== "max") {
-      setReasoningLevel("light");
-    }
-  }, [
-    canUseDeepReflection,
-    canUseVeryDeepReflection,
-    plan,
-    reasoningLevel,
-    setReasoningLevel,
-    isHydrated,
-  ]);
+  }, [plan, reasoningLevel, setReasoningLevel, isHydrated]);
 
   useEffect(() => {
     if (!isLibraryDialogOpen) {
@@ -2593,7 +2570,14 @@ function PureModelSelectorCompact({
                             value={model.id}
                           >
                             <ModelSelectorLogo provider={logoProvider} />
-                            <ModelSelectorName>{model.name}</ModelSelectorName>
+                            <div className="flex items-center gap-2">
+                              <ModelSelectorName>{model.name}</ModelSelectorName>
+                              {model.id === "gpt-5.5" && (
+                                <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+                                  Nouveau
+                                </span>
+                              )}
+                            </div>
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />

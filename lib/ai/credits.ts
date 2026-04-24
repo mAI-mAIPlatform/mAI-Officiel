@@ -6,6 +6,7 @@ export type CreditScope = "guest" | "authenticated";
 
 const modelIdsByTier: Record<ModelTier, string[]> = {
   tier1: [
+    "openai/gpt-5.5",
     "openai/gpt-5.4",
     "openai/gpt-5.2",
     "openai/gpt-oss-120b",

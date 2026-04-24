@@ -31,6 +31,7 @@ import {
   type TagDefinition,
 } from "@/lib/chat-preferences";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
+import { getGuestDisplayName } from "@/lib/guest-display";
 import { type AppLanguage, LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -109,7 +110,7 @@ function parseProfileSettings(
 
 function getDefaultDisplayName(user: User, isGuest: boolean): string {
   if (isGuest) {
-    return "Invité";
+    return getGuestDisplayName(user.email) ?? "Visiteur";
   }
 
   const userNameFromEmail = user.email?.split("@")[0]?.trim();
@@ -785,6 +786,8 @@ export function UserSettingsDialog({
                 <option value="fr">Français</option>
                 <option value="en">English</option>
                 <option value="es">Español</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
               </select>
             </section>
 

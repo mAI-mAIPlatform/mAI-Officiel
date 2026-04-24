@@ -19,6 +19,18 @@ export const Greeting = () => {
       "¿por dónde empezamos hoy?",
       "¿qué idea quieres explorar ahora?",
     ],
+    de: [
+      "wie kann ich Ihnen heute helfen?",
+      "was möchten Sie mit mAI bauen?",
+      "wo sollen wir heute anfangen?",
+      "welche Idee möchten Sie jetzt erkunden?",
+    ],
+    it: [
+      "come posso aiutarti oggi?",
+      "cosa vuoi costruire con mAI?",
+      "da dove iniziamo oggi?",
+      "quale idea vuoi esplorare ora?",
+    ],
     fr: [
       "comment puis-je vous aider aujourd'hui ?",
       "que voulez-vous construire avec mAI ?",
@@ -38,6 +50,10 @@ export const Greeting = () => {
       setTimePrefix(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
     } else if (language === "es") {
       setTimePrefix(hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches");
+    } else if (language === "de") {
+      setTimePrefix(hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend");
+    } else if (language === "it") {
+      setTimePrefix(hour < 12 ? "Buongiorno" : hour < 18 ? "Buon pomeriggio" : "Buonasera");
     } else if (hour < 12) {
       setTimePrefix("Bonjour");
     } else if (hour < 18) {
@@ -83,6 +99,10 @@ export const Greeting = () => {
           ? "With mAI, take things to the next level!"
           : language === "es"
             ? "¡Con mAI, pasa al siguiente nivel!"
+            : language === "de"
+              ? "Mit mAI auf das nächste Level!"
+              : language === "it"
+                ? "Con mAI, passa al livello successivo!"
             : "Avec mAI, passez à la vitesse supérieure !"}
       </motion.div>
 

@@ -1,11 +1,10 @@
-export const DEFAULT_CHAT_MODEL = "gpt-5.4";
+export const DEFAULT_CHAT_MODEL = "gpt-5.5";
 
 export const titleModel = {
-  id: "gpt-5.4",
-  name: "GPT-5.4",
+  id: "gpt-5.5",
+  name: "GPT-5.5",
   provider: "openai",
-  description:
-    "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
+  description: "Une nouvelle catégorie d'intelligence pour le vrai travail.",
   gatewayOrder: ["openai"],
 };
 
@@ -28,6 +27,14 @@ export type ChatModel = {
 // Catalogue volontairement limité aux modèles connectés via FS_API_KEY.
 export const chatModels: ChatModel[] = [
   // ── OpenAI ────────────────────────────────────────────────────────────
+  {
+    id: "gpt-5.5",
+    name: "GPT-5.5",
+    provider: "openai",
+    description: "Une nouvelle catégorie d'intelligence pour le vrai travail.",
+    reasoningEffort: "medium",
+    capabilities: { tools: true, vision: true, reasoning: true },
+  },
   {
     id: "gpt-5.4",
     name: "GPT-5.4",

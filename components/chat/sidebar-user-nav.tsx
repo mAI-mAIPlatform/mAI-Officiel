@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
-import { guestRegex } from "@/lib/constants";
+import { getGuestDisplayName } from "@/lib/guest-display";
 import { LoaderIcon } from "./icons";
 import { toast } from "./toast";
 
@@ -84,9 +84,11 @@ export function SidebarUserNav({ user }: { user: User }) {
     };
   }, [pathname]);
 
-  const isGuest = guestRegex.test(data?.user?.email ?? user.email ?? "");
+  const guestDisplayName = getGuestDisplayName(data?.user?.email ?? user.email);
+  const isGuest = Boolean(guestDisplayName);
   const displayName =
     customDisplayName ||
+    guestDisplayName ||
     data?.user?.name?.trim() ||
     user.name?.trim() ||
     user.email?.split("@")[0] ||

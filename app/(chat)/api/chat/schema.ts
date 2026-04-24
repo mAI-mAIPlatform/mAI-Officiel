@@ -36,7 +36,7 @@ export const postRequestBodySchema = z.object({
     .object({
       isReasoningEnabled: z.boolean().optional(),
       reasoningLevel: z
-        .enum(["light", "moderate", "deep", "very-deep"])
+        .enum(["none", "low", "medium", "high"])
         .optional(),
       isWebSearchEnabled: z.boolean().optional(),
       forceWebSearchEnabled: z.boolean().optional(),
