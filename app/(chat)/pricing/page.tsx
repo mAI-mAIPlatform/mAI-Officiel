@@ -36,10 +36,9 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Crédits tiers inclus (quotas / jour)",
     "Idéal pour découvrir mAI",
     "Réflexion: Aucun ou Léger",
-    "Quiz illimités",
     "Jusqu'à 5 fichiers / jour",
-    "7 images Studio / jour",
-    "2 générations Wave / semaine",
+    "7 images / jour",
+    "2 musiques / semaine",
     "10 recherches web / jour",
   ],
   plus: [
@@ -47,9 +46,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "IA plus confortable au quotidien",
     "Réflexion: Aucun ou Léger",
     "10 fichiers / jour",
-    "15 images Studio / jour",
-    "5 générations Wave / semaine",
-    "Tâches planifiées avancées",
+    "15 images / jour",
+    "5 musiques / semaine",
     "20 recherches web / jour",
   ],
   pro: [
@@ -57,8 +55,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Pour usage intensif et projets multi-modules",
     "Réflexion: Aucun, Léger, Moyen",
     "20 fichiers / jour",
-    "30 images Studio / jour",
-    "10 générations Wave / semaine",
+    "30 images / jour",
+    "10 musiques / semaine",
     "Mémoire IA renforcée",
     "35 recherches web / jour",
   ],
@@ -67,8 +65,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Pour équipes et usages professionnels continus",
     "Réflexion: Aucun, Léger, Moyen, Approfondi",
     "50 fichiers / jour",
-    "75 images Studio / jour",
-    "20 générations Wave / semaine",
+    "75 images / jour",
+    "20 musiques / semaine",
     "Capacité maximale mAI",
     "50 recherches web / jour",
   ],
@@ -106,7 +104,7 @@ export default function PricingPage() {
 
     if (!nextPlan) {
       setMessage({
-        text: `Code invalide pour ${planDefinitions[activatePlan].label}. Vérifiez votre code officiel.`,
+        text: `Code invalide pour ${planDefinitions[activatePlan].label}. Vérifiez votre code.`,
         type: "error",
       });
       return;
@@ -202,7 +200,6 @@ export default function PricingPage() {
                   <Music2Icon className="size-3.5" /> Wave:{" "}
                   {planItem.limits.musicGenerationsPerWeek}/semaine
                 </p>
-                <p>Tâches planifiées: {planItem.limits.taskSchedules}</p>
                 <p>Recherche web: {planItem.limits.webSearchesPerDay}/jour</p>
               </div>
 
@@ -243,7 +240,7 @@ export default function PricingPage() {
               Activer {planDefinitions[activatePlan].label}
             </h3>
             <p className="mt-2 text-sm text-zinc-600">
-              Entrez votre code officiel pour débloquer le forfait.
+              Entrez votre code pour débloquer le forfait.
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <Input
