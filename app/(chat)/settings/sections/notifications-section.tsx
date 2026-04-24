@@ -4,7 +4,10 @@ import { cn } from "@/lib/utils";
 type NotificationSettings = {
   projectUpdates: boolean;
   responseReady: boolean;
-  scheduledTasks: boolean;
+  soundsEnabled: boolean;
+  vibrationsEnabled: boolean;
+  studioRenders: boolean;
+  waveRenders: boolean;
 };
 
 type NotificationsSectionProps = {
@@ -23,14 +26,19 @@ const notificationItems = [
     label: "Réponses",
   },
   {
-    description: "Recevoir les rappels des tâches automatiques.",
-    key: "scheduledTasks" as const,
-    label: "Tâches",
-  },
-  {
     description: "Être notifié des mises à jour de la plateforme.",
     key: "projectUpdates" as const,
     label: "Plateforme",
+  },
+  {
+    description: "Alerte quand une génération Studio est prête.",
+    key: "studioRenders" as const,
+    label: "Studio",
+  },
+  {
+    description: "Alerte quand une musique Wave est terminée.",
+    key: "waveRenders" as const,
+    label: "Wave",
   },
 ];
 
@@ -75,7 +83,7 @@ export function NotificationsSection({
         </div>
       )}
 
-      <div className="mt-4 grid gap-2 md:grid-cols-3">
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {notificationItems.map((notificationItem) => (
           <button
             className={cn(
@@ -96,6 +104,41 @@ export function NotificationsSection({
             </p>
           </button>
         ))}
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <button
+          className={cn(
+            "rounded-xl border p-3 text-left text-sm transition-colors",
+            settings.vibrationsEnabled
+              ? "border-primary/40 bg-primary/10"
+              : "border-border/50 bg-background/50"
+          )}
+          onClick={() =>
+            onToggle("vibrationsEnabled", !settings.vibrationsEnabled)
+          }
+          type="button"
+        >
+          <p className="font-medium">Vibrations</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Retour haptique mobile pour confirmations et réponses IA.
+          </p>
+        </button>
+        <button
+          className={cn(
+            "rounded-xl border p-3 text-left text-sm transition-colors",
+            settings.soundsEnabled
+              ? "border-primary/40 bg-primary/10"
+              : "border-border/50 bg-background/50"
+          )}
+          onClick={() => onToggle("soundsEnabled", !settings.soundsEnabled)}
+          type="button"
+        >
+          <p className="font-medium">Effets sonores</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sons UI subtils (désactivés par défaut).
+          </p>
+        </button>
       </div>
     </section>
   );

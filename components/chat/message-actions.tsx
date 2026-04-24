@@ -7,6 +7,7 @@ import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
 import { triggerHaptic } from "@/lib/haptics";
 import type { ChatMessage } from "@/lib/types";
+import { addStatsEvent } from "@/lib/user-stats";
 import {
   MessageAction as Action,
   MessageActions as Actions,
@@ -292,6 +293,7 @@ export function PureMessageActions({
                 },
                 { revalidate: false }
               );
+              addStatsEvent("vote", 1);
 
               return "Upvoted Response!";
             },
@@ -345,6 +347,7 @@ export function PureMessageActions({
                 },
                 { revalidate: false }
               );
+              addStatsEvent("vote", 1);
 
               return "Downvoted Response!";
             },

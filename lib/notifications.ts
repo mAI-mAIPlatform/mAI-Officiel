@@ -1,4 +1,5 @@
 "use client";
+import { playUiSound } from "@/lib/sound";
 
 export type NotificationLevel = "success" | "warning" | "error" | "info";
 
@@ -169,6 +170,7 @@ export function createNotification(input: {
     }
   }
   saveNotificationHistory([next, ...current]);
+  playUiSound(next.level === "success" ? "success" : "notification");
   void deliverSystemNotification(next);
 }
 

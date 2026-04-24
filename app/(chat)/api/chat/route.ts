@@ -244,6 +244,7 @@ export async function POST(request: Request) {
     }
 
     const modelConfig = chatModels.find((m) => m.id === chatModel);
+    const isHordeTextModel = chatModel.startsWith("horde/");
     const modelCapabilities = await getCapabilities();
     const capabilities = modelCapabilities[chatModel];
     // Override reasoning based on contextual action
@@ -358,38 +359,44 @@ export async function POST(request: Request) {
           messages: modelMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools:
-            isReasoningModel && !supportsTools ? [] : activeTools,
+            isReasoningModel && !supportsTools
+              ? []
+              : isHordeTextModel
+                ? []
+                : activeTools,
           providerOptions: {
             ...(openaiReasoningEffort && {
               openai: { reasoningEffort: openaiReasoningEffort },
             }),
           },
-          tools: {
-            getWeather,
-            createDocument: createDocument({
-              session,
-              dataStream,
-              modelId: chatModel,
-            }),
-            editDocument: editDocument({ dataStream, session }),
-            updateDocument: updateDocument({
-              session,
-              dataStream,
-              modelId: chatModel,
-            }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-              modelId: chatModel,
-            }),
-            followUpSuggestions,
-            createProjectTask: createProjectTaskTool(session.user.id),
-            createProject: createProjectTool(session.user.id),
-            createMai: createMaiTool(session.user.id),
-            audioAssistant,
-            textUtilities,
-            webSearch,
-          },
+          tools: isHordeTextModel
+            ? {}
+            : {
+                getWeather,
+                createDocument: createDocument({
+                  session,
+                  dataStream,
+                  modelId: chatModel,
+                }),
+                editDocument: editDocument({ dataStream, session }),
+                updateDocument: updateDocument({
+                  session,
+                  dataStream,
+                  modelId: chatModel,
+                }),
+                requestSuggestions: requestSuggestions({
+                  session,
+                  dataStream,
+                  modelId: chatModel,
+                }),
+                followUpSuggestions,
+                createProjectTask: createProjectTaskTool(session.user.id),
+                createProject: createProjectTool(session.user.id),
+                createMai: createMaiTool(session.user.id),
+                audioAssistant,
+                textUtilities,
+                webSearch,
+              },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",

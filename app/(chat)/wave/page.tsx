@@ -15,6 +15,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import {
+  DEFAULT_MUSIC_MODEL_KEY,
+  FALLBACK_DEFAULT_MUSIC_MODEL,
+} from "@/lib/default-models";
+import { addStatsEvent } from "@/lib/user-stats";
 import { canConsumeUsage, consumeUsage, getUsageCount } from "@/lib/usage-limits";
 
 type WaveModel = "V5_5" | "V5" | "V4_5PLUS" | "V4_5ALL" | "V4_5" | "V4";
@@ -75,6 +80,18 @@ export default function WavePage() {
   const [downloadFormatByTrack, setDownloadFormatByTrack] = useState<
     Record<string, MusicDownloadFormat>
   >({});
+
+  useEffect(() => {
+    const storedModel = localStorage.getItem(DEFAULT_MUSIC_MODEL_KEY);
+    if (
+      storedModel &&
+      Object.prototype.hasOwnProperty.call(modelDescriptions, storedModel)
+    ) {
+      setModel(storedModel as WaveModel);
+    } else {
+      setModel(FALLBACK_DEFAULT_MUSIC_MODEL as WaveModel);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -211,6 +228,7 @@ export default function WavePage() {
       }
 
       consumeUsage("wave", "week");
+      addStatsEvent("music", 1);
       const audioUrl = extractAudioUrl(payload.data);
       const entry: WaveTrack = {
         id: crypto.randomUUID(),
@@ -371,7 +389,7 @@ export default function WavePage() {
           <h2 className="text-lg font-semibold">Génération musicale</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input className="rounded-md border bg-background/70 p-2" placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <select className="rounded-md border bg-background/70 p-2" value={model} onChange={(e) => setModel(e.target.value as WaveModel)}>
+            <select className="mai-select" value={model} onChange={(e) => setModel(e.target.value as WaveModel)}>
               {(Object.keys(modelDescriptions) as WaveModel[]).map((key) => (
                 <option key={key} value={key}>{key}</option>
               ))}
@@ -383,7 +401,7 @@ export default function WavePage() {
             <input className="rounded-md border bg-background/70 p-2" placeholder="Persona model" value={personaModel} onChange={(e) => setPersonaModel(e.target.value)} />
             <input className="rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Callback URL" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} />
             <label className="flex items-center gap-2 text-sm"><input checked={instrumental} onChange={(e) => setInstrumental(e.target.checked)} type="checkbox" /> Instrumental</label>
-            <select className="rounded-md border bg-background/70 p-2" value={vocalGender} onChange={(e) => setVocalGender(e.target.value as Gender)}>
+            <select className="mai-select" value={vocalGender} onChange={(e) => setVocalGender(e.target.value as Gender)}>
               <option value="n">Neutre</option><option value="m">Voix masculine</option><option value="f">Voix féminine</option>
             </select>
             <label className="text-xs">Style weight {styleWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} /></label>

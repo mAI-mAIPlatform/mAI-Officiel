@@ -74,21 +74,34 @@ const MAX_CODE_HASHES = new Set([
 
 function hashActivationCode(code: string): string {
   return createHash("sha256")
-    .update(`${ACTIVATION_HASH_PEPPER}${code.trim()}`)
+    .update(`${ACTIVATION_HASH_PEPPER}${code}`)
     .digest("hex");
 }
 
 export function getPlanFromActivationCode(code: string): PlanKey | null {
-  const hashedCode = hashActivationCode(code);
+  const raw = code.trim();
+  if (!raw) {
+    return null;
+  }
 
-  if (PLUS_CODE_HASHES.has(hashedCode)) {
-    return "plus";
-  }
-  if (PRO_CODE_HASHES.has(hashedCode)) {
-    return "pro";
-  }
-  if (MAX_CODE_HASHES.has(hashedCode)) {
-    return "max";
+  const normalized = raw.toUpperCase();
+  const compact = normalized.replace(/[\s-]+/g, "");
+  const hashCandidates = [
+    hashActivationCode(raw),
+    hashActivationCode(normalized),
+    hashActivationCode(compact),
+  ];
+
+  for (const hashedCode of hashCandidates) {
+    if (PLUS_CODE_HASHES.has(hashedCode)) {
+      return "plus";
+    }
+    if (PRO_CODE_HASHES.has(hashedCode)) {
+      return "pro";
+    }
+    if (MAX_CODE_HASHES.has(hashedCode)) {
+      return "max";
+    }
   }
 
   return null;

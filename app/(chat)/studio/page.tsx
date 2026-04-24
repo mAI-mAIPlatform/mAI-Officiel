@@ -22,6 +22,11 @@ import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { areAllTierCreditsExhausted } from "@/lib/ai/credits";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
 import { triggerHaptic } from "@/lib/haptics";
+import {
+  DEFAULT_IMAGE_MODEL_KEY,
+  FALLBACK_DEFAULT_IMAGE_MODEL,
+} from "@/lib/default-models";
+import { addStatsEvent } from "@/lib/user-stats";
 import { canConsumeUsage, consumeUsage, getUsageCount } from "@/lib/usage-limits";
 
 const imageModels = affordableImageModels;
@@ -108,6 +113,16 @@ export default function StudioPage() {
   const [editorBlur, setEditorBlur] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageUploadRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const storedModel =
+      localStorage.getItem(DEFAULT_IMAGE_MODEL_KEY) ??
+      FALLBACK_DEFAULT_IMAGE_MODEL;
+    const modelExists = imageModels.some((item) => item.id === storedModel);
+    if (modelExists) {
+      setImageModel(storedModel);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -277,6 +292,7 @@ export default function StudioPage() {
         throw new Error("Aucune image générée (quota atteint ou réponse vide).");
       }
       consumeUsage("studio", "day", getStudioCreditCost(nextItems.length));
+      addStatsEvent("image", nextItems.length);
 
       setGallery((current) => [...nextItems, ...current]);
       setActiveSection("images");
@@ -510,7 +526,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">IA utilisée</label>
             <select
-              className="h-9 w-full rounded-xl border border-border bg-background px-3"
+              className="mai-select h-9 w-full"
               onChange={(event) => setImageModel(event.target.value)}
               value={imageModel}
             >
@@ -524,7 +540,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Style visuel</label>
             <select
-              className="h-9 w-full rounded-xl border border-border bg-background px-3"
+              className="mai-select h-9 w-full"
               onChange={(event) => setStyleFilter(event.target.value)}
               value={styleFilter}
             >
@@ -539,7 +555,7 @@ export default function StudioPage() {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Tri</label>
             <select
-              className="h-9 w-full rounded-xl border border-border bg-background px-3"
+              className="mai-select h-9 w-full"
               onChange={(event) => setSortMode(event.target.value as SortMode)}
               value={sortMode}
             >
@@ -675,7 +691,7 @@ export default function StudioPage() {
                 </button>
               ))}
               <select
-                className="h-8 rounded-2xl border border-border bg-background px-3"
+                className="mai-select h-8"
                 onChange={(event) => setVariationCount(Number(event.target.value))}
                 value={variationCount}
               >
@@ -847,7 +863,7 @@ export default function StudioPage() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <select
-                className="h-9 rounded-md border border-border/60 bg-background px-2 text-xs"
+                className="mai-select h-9 text-xs"
                 onChange={(event) =>
                   setDownloadFormat(event.target.value as ImageDownloadFormat)
                 }

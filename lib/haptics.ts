@@ -2,6 +2,7 @@
 
 export type HapticPattern = number | number[];
 export const HAPTICS_ENABLED_STORAGE_KEY = "mai.settings.vibrations.enabled.v1";
+export type HapticPreset = "tap" | "success" | "warning";
 
 function isMobileLikeDevice() {
   if (typeof navigator === "undefined") {
@@ -12,7 +13,7 @@ function isMobileLikeDevice() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
 
-export function triggerHaptic(pattern: HapticPattern) {
+export function triggerHaptic(pattern: HapticPattern | HapticPreset) {
   if (
     typeof navigator === "undefined" ||
     typeof navigator.vibrate !== "function" ||
@@ -28,5 +29,14 @@ export function triggerHaptic(pattern: HapticPattern) {
     }
   }
 
-  navigator.vibrate(pattern);
+  const resolvedPattern: HapticPattern =
+    pattern === "tap"
+      ? 14
+      : pattern === "success"
+        ? [12, 26, 16]
+        : pattern === "warning"
+          ? [18, 36, 18]
+          : pattern;
+
+  navigator.vibrate(resolvedPattern);
 }

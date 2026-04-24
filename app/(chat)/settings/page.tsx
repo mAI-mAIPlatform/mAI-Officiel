@@ -36,6 +36,7 @@ import {
   getTierUsage,
   type ModelTier,
 } from "@/lib/ai/credits";
+import { affordableImageModels } from "@/lib/ai/affordable-models";
 import { APP_VERSION } from "@/lib/app-version";
 import {
   CHAT_TAGS_STORAGE_KEY,
@@ -51,6 +52,15 @@ import {
 } from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
 import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
+import { SOUND_EFFECTS_ENABLED_STORAGE_KEY } from "@/lib/sound";
+import {
+  DEFAULT_IMAGE_MODEL_KEY,
+  DEFAULT_MUSIC_MODEL_KEY,
+  DEFAULT_TEXT_MODEL_KEY,
+  FALLBACK_DEFAULT_IMAGE_MODEL,
+  FALLBACK_DEFAULT_MUSIC_MODEL,
+  FALLBACK_DEFAULT_TEXT_MODEL,
+} from "@/lib/default-models";
 import {
   defaultSecuritySettings,
   hashPinCode,
@@ -60,12 +70,18 @@ import {
   type SecuritySettings,
 } from "@/lib/security-settings";
 import { planDefinitions } from "@/lib/subscription";
+import {
+  getUserStatsSnapshot,
+  syncDailyLoginBonus,
+  USER_STATS_STORAGE_KEY,
+  type UserStatsSnapshot,
+} from "@/lib/user-stats";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 import { AproposSection } from "./sections/apropos-section";
 import { CompteSection } from "./sections/compte-section";
-import { CreditsSection } from "./sections/credits-section";
 import { NotificationsSection } from "./sections/notifications-section";
+import { StatsSection } from "./sections/stats-section";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v018";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
@@ -94,6 +110,7 @@ const schedulerFrequencies = [
   "mensuelle",
   "ponctuelle",
 ] as const;
+const defaultWaveModelOptions = ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"] as const;
 
 const settingsLabels = {
   en: {
@@ -106,6 +123,7 @@ const settingsLabels = {
     parental: "Parental control",
     personalization: "AI customization",
     settings: "Settings",
+    stats: "Statistics",
     tasks: "Tasks",
   },
   es: {
@@ -118,6 +136,7 @@ const settingsLabels = {
     parental: "Control parental",
     personalization: "Personalización IA",
     settings: "Ajustes",
+    stats: "Estadísticas",
     tasks: "Tareas",
   },
   de: {
@@ -130,6 +149,7 @@ const settingsLabels = {
     parental: "Kindersicherung",
     personalization: "KI-Anpassung",
     settings: "Einstellungen",
+    stats: "Statistiken",
     tasks: "Aufgaben",
   },
   it: {
@@ -142,6 +162,7 @@ const settingsLabels = {
     parental: "Controllo genitori",
     personalization: "Personalizzazione IA",
     settings: "Impostazioni",
+    stats: "Statistiche",
     tasks: "Attività",
   },
   fr: {
@@ -154,6 +175,7 @@ const settingsLabels = {
     parental: "Contrôle parental",
     personalization: "Personnalisation IA",
     settings: "Paramètres",
+    stats: "Statistiques",
     tasks: "Tâches",
   },
 } as const;
@@ -503,6 +525,15 @@ export default function SettingsPage() {
   const [showWordCounter, setShowWordCounter] = useState(false);
   const [interfaceLanguage, setInterfaceLanguage] = useState<AppLanguage>("fr");
   const [profileName, setProfileName] = useState("");
+  const [defaultTextModel, setDefaultTextModel] = useState(
+    FALLBACK_DEFAULT_TEXT_MODEL
+  );
+  const [defaultImageModel, setDefaultImageModel] = useState(
+    FALLBACK_DEFAULT_IMAGE_MODEL
+  );
+  const [defaultMusicModel, setDefaultMusicModel] = useState(
+    FALLBACK_DEFAULT_MUSIC_MODEL
+  );
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
@@ -535,7 +566,10 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState({
     projectUpdates: true,
     responseReady: true,
-    scheduledTasks: true,
+    soundsEnabled: false,
+    vibrationsEnabled: true,
+    studioRenders: true,
+    waveRenders: true,
   });
   const [parentalSettings, setParentalSettings] = useState<ParentalSettings>(
     defaultParentalSettings
@@ -551,10 +585,12 @@ export default function SettingsPage() {
     inputTokens: 0,
     outputTokens: 0,
   });
+  const [userStats, setUserStats] = useState<UserStatsSnapshot>(() =>
+    getUserStatsSnapshot()
+  );
   const [fileUsageToday, setFileUsageToday] = useState(0);
   const [studioUsageToday, setStudioUsageToday] = useState(0);
   const [waveUsageWeek, setWaveUsageWeek] = useState(0);
-  const [vibrationsEnabled, setVibrationsEnabled] = useState(true);
   const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
     tier1: 0,
     tier2: 0,
@@ -641,17 +677,28 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setVibrationsEnabled(
-      window.localStorage.getItem(HAPTICS_ENABLED_STORAGE_KEY) !== "false"
-    );
-  }, []);
+    const syncStats = () => {
+      setUserStats(getUserStatsSnapshot());
+    };
 
-  useEffect(() => {
-    window.localStorage.setItem(
-      HAPTICS_ENABLED_STORAGE_KEY,
-      vibrationsEnabled ? "true" : "false"
-    );
-  }, [vibrationsEnabled]);
+    if (isAuthenticated) {
+      const nextSnapshot = syncDailyLoginBonus(getUserStatsSnapshot());
+      window.localStorage.setItem(
+        USER_STATS_STORAGE_KEY,
+        JSON.stringify(nextSnapshot)
+      );
+      syncStats();
+    }
+
+    window.addEventListener("storage", syncStats);
+    window.addEventListener("mai:stats-updated", syncStats);
+    window.addEventListener("mai:usage-updated", syncStats);
+    return () => {
+      window.removeEventListener("storage", syncStats);
+      window.removeEventListener("mai:stats-updated", syncStats);
+      window.removeEventListener("mai:usage-updated", syncStats);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const rawTags = window.localStorage.getItem(TAG_DEFINITIONS_STORAGE_KEY);
@@ -926,23 +973,80 @@ export default function SettingsPage() {
     const rawNotificationSettings = window.localStorage.getItem(
       NOTIFICATIONS_SETTINGS_STORAGE_KEY
     );
+    const legacyVibrations =
+      window.localStorage.getItem(HAPTICS_ENABLED_STORAGE_KEY) !== "false";
+    const legacySounds =
+      window.localStorage.getItem(SOUND_EFFECTS_ENABLED_STORAGE_KEY) === "true";
+
     if (!rawNotificationSettings) {
+      setNotifications((prev) => ({
+        ...prev,
+        soundsEnabled: legacySounds,
+        vibrationsEnabled: legacyVibrations,
+      }));
       return;
     }
     try {
       const parsed = JSON.parse(rawNotificationSettings) as Partial<
         typeof notifications
       >;
-      setNotifications((prev) => ({ ...prev, ...parsed }));
+      setNotifications((prev) => ({
+        ...prev,
+        ...parsed,
+        soundsEnabled:
+          typeof parsed.soundsEnabled === "boolean"
+            ? parsed.soundsEnabled
+            : legacySounds,
+        vibrationsEnabled:
+          typeof parsed.vibrationsEnabled === "boolean"
+            ? parsed.vibrationsEnabled
+            : legacyVibrations,
+      }));
     } catch {
       // Silence: on conserve les valeurs par défaut.
     }
   }, []);
 
   useEffect(() => {
+    const storedTextModel =
+      window.localStorage.getItem(DEFAULT_TEXT_MODEL_KEY) ??
+      FALLBACK_DEFAULT_TEXT_MODEL;
+    const storedImageModel =
+      window.localStorage.getItem(DEFAULT_IMAGE_MODEL_KEY) ??
+      FALLBACK_DEFAULT_IMAGE_MODEL;
+    const storedMusicModel =
+      window.localStorage.getItem(DEFAULT_MUSIC_MODEL_KEY) ??
+      FALLBACK_DEFAULT_MUSIC_MODEL;
+
+    setDefaultTextModel(storedTextModel);
+    setDefaultImageModel(storedImageModel);
+    setDefaultMusicModel(storedMusicModel);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_TEXT_MODEL_KEY, defaultTextModel);
+  }, [defaultTextModel]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_IMAGE_MODEL_KEY, defaultImageModel);
+  }, [defaultImageModel]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_MUSIC_MODEL_KEY, defaultMusicModel);
+  }, [defaultMusicModel]);
+
+  useEffect(() => {
     window.localStorage.setItem(
       NOTIFICATIONS_SETTINGS_STORAGE_KEY,
       JSON.stringify(notifications)
+    );
+    window.localStorage.setItem(
+      HAPTICS_ENABLED_STORAGE_KEY,
+      notifications.vibrationsEnabled ? "true" : "false"
+    );
+    window.localStorage.setItem(
+      SOUND_EFFECTS_ENABLED_STORAGE_KEY,
+      notifications.soundsEnabled ? "true" : "false"
     );
   }, [notifications]);
 
@@ -1773,7 +1877,7 @@ export default function SettingsPage() {
     },
     { href: "#parental", key: "parental", label: uiLabels.parental },
     { href: "#donnees", key: "donnees", label: uiLabels.data },
-    { href: "#credits", key: "credits", label: uiLabels.credits },
+    { href: "#statistiques", key: "statistiques", label: uiLabels.stats },
     { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
   const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
@@ -2025,6 +2129,56 @@ export default function SettingsPage() {
           )}
         </div>
 
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
+          <p className="text-sm font-medium">Modèles par défaut du compte</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Valeurs initiales : GPT-5.5, Stable Diffusion et Suno V4.5 All.
+            Vous pouvez les changer ici à tout moment.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <label className="text-xs text-muted-foreground">
+              Texte
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultTextModel(event.target.value)}
+                value={defaultTextModel}
+              >
+                <option value="gpt-5.5">GPT-5.5</option>
+                <option value="gpt-5.4">GPT-5.4</option>
+                <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Images (Studio)
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultImageModel(event.target.value)}
+                value={defaultImageModel}
+              >
+                {affordableImageModels.map((modelOption) => (
+                  <option key={modelOption.id} value={modelOption.id}>
+                    {modelOption.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Musique (Wave)
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultMusicModel(event.target.value)}
+                value={defaultMusicModel}
+              >
+                {defaultWaveModelOptions.map((waveModelId) => (
+                  <option key={waveModelId} value={waveModelId}>
+                    {waveModelId}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
         {showPwaInstallCard ? (
           <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
             <p className="text-sm font-medium">Installation PWA</p>
@@ -2160,31 +2314,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
-          <p className="text-sm font-medium">Vibrations</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Active un retour haptique sur mobile (début/fin de réponse IA et
-            interactions).
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              onClick={() => setVibrationsEnabled(true)}
-              size="sm"
-              type="button"
-              variant={vibrationsEnabled ? "default" : "outline"}
-            >
-              Activer
-            </Button>
-            <Button
-              onClick={() => setVibrationsEnabled(false)}
-              size="sm"
-              type="button"
-              variant={vibrationsEnabled ? "outline" : "default"}
-            >
-              Désactiver
-            </Button>
-          </div>
-        </div>
       </CompteSection>
 
       <NotificationsSection
@@ -2978,37 +3107,6 @@ export default function SettingsPage() {
           ) : null}
         </div>
 
-        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
-          <h3 className="text-sm font-semibold">
-            Compteur de tokens (hors chat fantôme)
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Compte cumulatif de tous les échanges non fantômes (entrée/sortie).
-          </p>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
-              <p className="text-xs text-muted-foreground">Tokens entrée</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {tokenUsage.inputTokens.toLocaleString("fr-FR")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
-              <p className="text-xs text-muted-foreground">Tokens sortie</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {tokenUsage.outputTokens.toLocaleString("fr-FR")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {(
-                  tokenUsage.inputTokens + tokenUsage.outputTokens
-                ).toLocaleString("fr-FR")}
-              </p>
-            </div>
-          </div>
-        </div>
-
         <div className="liquid-panel mt-6 rounded-2xl border border-white/30 bg-white/80 p-4 text-black backdrop-blur-2xl">
           <h3 className="text-base font-semibold">Tags de conversations</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -3249,12 +3347,11 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <CreditsSection
-        className={sectionVisibility("credits")}
-        creditMetrics={creditMetrics}
-        formatDateTime={formatDateTime}
-        getCreditBadgeColor={getCreditBadgeColor}
-        getNextResetDate={getNextResetDate}
+      <StatsSection
+        className={sectionVisibility("statistiques")}
+        isAuthenticated={isAuthenticated}
+        stats={userStats}
+        tokenUsage={tokenUsage}
       />
 
       <section
@@ -3419,21 +3516,66 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <AproposSection
-        className={sectionVisibility("apropos")}
-        interfaceLanguage={interfaceLanguage}
-        language={interfaceLanguage}
-        onLanguageChange={(value) => {
-          const nextLanguage = resolveLanguage(value);
-          setInterfaceLanguage(nextLanguage);
-          setLanguageInStorage(nextLanguage);
-          createNotification({
-            level: "success",
-            message: `Langue appliquée: ${nextLanguage.toUpperCase()}`,
-            title: "Préférences",
-          });
-        }}
-      />
+      <div className={sectionVisibility("apropos")}>
+        <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+          <h2 className="text-lg font-semibold">Crédits</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Limites, consommation et date de réinitialisation des quotas.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {creditMetrics.map((metric) => {
+              const ratio = metric.limit > 0 ? metric.used / metric.limit : 1;
+              const remaining = Math.max(0, metric.limit - metric.used);
+              return (
+                <article
+                  className="rounded-xl border border-border/60 bg-background/60 p-3"
+                  key={metric.key}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{metric.title}</p>
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        getCreditBadgeColor(1 - ratio)
+                      )}
+                    >
+                      {remaining}/{metric.limit}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Réinitialisation:{" "}
+                    {formatDateTime(getNextResetDate(metric.period))}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <AproposSection
+          className="mt-4"
+          interfaceLanguage={interfaceLanguage}
+          language={interfaceLanguage}
+          onLanguageChange={(value) => {
+            const nextLanguage = resolveLanguage(value);
+            setInterfaceLanguage(nextLanguage);
+            setLanguageInStorage(nextLanguage);
+            createNotification({
+              level: "success",
+              message: `Langue appliquée: ${nextLanguage.toUpperCase()}`,
+              title: "Préférences",
+            });
+          }}
+        />
+      </div>
 
       {isMemoryModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-md">
