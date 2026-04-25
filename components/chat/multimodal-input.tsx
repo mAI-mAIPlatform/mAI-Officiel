@@ -919,14 +919,6 @@ function PureMultimodalInput({
         typeof window === "undefined"
           ? false
           : localStorage.getItem(MUSIC_CREATION_MODE_STORAGE_KEY) === "true";
-      const pluginContextBlock =
-        pluginMode === "none"
-          ? ""
-          : [
-              "[Plugin activé via menu +]",
-              `- ${pluginMode}`,
-              "Applique uniquement ce plugin à cette requête.",
-            ].join("\n");
       const forcedWebSearchBlock = forceWebSearchEnabled
         ? [
             "[RECHERCHE WEB OBLIGATOIRE]",
@@ -992,8 +984,6 @@ function PureMultimodalInput({
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
                 }${
                   musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
-                  pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}
 
 [Contexte extrait des fichiers]
@@ -1002,8 +992,6 @@ ${extractedFileContext}`
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
                 }${
                   musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
-                  pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}`,
           },
         ],
@@ -1016,6 +1004,23 @@ ${extractedFileContext}`
             forceWebSearchEnabled,
             isLearningEnabled,
             isImageCreationModeEnabled,
+            pluginMode,
+            enabledPlugins:
+              typeof window === "undefined"
+                ? []
+                : (() => {
+                    try {
+                      const raw = localStorage.getItem(PLUGIN_ENABLED_STORAGE_KEY);
+                      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+                      return Array.isArray(parsed)
+                        ? parsed.filter(
+                            (item): item is string => typeof item === "string"
+                          )
+                        : [];
+                    } catch {
+                      return [];
+                    }
+                  })(),
           },
           clientGeolocation: geolocationPos,
           ghostMode: isGhostModeEnabled,

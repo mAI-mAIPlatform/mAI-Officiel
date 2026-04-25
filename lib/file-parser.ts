@@ -36,6 +36,53 @@ export async function parseFileForAi(file: File): Promise<ParsedFileResult> {
     };
   }
 
+  if (
+    mediaType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    try {
+      const mammoth = await import("mammoth");
+      const arrayBuffer = await file.arrayBuffer();
+      const { value } = await mammoth.extractRawText({
+        arrayBuffer,
+      });
+      return {
+        extractedText: value.slice(0, 20_000),
+        mediaType,
+      };
+    } catch {
+      return {
+        extractedText: `[DOCX importé: ${file.name}]\nExtraction locale indisponible.`,
+        mediaType,
+      };
+    }
+  }
+
+  if (
+    mediaType ===
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) {
+    try {
+      const xlsx = await import("xlsx");
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = xlsx.read(arrayBuffer, { type: "array" });
+      const mergedText = workbook.SheetNames.map((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName];
+        const csv = xlsx.utils.sheet_to_csv(worksheet);
+        return `### Feuille: ${sheetName}\n${csv}`;
+      }).join("\n\n");
+      return {
+        extractedText: mergedText.slice(0, 20_000),
+        mediaType,
+      };
+    } catch {
+      return {
+        extractedText: `[XLSX importé: ${file.name}]\nExtraction locale indisponible.`,
+        mediaType,
+      };
+    }
+  }
+
   return {
     extractedText: "",
     mediaType,
@@ -47,7 +94,11 @@ export function validateFileBeforeUpload(file: File): string | null {
     return `Le fichier "${file.name}" dépasse la limite de 5MB.`;
   }
 
-  if (!SUPPORTED_FILE_TYPES.has(file.type)) {
+  if (
+    !SUPPORTED_FILE_TYPES.has(file.type) &&
+    file.type !==
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) {
     return `Format non supporté: ${file.name} (${file.type || "inconnu"}).`;
   }
 

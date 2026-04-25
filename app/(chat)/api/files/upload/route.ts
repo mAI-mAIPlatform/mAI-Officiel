@@ -21,6 +21,7 @@ const FileSchema = z.object({
           "text/markdown",
           "text/csv",
           "application/json",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "image/jpeg",
           "image/png",
           "image/webp",
@@ -31,7 +32,7 @@ const FileSchema = z.object({
         ].includes(file.type),
       {
         message:
-          "File type should be PDF, TXT, DOCX, MD, CSV, JSON, JPEG, PNG, WEBP, GIF ou audio (MP3/WAV/WEBM)",
+          "File type should be PDF, TXT, DOCX, XLSX, MD, CSV, JSON, JPEG, PNG, WEBP, GIF ou audio (MP3/WAV/WEBM)",
       }
     ),
   projectId: z.string().uuid().optional(),
