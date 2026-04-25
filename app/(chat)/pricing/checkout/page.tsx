@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -19,20 +19,54 @@ export default function PricingCheckoutPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [code, setCode] = useState("");
   const [feedback, setFeedback] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  const includedFeatures = useMemo(
+    () => [
+      `Messages: ${planDefinitions[plan].limits.messagesPerHour}/heure`,
+      `Fichiers: ${planDefinitions[plan].limits.filesPerDay}/jour`,
+      `Taille max fichier: ${planDefinitions[plan].limits.maxFileSizeMb} MB`,
+      `Mémoire IA: ${planDefinitions[plan].limits.memoryUnits} unités`,
+      `Recherche web: ${planDefinitions[plan].limits.webSearchesPerDay}/jour`,
+      `Actualités: ${planDefinitions[plan].limits.newsSearchesPerDay}/jour`,
+      `Repas (CookAI): ${planDefinitions[plan].limits.mealsSearchesPerDay}/jour`,
+      `mAIHealth: ${planDefinitions[plan].limits.healthRequestsPerMonth}/mois`,
+      `Studio: ${planDefinitions[plan].limits.studioImagesPerDay} images/jour`,
+      `Wave: ${planDefinitions[plan].limits.musicGenerationsPerWeek}/semaine`,
+      `Quiz: ${planDefinitions[plan].limits.quizPerDay}`,
+    ],
+    [plan]
+  );
 
   const isFormValid = useMemo(
     () =>
       firstName.trim().length > 1 &&
       lastName.trim().length > 1 &&
       email.includes("@") &&
-      cardNumber.replace(/\s+/g, "").length >= 12 &&
+      address.trim().length > 3 &&
+      city.trim().length > 1 &&
+      country.trim().length > 1 &&
+      postalCode.trim().length > 2 &&
       code.trim().length > 0 &&
       termsAccepted,
-    [cardNumber, code, email, firstName, lastName, termsAccepted]
+    [
+      address,
+      city,
+      code,
+      country,
+      email,
+      firstName,
+      lastName,
+      postalCode,
+      termsAccepted,
+    ]
   );
 
   const submit = async () => {
@@ -55,7 +89,7 @@ export default function PricingCheckoutPage() {
 
     setFeedback({
       type: "success",
-      text: `${planDefinitions[plan].label} activé avec succès. Paiement simulé validé.`,
+      text: `${planDefinitions[plan].label} activé avec succès. Bienvenue sur votre nouveau forfait.`,
     });
   };
 
@@ -70,13 +104,17 @@ export default function PricingCheckoutPage() {
         <div className="space-y-3">
           <h1 className="text-2xl font-semibold">Configurer votre forfait</h1>
           <p className="text-sm text-muted-foreground">
-            Page de test: coordonnées carte + validation des conditions et code d&apos;activation.
+            Renseignez vos informations de facturation pour finaliser l&apos;activation de votre forfait.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input placeholder="Prénom" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
             <Input placeholder="Nom" value={lastName} onChange={(event) => setLastName(event.target.value)} />
             <Input className="sm:col-span-2" placeholder="Adresse e-mail" value={email} onChange={(event) => setEmail(event.target.value)} />
-            <Input className="sm:col-span-2" placeholder="Numéro de carte (simulation)" value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} />
+            <Input className="sm:col-span-2" placeholder="Téléphone (optionnel)" value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <Input className="sm:col-span-2" placeholder="Adresse" value={address} onChange={(event) => setAddress(event.target.value)} />
+            <Input placeholder="Ville" value={city} onChange={(event) => setCity(event.target.value)} />
+            <Input placeholder="Pays" value={country} onChange={(event) => setCountry(event.target.value)} />
+            <Input placeholder="Code postal" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} />
             <Input className="sm:col-span-2" placeholder={`Code ${planDefinitions[plan].label}`} value={code} onChange={(event) => setCode(event.target.value)} />
           </div>
           <label className="mt-1 flex items-start gap-2 text-sm">
@@ -85,7 +123,7 @@ export default function PricingCheckoutPage() {
           </label>
           <Button disabled={isActivating || !isFormValid} onClick={submit} type="button">
             <CreditCard className="mr-2 size-4" />
-            {isActivating ? "Validation..." : "S'abonner et activer"}
+            {isActivating ? "Validation..." : "Passer au forfait et activer"}
           </Button>
           {feedback ? (
             <p
@@ -101,9 +139,15 @@ export default function PricingCheckoutPage() {
         <aside className="rounded-xl border border-border/50 bg-background/70 p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Forfait sélectionné</p>
           <p className="mt-2 text-2xl font-semibold">{planDefinitions[plan].label}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Vérification: le code d&apos;activation doit correspondre au forfait demandé.
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">Fonctionnalités incluses</p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {includedFeatures.map((feature) => (
+              <li className="flex items-start gap-2" key={feature}>
+                <CheckCircle2 className="mt-0.5 size-4 text-primary" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
         </aside>
       </section>
     </main>
