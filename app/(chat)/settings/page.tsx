@@ -21,7 +21,9 @@ import {
   SlidersHorizontal,
   TimerReset,
   Trash2,
+  Type,
   UserCircle2,
+  Volume2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,6 +39,7 @@ import {
   type ModelTier,
 } from "@/lib/ai/credits";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
+import { chatModels } from "@/lib/ai/models";
 import { APP_VERSION } from "@/lib/app-version";
 import {
   CHAT_TAGS_STORAGE_KEY,
@@ -81,6 +84,8 @@ import { NotificationsSection } from "./sections/notifications-section";
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v018";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
+const ACCESSIBILITY_SETTINGS_STORAGE_KEY = "mai.settings.accessibility.v1";
+const VOICE_SETTINGS_STORAGE_KEY = "mai.voice.settings.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
 const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
 const IMPROVE_MAI_FOR_ALL_KEY = "mai.settings.improve-for-all.v1";
@@ -105,6 +110,22 @@ const schedulerFrequencies = [
   "ponctuelle",
 ] as const;
 const defaultWaveModelOptions = ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"] as const;
+const availableDefaultTextModelIds = new Set(chatModels.map((model) => model.id));
+
+function normalizeDefaultTextModel(modelId: string): string {
+  if (availableDefaultTextModelIds.has(modelId)) {
+    return modelId;
+  }
+
+  if (modelId.startsWith("openai/")) {
+    const unprefixedModel = modelId.replace(/^openai\//, "");
+    if (availableDefaultTextModelIds.has(unprefixedModel)) {
+      return unprefixedModel;
+    }
+  }
+
+  return FALLBACK_DEFAULT_TEXT_MODEL;
+}
 
 const settingsLabels = {
   en: {
@@ -113,7 +134,7 @@ const settingsLabels = {
     credits: "Credits",
     data: "Data",
     navigation: "Settings navigation",
-    notifications: "Notifications",
+    notifications: "Accessibility",
     parental: "Parental control",
     personalization: "AI customization",
     settings: "Settings",
@@ -126,7 +147,7 @@ const settingsLabels = {
     credits: "Créditos",
     data: "Datos",
     navigation: "Navegación de ajustes",
-    notifications: "Notificaciones",
+    notifications: "Accessibility",
     parental: "Control parental",
     personalization: "Personalización IA",
     settings: "Ajustes",
@@ -139,7 +160,7 @@ const settingsLabels = {
     credits: "Credits",
     data: "Daten",
     navigation: "Einstellungsnavigation",
-    notifications: "Benachrichtigungen",
+    notifications: "Accessibility",
     parental: "Kindersicherung",
     personalization: "KI-Anpassung",
     settings: "Einstellungen",
@@ -152,7 +173,7 @@ const settingsLabels = {
     credits: "Crediti",
     data: "Dati",
     navigation: "Navigazione impostazioni",
-    notifications: "Notifiche",
+    notifications: "Accessibility",
     parental: "Controllo genitori",
     personalization: "Personalizzazione IA",
     settings: "Impostazioni",
@@ -165,7 +186,7 @@ const settingsLabels = {
     credits: "Crédits",
     data: "Données",
     navigation: "Navigation des paramètres",
-    notifications: "Notifications",
+    notifications: "Accessibilité",
     parental: "Contrôle parental",
     personalization: "Personnalisation IA",
     settings: "Paramètres",
@@ -243,6 +264,18 @@ type ParentalSettings = {
   maxCreditsPerDay: number;
   sessionUnlockedUntil: number;
   usageMinutes: number;
+};
+
+type AccessibilitySettings = {
+  fontFamily: "inter" | "open-dyslexic";
+  fontScale: number;
+};
+
+type VoiceSettings = {
+  captionsEnabled: boolean;
+  pitch: number;
+  rate: number;
+  voiceURI: string;
 };
 
 const defaultParentalSettings: ParentalSettings = {
@@ -565,6 +598,20 @@ export default function SettingsPage() {
     studioRenders: true,
     waveRenders: true,
   });
+  const [accessibilitySettings, setAccessibilitySettings] =
+    useState<AccessibilitySettings>({
+      fontFamily: "inter",
+      fontScale: 1,
+    });
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
+    captionsEnabled: true,
+    pitch: 1,
+    rate: 1,
+    voiceURI: "",
+  });
+  const [availableVoices, setAvailableVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
   const [parentalSettings, setParentalSettings] = useState<ParentalSettings>(
     defaultParentalSettings
   );
@@ -639,6 +686,53 @@ export default function SettingsPage() {
         "Impossible de charger les tâches automatiques sauvegardées."
       );
       setTasksHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const rawAccessibility = window.localStorage.getItem(
+      ACCESSIBILITY_SETTINGS_STORAGE_KEY
+    );
+    if (rawAccessibility) {
+      try {
+        const parsed = JSON.parse(rawAccessibility) as Partial<AccessibilitySettings>;
+        setAccessibilitySettings((current) => ({
+          fontFamily:
+            parsed.fontFamily === "open-dyslexic" ? "open-dyslexic" : "inter",
+          fontScale:
+            typeof parsed.fontScale === "number"
+              ? Math.min(1.4, Math.max(0.85, parsed.fontScale))
+              : current.fontScale,
+        }));
+      } catch {
+        // ignore corrupted accessibility settings
+      }
+    }
+
+    const rawVoice = window.localStorage.getItem(VOICE_SETTINGS_STORAGE_KEY);
+    if (rawVoice) {
+      try {
+        const parsed = JSON.parse(rawVoice) as Partial<VoiceSettings>;
+        setVoiceSettings((current) => ({
+          ...current,
+          captionsEnabled:
+            typeof parsed.captionsEnabled === "boolean"
+              ? parsed.captionsEnabled
+              : current.captionsEnabled,
+          pitch:
+            typeof parsed.pitch === "number"
+              ? Math.max(0.5, Math.min(2, parsed.pitch))
+              : current.pitch,
+          rate:
+            typeof parsed.rate === "number"
+              ? Math.max(0.6, Math.min(2, parsed.rate))
+              : current.rate,
+          voiceURI:
+            typeof parsed.voiceURI === "string" ? parsed.voiceURI : current.voiceURI,
+        }));
+      } catch {
+        // ignore corrupted voice settings
+      }
     }
   }, []);
 
@@ -973,9 +1067,10 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const storedTextModel =
+    const storedTextModel = normalizeDefaultTextModel(
       window.localStorage.getItem(DEFAULT_TEXT_MODEL_KEY) ??
-      FALLBACK_DEFAULT_TEXT_MODEL;
+        FALLBACK_DEFAULT_TEXT_MODEL
+    );
     const storedImageModel =
       window.localStorage.getItem(DEFAULT_IMAGE_MODEL_KEY) ??
       FALLBACK_DEFAULT_IMAGE_MODEL;
@@ -1014,6 +1109,44 @@ export default function SettingsPage() {
       notifications.soundsEnabled ? "true" : "false"
     );
   }, [notifications]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      ACCESSIBILITY_SETTINGS_STORAGE_KEY,
+      JSON.stringify(accessibilitySettings)
+    );
+    const root = document.documentElement;
+    root.style.setProperty("--mai-font-scale", `${accessibilitySettings.fontScale}`);
+    if (accessibilitySettings.fontFamily === "open-dyslexic") {
+      root.setAttribute("data-font-family", "open-dyslexic");
+      root.style.fontFamily =
+        "\"OpenDyslexic\", \"Open Dyslexic\", Inter, system-ui, sans-serif";
+    } else {
+      root.removeAttribute("data-font-family");
+      root.style.removeProperty("font-family");
+    }
+  }, [accessibilitySettings]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      VOICE_SETTINGS_STORAGE_KEY,
+      JSON.stringify(voiceSettings)
+    );
+  }, [voiceSettings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+    const loadVoices = () => {
+      setAvailableVoices(window.speechSynthesis.getVoices());
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+    };
+  }, []);
 
   useEffect(() => {
     setImproveMaiForAll(
@@ -1802,7 +1935,7 @@ export default function SettingsPage() {
   const settingsSections = [
     { href: "#compte", key: "compte", label: uiLabels.account },
     {
-      href: "#notifications",
+      href: "#accessibility",
       key: "notifications",
       label: uiLabels.notifications,
     },
@@ -2145,9 +2278,11 @@ export default function SettingsPage() {
                 onChange={(event) => setDefaultTextModel(event.target.value)}
                 value={defaultTextModel}
               >
-                <option value="gpt-5.5">GPT-5.5</option>
-                <option value="gpt-5.4">GPT-5.4</option>
-                <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+                {chatModels.map((modelOption) => (
+                  <option key={modelOption.id} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-xs text-muted-foreground">
@@ -2318,14 +2453,149 @@ export default function SettingsPage() {
 
       </CompteSection>
 
-      <NotificationsSection
-        className={sectionVisibility("notifications")}
-        isPwaInstalled={isPwaInstalled}
-        notificationPermission={notificationPermission}
-        onRequestDevicePermission={handleRequestDeviceNotifications}
-        onToggle={handleNotificationToggle}
-        settings={notifications}
-      />
+      <section
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("notifications")
+        )}
+        id="accessibility"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Type className="size-4 text-primary" />
+          Accessibilité
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Réglez la lisibilité, la voix TTS par défaut et les notifications dans
+          une seule section.
+        </p>
+
+        <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
+          <h3 className="text-sm font-semibold">Affichage</h3>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Police d&apos;écriture
+              </span>
+              <select
+                className="h-9 w-full rounded-xl border border-border/60 bg-background/70 px-2 text-xs"
+                onChange={(event) =>
+                  setAccessibilitySettings((current) => ({
+                    ...current,
+                    fontFamily:
+                      event.target.value === "open-dyslexic"
+                        ? "open-dyslexic"
+                        : "inter",
+                  }))
+                }
+                value={accessibilitySettings.fontFamily}
+              >
+                <option value="inter">Inter (par défaut)</option>
+                <option value="open-dyslexic">Open Dyslexic</option>
+              </select>
+            </label>
+            <label className="text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Taille du texte ({Math.round(accessibilitySettings.fontScale * 100)}%)
+              </span>
+              <input
+                className="w-full accent-foreground"
+                max={1.4}
+                min={0.85}
+                onChange={(event) =>
+                  setAccessibilitySettings((current) => ({
+                    ...current,
+                    fontScale: Number(event.target.value),
+                  }))
+                }
+                step={0.05}
+                type="range"
+                value={accessibilitySettings.fontScale}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <Volume2 className="size-4 text-primary" />
+            Voix
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choisissez la voix TTS, la vitesse et la tonalité par défaut.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Voix de synthèse
+              </span>
+              <select
+                className="h-9 w-full rounded-xl border border-border/60 bg-background/70 px-2 text-xs"
+                onChange={(event) =>
+                  setVoiceSettings((current) => ({
+                    ...current,
+                    voiceURI: event.target.value,
+                  }))
+                }
+                value={voiceSettings.voiceURI}
+              >
+                <option value="">Voix système (auto)</option>
+                {availableVoices.map((voice) => (
+                  <option key={voice.voiceURI} value={voice.voiceURI}>
+                    {voice.name} — {voice.lang}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Vitesse ({voiceSettings.rate.toFixed(1)}x)
+              </span>
+              <input
+                className="w-full accent-foreground"
+                max={2}
+                min={0.6}
+                onChange={(event) =>
+                  setVoiceSettings((current) => ({
+                    ...current,
+                    rate: Number(event.target.value),
+                  }))
+                }
+                step={0.1}
+                type="range"
+                value={voiceSettings.rate}
+              />
+            </label>
+            <label className="text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Tonalité ({voiceSettings.pitch.toFixed(1)})
+              </span>
+              <input
+                className="w-full accent-foreground"
+                max={2}
+                min={0.5}
+                onChange={(event) =>
+                  setVoiceSettings((current) => ({
+                    ...current,
+                    pitch: Number(event.target.value),
+                  }))
+                }
+                step={0.1}
+                type="range"
+                value={voiceSettings.pitch}
+              />
+            </label>
+          </div>
+        </div>
+
+        <NotificationsSection
+          className="mt-4 border-none bg-transparent p-0"
+          isPwaInstalled={isPwaInstalled}
+          notificationPermission={notificationPermission}
+          onRequestDevicePermission={handleRequestDeviceNotifications}
+          onToggle={handleNotificationToggle}
+          settings={notifications}
+        />
+      </section>
 
       <section
         className={cn(

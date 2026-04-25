@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
+import { addStatsEvent } from "@/lib/user-stats";
 
 type SpeakyResponse = {
   audioBase64: string;
@@ -165,6 +166,8 @@ export default function SpeakyPage() {
       if (!response.ok || !payload.audioBase64) {
         throw new Error(payload.error ?? "Génération audio impossible");
       }
+
+      addStatsEvent("api_call", 1);
 
       const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
         char.charCodeAt(0)

@@ -64,3 +64,43 @@ return current;
     }
   }
 }
+
+export async function checkScopedRateLimit({
+  key,
+  maxAttempts,
+  ttlSeconds,
+}: {
+  key: string;
+  maxAttempts: number;
+  ttlSeconds: number;
+}) {
+  if (!isProductionEnvironment) {
+    return { allowed: true, count: 0 };
+  }
+
+  const redis = await getClient();
+  if (!redis?.isReady) {
+    return { allowed: true, count: 0 };
+  }
+
+  try {
+    const luaScript = `
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return current;
+`;
+    const count = await redis.eval(luaScript, {
+      keys: [key],
+      arguments: [ttlSeconds.toString()],
+    });
+    const numericCount = typeof count === "number" ? count : 0;
+    return {
+      allowed: numericCount <= maxAttempts,
+      count: numericCount,
+    };
+  } catch {
+    return { allowed: true, count: 0 };
+  }
+}

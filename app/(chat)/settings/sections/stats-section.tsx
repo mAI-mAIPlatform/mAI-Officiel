@@ -34,6 +34,44 @@ type StatsSectionProps = {
 
 const PINNED_BADGES_STORAGE_KEY = "mai.stats.badges.pinned.v1";
 
+function getBadgeProgress(
+  badgeId: string,
+  stats: UserStatsSnapshot,
+  unlockedCount: number
+) {
+  const objectives: Record<string, { current: number; target: number }> = {
+    b01: { current: stats.messagesSent, target: 1 },
+    b02: { current: stats.messagesSent, target: 100 },
+    b03: { current: stats.messagesSent, target: 1000 },
+    b04: { current: stats.messagesSent, target: 10000 },
+    b06: { current: stats.votesSubmitted, target: 50 },
+    b11: { current: stats.imagesGenerated, target: 1 },
+    b12: { current: stats.imagesGenerated, target: 50 },
+    b13: { current: stats.imagesGenerated, target: 200 },
+    b16: { current: stats.projectsCreated, target: 1 },
+    b20: { current: stats.streakDays, target: 7 },
+    b21: { current: stats.streakDays, target: 30 },
+    b22: { current: stats.streakDays, target: 100 },
+    b25: { current: stats.webSearches, target: 1 },
+    b26: { current: stats.webSearches, target: 100 },
+    b34: { current: stats.conversationsCreated, target: 20 },
+    b44: { current: stats.musicsGenerated, target: 1 },
+    b60: { current: unlockedCount, target: 50 },
+  };
+
+  const tracked = objectives[badgeId];
+  if (!tracked) {
+    return { current: 0, ratio: 0, target: 1 };
+  }
+
+  const ratio = Math.min(1, tracked.current / tracked.target);
+  return {
+    current: tracked.current,
+    ratio,
+    target: tracked.target,
+  };
+}
+
 export function StatsSection({
   className,
   isAuthenticated,
@@ -191,6 +229,9 @@ export function StatsSection({
               <p className="mt-3 text-xs text-muted-foreground">
                 XP: +5/message, +3/vote, +10/image, +20/musique et bonus de connexion quotidien.
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Appels API (modes/apps): {stats.apiCalls.toLocaleString("fr-FR")}
+              </p>
             </div>
           </div>
 
@@ -237,6 +278,11 @@ export function StatsSection({
               {sortedBadges.map((badge, index) => {
                 const isUnlocked = unlocked.has(badge.id);
                 const isPinned = pinned.has(badge.id);
+                const badgeProgress = getBadgeProgress(
+                  badge.id,
+                  stats,
+                  stats.badgesUnlocked.length
+                );
                 return (
                   <article
                     className={cn(
@@ -279,6 +325,28 @@ export function StatsSection({
                     <p className="mt-1 text-[11px]">
                       {getBadgeRarityLabel(badge.rarity)} · +{getBadgeXpByRarity(badge.rarity)} XP
                     </p>
+                    <div className="mt-2">
+                      <div className="h-1.5 rounded-full bg-muted/80">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            isUnlocked
+                              ? "bg-emerald-500"
+                              : "bg-gradient-to-r from-violet-500 to-indigo-500"
+                          )}
+                          style={{
+                            width: `${Math.round(
+                              Math.min(100, Math.max(0, badgeProgress.ratio * 100))
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {isUnlocked
+                          ? "Progression: 100%"
+                          : `Progression: ${badgeProgress.current}/${badgeProgress.target}`}
+                      </p>
+                    </div>
                   </article>
                 );
               })}

@@ -3,6 +3,7 @@
 import { BrainCircuit, ScanText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { addStatsEvent } from "@/lib/user-stats";
 
 type HumanizyResult = {
   confidence: number;
@@ -35,6 +36,7 @@ export default function HumanizyPage() {
       }
 
       const payload = (await response.json()) as HumanizyResult;
+      addStatsEvent("api_call", 1);
       setResult(payload);
       setHistory((prev) => [payload, ...prev].slice(0, 5));
     } catch {

@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { createUser, getUser } from "@/lib/db/queries";
+import { checkScopedRateLimit } from "@/lib/ratelimit";
 
 import { signIn } from "./auth";
 
@@ -12,14 +14,42 @@ const authFormSchema = z.object({
 });
 
 export type LoginActionState = {
-  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+  status:
+    | "idle"
+    | "in_progress"
+    | "success"
+    | "failed"
+    | "invalid_data"
+    | "rate_limited";
 };
+
+const WEEK_IN_SECONDS = 60 * 60 * 24 * 7;
+const MONTH_IN_SECONDS = 60 * 60 * 24 * 30;
+
+async function getRequestIpAddress() {
+  const headerList = await headers();
+  const forwardedFor = headerList.get("x-forwarded-for");
+  const realIp = headerList.get("x-real-ip");
+  const cfIp = headerList.get("cf-connecting-ip");
+  const candidate = forwardedFor?.split(",")[0]?.trim() || realIp || cfIp;
+  return candidate?.trim() || "unknown";
+}
 
 export const login = async (
   _: LoginActionState,
   formData: FormData
 ): Promise<LoginActionState> => {
   try {
+    const ipAddress = await getRequestIpAddress();
+    const limitResult = await checkScopedRateLimit({
+      key: `auth:login:${ipAddress}`,
+      maxAttempts: 3,
+      ttlSeconds: WEEK_IN_SECONDS,
+    });
+    if (!limitResult.allowed) {
+      return { status: "rate_limited" };
+    }
+
     const validatedData = authFormSchema.parse({
       email: formData.get("email"),
       password: formData.get("password"),
@@ -48,7 +78,8 @@ export type RegisterActionState = {
     | "success"
     | "failed"
     | "user_exists"
-    | "invalid_data";
+    | "invalid_data"
+    | "rate_limited";
 };
 
 export const register = async (
@@ -56,6 +87,16 @@ export const register = async (
   formData: FormData
 ): Promise<RegisterActionState> => {
   try {
+    const ipAddress = await getRequestIpAddress();
+    const limitResult = await checkScopedRateLimit({
+      key: `auth:register:${ipAddress}`,
+      maxAttempts: 1,
+      ttlSeconds: MONTH_IN_SECONDS,
+    });
+    if (!limitResult.allowed) {
+      return { status: "rate_limited" };
+    }
+
     const validatedData = authFormSchema.parse({
       email: formData.get("email"),
       password: formData.get("password"),

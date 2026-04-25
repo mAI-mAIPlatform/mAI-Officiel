@@ -10,6 +10,7 @@ import {
   ImagePlusIcon,
   LanguagesIcon,
   PanelsTopLeftIcon,
+  FolderKanbanIcon,
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
@@ -66,7 +67,7 @@ import { BrandStarLogoIcon } from "./icons";
 const QUICK_LINKS = [
   { href: "/", key: "discussion", icon: PenSquareIcon },
   { href: "/library", key: "library", icon: BookOpenIcon },
-  { href: "/projects", key: "projects", icon: PanelsTopLeftIcon },
+  { href: "/projects", key: "projects", icon: FolderKanbanIcon },
   { href: "/settings", key: "settings", icon: Settings2Icon },
   { href: "/stats", key: "stats", icon: Gauge },
   { href: "/archives", key: "archives", icon: ArchiveIcon },

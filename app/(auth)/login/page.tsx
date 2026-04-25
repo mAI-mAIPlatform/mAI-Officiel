@@ -26,6 +26,12 @@ export default function Page() {
   useEffect(() => {
     if (state.status === "failed") {
       toast({ type: "error", description: "Identification invalide" });
+    } else if (state.status === "rate_limited") {
+      toast({
+        type: "error",
+        description:
+          "Trop de connexions depuis cette IP. Limite: 3 connexions par semaine.",
+      });
     } else if (state.status === "invalid_data") {
       toast({
         type: "error",
@@ -47,7 +53,7 @@ export default function Page() {
     <>
       <h1 className="text-2xl font-semibold tracking-tight">Bon retour sur mAI !</h1>
       <p className="text-sm text-muted-foreground">
-        Connectez vous à votre compte.
+        Connectez-vous à votre compte en toute sécurité.
       </p>
       <AuthForm action={handleSubmit} defaultEmail={email}>
         <SubmitButton isSuccessful={isSuccessful}>Se connecter</SubmitButton>

@@ -10,6 +10,7 @@ export type BadgeDefinition = {
 };
 
 export type UserStatsSnapshot = {
+  apiCalls: number;
   createdAt: string;
   xp: number;
   messagesSent: number;
@@ -39,6 +40,7 @@ export type XpHistoryEntry = {
 const toDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 const defaultSnapshot = (): UserStatsSnapshot => ({
+  apiCalls: 0,
   createdAt: new Date().toISOString(),
   xp: 0,
   messagesSent: 0,
@@ -292,7 +294,15 @@ export function applyBadgeRewards(snapshot: UserStatsSnapshot): UserStatsSnapsho
 }
 
 export function addStatsEvent(
-  event: "message" | "vote" | "image" | "music" | "websearch" | "project" | "conversation",
+  event:
+    | "message"
+    | "vote"
+    | "image"
+    | "music"
+    | "websearch"
+    | "project"
+    | "conversation"
+    | "api_call",
   amount = 1
 ): UserStatsSnapshot {
   const snapshot = getUserStatsSnapshot();
@@ -330,6 +340,13 @@ export function addStatsEvent(
   }
   if (event === "conversation") {
     next.conversationsCreated += amount;
+  }
+  if (event === "api_call") {
+    next.apiCalls += amount;
+    next.messagesSent += amount;
+    const gainedXp = amount * 5;
+    next.xp += gainedXp;
+    appendXpHistory("Appel API (application/mode)", gainedXp);
   }
 
   const rewarded = applyBadgeRewards(next);

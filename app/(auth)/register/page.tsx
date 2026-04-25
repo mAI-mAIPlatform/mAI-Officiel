@@ -25,6 +25,12 @@ export default function Page() {
   useEffect(() => {
     if (state.status === "user_exists") {
       toast({ type: "error", description: "Un compte existe déjà !" });
+    } else if (state.status === "rate_limited") {
+      toast({
+        type: "error",
+        description:
+          "Inscription limitée à 1 compte par IP et par mois. Réessayez plus tard.",
+      });
     } else if (state.status === "failed") {
       toast({ type: "error", description: "Erreur lors de la création du compte" });
     } else if (state.status === "invalid_data") {
@@ -48,7 +54,9 @@ export default function Page() {
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight">Créer un compte</h1>
-      <p className="text-sm text-muted-foreground">Commencez gratuitement</p>
+      <p className="text-sm text-muted-foreground">
+        Commencez gratuitement avec une configuration rapide.
+      </p>
       <AuthForm action={handleSubmit} defaultEmail={email}>
         <SubmitButton isSuccessful={isSuccessful}>S'inscrire</SubmitButton>
         <p className="text-center text-[13px] text-muted-foreground">

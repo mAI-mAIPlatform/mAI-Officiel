@@ -268,10 +268,21 @@ export async function POST(request: Request) {
         ? contextualReasoningEffort
         : modelConfig?.reasoningEffort;
 
+    const pluginMode = contextualActions?.pluginMode?.trim() ?? "";
+    const enabledPlugins = contextualActions?.enabledPlugins ?? [];
+    const pluginContextInstruction =
+      pluginMode && pluginMode !== "none"
+        ? `\n\n[Plugins actifs hors prompt utilisateur]\nPlugin sélectionné: ${pluginMode}\nPlugins activés: ${enabledPlugins.join(", ") || "aucun"}.`
+        : enabledPlugins.length > 0
+          ? `\n\n[Plugins actifs hors prompt utilisateur]\nPlugins activés: ${enabledPlugins.join(", ")}.`
+          : "";
+
     const computedSystemPrompt = systemPrompt({
       requestHints,
       supportsTools,
-      agentPrompt: customSystemPrompt,
+      agentPrompt: customSystemPrompt
+        ? `${customSystemPrompt}${pluginContextInstruction}`
+        : pluginContextInstruction || undefined,
       userMemory: persistentMemory,
       isLearningEnabled: contextualActions?.isLearningEnabled,
       reasoningLevel:

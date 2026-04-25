@@ -22,6 +22,7 @@ import {
   consumeUsage,
   getUsageCount,
 } from "@/lib/usage-limits";
+import { addStatsEvent } from "@/lib/user-stats";
 
 type Result = { link: string; snippet: string; source: string; title: string };
 type ReportHistory = { createdAt: string; query: string; report: string };
@@ -139,6 +140,8 @@ export default function NewsPage() {
         setReport(payload.error ?? "Erreur lors de la recherche.");
         return;
       }
+
+      addStatsEvent("api_call", 1);
 
       setResults(payload.organicResults ?? []);
       const generatedReport =

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
+import { addStatsEvent } from "@/lib/user-stats";
 
 type Runtime =
   | "python"
@@ -168,6 +169,7 @@ export default function InterpreterPage() {
       });
 
       const payload = (await response.json()) as ExecutionResponse;
+      addStatsEvent("api_call", 1);
       setResult(payload);
       setHistory((current) =>
         [

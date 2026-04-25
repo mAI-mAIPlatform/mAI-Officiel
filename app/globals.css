@@ -217,6 +217,11 @@
 
   html {
     overflow-x: hidden;
+    font-size: calc(100% * var(--mai-font-scale, 1));
+  }
+
+  html[data-font-family="open-dyslexic"] body {
+    font-family: "OpenDyslexic", "Open Dyslexic", Inter, system-ui, sans-serif;
   }
 
   h1,

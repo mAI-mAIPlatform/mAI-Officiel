@@ -174,6 +174,7 @@ export default function WavePage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error ?? "Erreur lyrics");
+      addStatsEvent("api_call", 1);
       setGeneratedLyrics(payload.text || "");
       setPrompt((prev) => `${prev}\n\n${payload.text || ""}`.trim());
       toast.success("Lyrics générées avec GPT-5.4 Nano.");
@@ -227,6 +228,7 @@ export default function WavePage() {
         throw new Error(payload?.error ?? "Génération impossible");
       }
 
+      addStatsEvent("api_call", 1);
       consumeUsage("wave", "week");
       addStatsEvent("music", 1);
       const audioUrl = extractAudioUrl(payload.data);

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { addStatsEvent } from "@/lib/user-stats";
 
 const languageOptions = [
   { code: "auto", label: "Détection auto" },
@@ -214,6 +215,7 @@ export default function TranslationPage() {
       }
 
       const payload = (await response.json()) as { analysis?: string };
+      addStatsEvent("api_call", 1);
       setAiLexicalAnalysis(payload.analysis ?? "Analyse indisponible.");
     } catch {
       setAiLexicalAnalysis(

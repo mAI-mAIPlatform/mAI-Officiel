@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { SparklesIcon, VercelIcon } from "@/components/chat/icons";
 import { Preview } from "@/components/chat/preview";
 
 export default function AuthLayout({
@@ -21,7 +21,13 @@ export default function AuthLayout({
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-10">
           <div className="flex flex-col gap-2">
             <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground ring-1 ring-border/50">
-              <SparklesIcon size={14} />
+              <Image
+                alt="Logo mAI"
+                className="size-5 object-contain"
+                height={20}
+                src="/images/logo.png"
+                width={20}
+              />
             </div>
             {children}
           </div>

@@ -226,6 +226,7 @@ export default function StudioPage() {
     if (!response.ok) {
       throw new Error(payload?.error ?? "Erreur de génération");
     }
+    addStatsEvent("api_call", 1);
 
     if (payload.pending && payload.id) {
       for (let attempt = 0; attempt < 120; attempt += 1) {

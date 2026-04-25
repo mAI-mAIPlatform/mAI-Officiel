@@ -568,8 +568,8 @@ function PureMultimodalInput({
         );
         break;
       case "quiz":
-        setInput(
-          "Crée un quiz interactif (5 questions, difficulté moyenne) sur le sujet de notre conversation."
+        router.push(
+          `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/quiz?topic=${encodeURIComponent("culture générale")}&difficulty=moyen&count=5&timer=10`
         );
         break;
       case "template":
@@ -919,14 +919,6 @@ function PureMultimodalInput({
         typeof window === "undefined"
           ? false
           : localStorage.getItem(MUSIC_CREATION_MODE_STORAGE_KEY) === "true";
-      const pluginContextBlock =
-        pluginMode === "none"
-          ? ""
-          : [
-              "[Plugin activé via menu +]",
-              `- ${pluginMode}`,
-              "Applique uniquement ce plugin à cette requête.",
-            ].join("\n");
       const forcedWebSearchBlock = forceWebSearchEnabled
         ? [
             "[RECHERCHE WEB OBLIGATOIRE]",
@@ -992,8 +984,6 @@ function PureMultimodalInput({
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
                 }${
                   musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
-                  pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}
 
 [Contexte extrait des fichiers]
@@ -1002,8 +992,6 @@ ${extractedFileContext}`
                   imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
                 }${
                   musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
-                }${
-                  pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}`,
           },
         ],
@@ -1016,6 +1004,23 @@ ${extractedFileContext}`
             forceWebSearchEnabled,
             isLearningEnabled,
             isImageCreationModeEnabled,
+            pluginMode,
+            enabledPlugins:
+              typeof window === "undefined"
+                ? []
+                : (() => {
+                    try {
+                      const raw = localStorage.getItem(PLUGIN_ENABLED_STORAGE_KEY);
+                      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+                      return Array.isArray(parsed)
+                        ? parsed.filter(
+                            (item): item is string => typeof item === "string"
+                          )
+                        : [];
+                    } catch {
+                      return [];
+                    }
+                  })(),
           },
           clientGeolocation: geolocationPos,
           ghostMode: isGhostModeEnabled,
@@ -2409,8 +2414,14 @@ function PureContextualActionsMenu({
             </Button>
             <Button
               onClick={() => {
-                onInsertTemplate(
-                  `Crée un quiz interactif de difficulté ${quizDifficulty} sur le sujet « ${quizTopic.trim() || "culture générale"} » avec ${quizQuestionCount} questions. Ajoute un minuteur global de ${quizTimerMinutes} minutes et une estimation du temps recommandé par question. Pour chaque question, propose 4 choix, indique la bonne réponse, puis ajoute une explication courte et un feedback immédiat.`
+                const params = new URLSearchParams({
+                  topic: quizTopic.trim() || "culture générale",
+                  difficulty: quizDifficulty,
+                  count: String(quizQuestionCount),
+                  timer: String(quizTimerMinutes),
+                });
+                window.location.assign(
+                  `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/quiz?${params.toString()}`
                 );
                 setIsQuizDialogOpen(false);
               }}

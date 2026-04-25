@@ -3,6 +3,12 @@ import { createHash } from "node:crypto";
 import type { PlanKey } from "@/lib/subscription";
 
 const ACTIVATION_HASH_PEPPER = "mAI::subscription::v095::server-only";
+const OFFICIAL_CODES_BY_PLAN: Record<PlanKey, string[]> = {
+  free: [],
+  plus: ["MAIPLUS26"],
+  pro: ["MAIPRO26"],
+  max: ["MAIMAX26"],
+};
 
 const PLUS_CODE_HASHES = new Set([
   "f42a60f142a9d0130e234d44d65e58d9a7c8070b86dabaa0734211a1c4a31b42",
@@ -86,6 +92,15 @@ export function getPlanFromActivationCode(code: string): PlanKey | null {
 
   const normalized = raw.toUpperCase();
   const compact = normalized.replace(/[\s-]+/g, "");
+
+  for (const [plan, planCodes] of Object.entries(OFFICIAL_CODES_BY_PLAN) as Array<
+    [PlanKey, string[]]
+  >) {
+    if (planCodes.includes(compact)) {
+      return plan;
+    }
+  }
+
   const hashCandidates = [
     hashActivationCode(raw),
     hashActivationCode(normalized),

@@ -41,6 +41,8 @@ export const postRequestBodySchema = z.object({
       isWebSearchEnabled: z.boolean().optional(),
       forceWebSearchEnabled: z.boolean().optional(),
       isLearningEnabled: z.boolean().optional(),
+      pluginMode: z.string().optional(),
+      enabledPlugins: z.array(z.string()).optional(),
     })
     .optional(),
   ghostMode: z.boolean().optional(),
