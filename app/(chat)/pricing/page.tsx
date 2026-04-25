@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Music2Icon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
 };
 
 export default function PricingPage() {
+  const router = useRouter();
   const {
     activateByCode,
     currentPlanDefinition,
@@ -86,10 +88,7 @@ export default function PricingPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
-  const [activatePlan, setActivatePlan] = useState<Exclude<
-    PlanKey,
-    "free"
-  > | null>(null);
+  const [activatePlan, setActivatePlan] = useState<Exclude<PlanKey, "free"> | null>(null);
   const [recentlyUnlockedPlan, setRecentlyUnlockedPlan] =
     useState<PlanKey | null>(null);
 
@@ -212,6 +211,7 @@ export default function PricingPage() {
                   <Button
                     className="w-full"
                     onClick={() => {
+                      router.push(`/pricing/checkout?plan=${planItem.key}`);
                       setActivatePlan(planItem.key as Exclude<PlanKey, "free">);
                       setMessage(null);
                     }}

@@ -88,8 +88,15 @@ import {
 import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
 import { createNotification } from "@/lib/notifications";
 import { pluginRegistry } from "@/lib/plugins/registry";
+import {
+  DEFAULT_IMAGE_MODEL_KEY,
+  DEFAULT_MUSIC_MODEL_KEY,
+  FALLBACK_DEFAULT_IMAGE_MODEL,
+  FALLBACK_DEFAULT_MUSIC_MODEL,
+} from "@/lib/default-models";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { triggerHaptic } from "@/lib/haptics";
+import { addStatsEvent } from "@/lib/user-stats";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
 import {
@@ -931,23 +938,35 @@ function PureMultimodalInput({
         ? [
             "[MODE CRÉATION D'IMAGES]",
             "L'utilisateur veut générer des images.",
+            `Modèle image par défaut du compte: ${
+              typeof window === "undefined"
+                ? FALLBACK_DEFAULT_IMAGE_MODEL
+                : (localStorage.getItem(DEFAULT_IMAGE_MODEL_KEY) ??
+                  FALLBACK_DEFAULT_IMAGE_MODEL)
+            }.`,
             "Avant de proposer la génération, demande d'abord:",
             "1) le modèle image à utiliser,",
             "2) le nombre d'images (1 à 4),",
             "3) la taille souhaitée (ex: 1024x1024).",
-            "Attends la réponse utilisateur avant d'aller plus loin.",
+            "Quand ces informations sont fournies, termine par une action claire: proposer de lancer immédiatement Studio avec ces paramètres.",
           ].join("\n")
         : "";
       const musicCreationBlock = isMusicCreationModeEnabled
         ? [
             "[MODE CRÉATION DE MUSIQUE]",
             "L'utilisateur veut créer une musique (Wave).",
+            `Modèle Wave par défaut du compte: ${
+              typeof window === "undefined"
+                ? FALLBACK_DEFAULT_MUSIC_MODEL
+                : (localStorage.getItem(DEFAULT_MUSIC_MODEL_KEY) ??
+                  FALLBACK_DEFAULT_MUSIC_MODEL)
+            }.`,
             "Avant de proposer la génération, pose un mini-formulaire:",
             "1) style/genre musical,",
             "2) instrumental ou chanté,",
             "3) modèle Wave (V5_5, V5, V4_5PLUS, V4_5ALL, V4_5, V4),",
             "4) durée/structure souhaitée.",
-            "Attends les réponses avant d'aller plus loin.",
+            "Quand les informations sont réunies, conclure avec une action concrète: lancer la génération Wave maintenant.",
           ].join("\n")
         : "";
       if (isMusicCreationModeEnabled && typeof window !== "undefined") {
@@ -1006,6 +1025,12 @@ ${extractedFileContext}`
         },
       });
       triggerHaptic(14);
+      if (isAuthenticated) {
+        addStatsEvent("message", 1);
+        if (isWebSearchEnabled || forceWebSearchEnabled) {
+          addStatsEvent("websearch", 1);
+        }
+      }
 
       if (isWebSearchEnabled || forceWebSearchEnabled) {
         consumeUsage("websearch", "day");

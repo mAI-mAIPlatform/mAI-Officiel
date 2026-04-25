@@ -7,6 +7,7 @@ import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
 import { triggerHaptic } from "@/lib/haptics";
 import type { ChatMessage } from "@/lib/types";
+import { addStatsEvent } from "@/lib/user-stats";
 import {
   MessageAction as Action,
   MessageActions as Actions,
@@ -63,7 +64,18 @@ export function PureMessageActions({
     if (!rawType) {
       return null;
     }
-    const label = rawType.replace(/^plugin-/, "");
+    const labelMap: Record<string, string> = {
+      webSearch: "Recherche web",
+      getWeather: "Météo",
+      requestSuggestions: "Suggestions",
+      followUpSuggestions: "Suivis",
+      createDocument: "Document",
+      updateDocument: "Mise à jour document",
+      editDocument: "Édition document",
+      textUtilities: "Utilitaires texte",
+    };
+    const normalizedType = rawType.replace(/^plugin-/, "");
+    const label = labelMap[normalizedType] ?? normalizedType;
     const Icon = rawType.startsWith("plugin-") ? Puzzle : Wrench;
     return { Icon, label };
   })();
@@ -292,6 +304,7 @@ export function PureMessageActions({
                 },
                 { revalidate: false }
               );
+              addStatsEvent("vote", 1);
 
               return "Upvoted Response!";
             },
@@ -345,6 +358,7 @@ export function PureMessageActions({
                 },
                 { revalidate: false }
               );
+              addStatsEvent("vote", 1);
 
               return "Downvoted Response!";
             },

@@ -106,6 +106,10 @@ export function SidebarHistory({
     "mai.pinned.chats",
     []
   );
+  const [archivedChatIds, setArchivedChatIds] = useLocalStorage<string[]>(
+    "mai.archived.chats",
+    []
+  );
   const [generatingChatIds, setGeneratingChatIds] = useState<string[]>([]);
   const searchQuery = useMemo(
     () => globalSearchQuery.trim().toLowerCase(),
@@ -202,6 +206,17 @@ export function SidebarHistory({
     toast.success("Conversation signalée");
   };
 
+  const handleArchive = (chatId: string, archived: boolean) => {
+    setArchivedChatIds((currentIds) =>
+      archived
+        ? currentIds.includes(chatId)
+          ? currentIds
+          : [chatId, ...currentIds]
+        : currentIds.filter((id) => id !== chatId)
+    );
+    toast.success(archived ? "Discussion archivée" : "Discussion restaurée");
+  };
+
   const handleAssignProject = async (chatId: string, projectId: string) => {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/projects/${projectId}/chats`,
@@ -244,6 +259,9 @@ export function SidebarHistory({
       `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/chat?id=${chatToDelete}`,
       { method: "DELETE" }
     );
+    setArchivedChatIds((currentIds) =>
+      currentIds.filter((chatId) => chatId !== chatToDelete)
+    );
 
     toast.success("Discussion supprimée");
   };
@@ -263,6 +281,7 @@ export function SidebarHistory({
             isPinned={pinnedChatIds.includes(chat.id)}
             key={chat.id}
             onAssignProject={handleAssignProject}
+            onArchive={handleArchive}
             onDelete={(chatId) => {
               setDeleteId(chatId);
               setShowDeleteDialog(true);
@@ -272,6 +291,7 @@ export function SidebarHistory({
             onReport={handleReport}
             projects={projects}
             setOpenMobile={setOpenMobile}
+            isArchived={archivedChatIds.includes(chat.id)}
           />
         ))}
       </div>
@@ -374,9 +394,24 @@ export function SidebarHistory({
                     new Date(a.createdAt).getTime()
                   );
                 });
+                const activeChats = sortedChats.filter(
+                  (chat) => !archivedChatIds.includes(chat.id)
+                );
+                const archivedChats = sortedChats.filter((chat) =>
+                  archivedChatIds.includes(chat.id)
+                );
+
                 return (
                   <div className="flex flex-col gap-4">
-                    {renderChatList(sortedChats)}
+                    {renderChatList(activeChats)}
+                    {archivedChats.length > 0 ? (
+                      <div>
+                        <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/60">
+                          Archivé
+                        </SidebarGroupLabel>
+                        {renderChatList(archivedChats)}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })()}
