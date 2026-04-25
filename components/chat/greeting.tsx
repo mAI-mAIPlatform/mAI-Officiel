@@ -74,17 +74,9 @@ export const Greeting = () => {
     >
       <motion.div
         animate={{ opacity: 1, y: 0 }}
-        className="mb-3 rounded-full border border-emerald-400/60 bg-emerald-200/60 px-3 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/20 dark:text-emerald-200"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      >
-        Release Candidate
-      </motion.div>
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
         className="text-center font-semibold text-2xl tracking-tight text-foreground md:text-3xl"
         initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ delay: 0.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         {timePrefix ? `${timePrefix}. ` : ""}
         {greetingText}
@@ -93,7 +85,7 @@ export const Greeting = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mt-3 text-center text-muted-foreground/80 text-sm"
         initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         {language === "en"
           ? "With mAI, take things to the next level!"

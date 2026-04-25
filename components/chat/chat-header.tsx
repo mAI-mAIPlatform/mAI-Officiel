@@ -54,10 +54,6 @@ function PureChatHeader({
             selectedVisibilityType={selectedVisibilityType}
           />
         )}
-
-        <span className="ml-auto rounded-full border border-emerald-400/60 bg-emerald-200/60 px-2 py-0.5 font-medium text-[10px] text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/20 dark:text-emerald-200">
-          Release Candidate
-        </span>
       </header>
     </>
   );

@@ -143,12 +143,7 @@ export default function HealthPage() {
         <div className="flex items-center gap-3">
           <HeartPulse className="size-8 text-primary" />
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">mAIHealth</h1>
-              <span className="rounded-full border border-emerald-400/60 bg-emerald-200/60 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/20 dark:text-emerald-200">
-                Release Candidate
-              </span>
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight">mAIHealth</h1>
             <p className="text-sm text-muted-foreground">
               Pré-analyse clinique assistée IA, orientée sécurité et
               collaboration médecin-patient.
