@@ -51,8 +51,10 @@ const PureChatItem = ({
   onRename,
   onReport,
   onAssignProject,
+  onArchive,
   projects,
   setOpenMobile,
+  isArchived,
 }: {
   chat: Chat;
   isActive: boolean;
@@ -63,8 +65,10 @@ const PureChatItem = ({
   onRename: (chatId: string, title: string) => void;
   onReport: (chatId: string) => void;
   onAssignProject: (chatId: string, projectId: string) => void;
+  onArchive: (chatId: string, archived: boolean) => void;
   projects: Project[];
   setOpenMobile: (open: boolean) => void;
+  isArchived: boolean;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
@@ -306,6 +310,12 @@ const PureChatItem = ({
               {isPinned ? "Désépingler" : "Épingler"}
             </span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={() => onArchive(chat.id, !isArchived)}
+          >
+            {isArchived ? "Libérer de l'archive" : "Archiver"}
+          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer">
               <FolderIcon className="size-3.5" />
@@ -431,6 +441,9 @@ export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
     return false;
   }
   if (prevProps.isPinned !== nextProps.isPinned) {
+    return false;
+  }
+  if (prevProps.isArchived !== nextProps.isArchived) {
     return false;
   }
   return true;
