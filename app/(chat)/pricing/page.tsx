@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { getTierQuota } from "@/lib/ai/credits";
 import { type PlanKey, planDefinitions } from "@/lib/subscription";
@@ -76,48 +75,14 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
 export default function PricingPage() {
   const router = useRouter();
   const {
-    activateByCode,
     currentPlanDefinition,
-    isActivating,
     isHydrated,
     plan,
   } = useSubscriptionPlan();
-
-  const [activationCode, setActivationCode] = useState("");
-  const [message, setMessage] = useState<{
-    text: string;
-    type: "error" | "success";
-  } | null>(null);
-  const [activatePlan, setActivatePlan] = useState<Exclude<PlanKey, "free"> | null>(null);
   const [recentlyUnlockedPlan, setRecentlyUnlockedPlan] =
     useState<PlanKey | null>(null);
 
   const plans = useMemo(() => planOrder.map((key) => planDefinitions[key]), []);
-
-  const handleActivate = async () => {
-    if (!activatePlan) {
-      return;
-    }
-
-    const nextPlan = await activateByCode(activationCode);
-
-    if (!nextPlan) {
-      setMessage({
-        text: `Code invalide pour ${planDefinitions[activatePlan].label}. Vérifiez votre code.`,
-        type: "error",
-      });
-      return;
-    }
-
-    setMessage({
-      text: `Activation réussie : votre forfait est maintenant ${planDefinitions[nextPlan].label}.`,
-      type: "success",
-    });
-    setRecentlyUnlockedPlan(nextPlan);
-    window.setTimeout(() => setRecentlyUnlockedPlan(null), 2400);
-    setActivationCode("");
-    setActivatePlan(null);
-  };
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-4 overflow-y-auto p-4 sm:gap-6 sm:p-6 md:p-10">
@@ -211,9 +176,9 @@ export default function PricingPage() {
                   <Button
                     className="w-full"
                     onClick={() => {
-                      router.push(`/pricing/checkout?plan=${planItem.key}`);
-                      setActivatePlan(planItem.key as Exclude<PlanKey, "free">);
-                      setMessage(null);
+                      router.push(`/pricing/chreckout?plan=${planItem.key}`);
+                      setRecentlyUnlockedPlan(planItem.key);
+                      window.setTimeout(() => setRecentlyUnlockedPlan(null), 2400);
                     }}
                   >
                     {planItem.key === "plus"
@@ -233,57 +198,6 @@ export default function PricingPage() {
         })}
       </section>
 
-      {activatePlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border/70 bg-white p-5 text-black shadow-2xl">
-            <h3 className="text-lg font-semibold">
-              Activer {planDefinitions[activatePlan].label}
-            </h3>
-            <p className="mt-2 text-sm text-zinc-600">
-              Entrez votre code pour débloquer le forfait.
-            </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <Input
-                onChange={(event) => setActivationCode(event.target.value)}
-                placeholder={`Code ${planDefinitions[activatePlan].label}`}
-                value={activationCode}
-              />
-              <Button
-                disabled={
-                  !isHydrated ||
-                  isActivating ||
-                  activationCode.trim().length === 0
-                }
-                onClick={handleActivate}
-                type="button"
-              >
-                {isActivating ? "Activation..." : "Activer"}
-              </Button>
-            </div>
-            {message && (
-              <p
-                className={cn(
-                  "mt-3 text-sm",
-                  message.type === "success"
-                    ? "text-emerald-600"
-                    : "text-rose-600"
-                )}
-              >
-                {message.text}
-              </p>
-            )}
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={() => setActivatePlan(null)}
-                type="button"
-                variant="outline"
-              >
-                Annuler
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {recentlyUnlockedPlan && (
         <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
           {Array.from({ length: 18 }).map((_, index) => (

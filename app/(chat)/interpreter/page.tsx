@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Bookmark,
+  EllipsisVertical,
   FileSpreadsheet,
   History,
   Play,
@@ -12,6 +13,12 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { addStatsEvent } from "@/lib/user-stats";
 
 type Runtime =
@@ -27,7 +34,10 @@ type Runtime =
   | "php"
   | "sql"
   | "json"
-  | "markdown";
+  | "markdown"
+  | "rust"
+  | "java"
+  | "r";
 
 type RuntimeFile = { contentBase64: string; name: string };
 type EditorTheme = "monokai" | "dracula" | "one-dark";
@@ -68,6 +78,9 @@ const runtimeSnippets: Record<Runtime, string> = {
   sql: `CREATE TABLE sales(month TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('Jan', 20), ('Feb', 40), ('Mar', 35);\nSELECT month, amount FROM sales ORDER BY amount DESC;`,
   json: `{\n  "project": "mAI Code Interpreter",\n  "version": 2,\n  "features": ["snippets", "history", "multi-runtime"]\n}`,
   markdown: `# Rapport rapide\n\n- Dataset: ventes mensuelles\n- Insight principal: **février** est le meilleur mois.\n\n\`\`\`python\nprint("Export prêt")\n\`\`\``,
+  rust: `fn main() {\n  println!("Hello Rust");\n}`,
+  java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello Java");\n  }\n}`,
+  r: `values <- c(2,4,6,8)\nmean(values)`,
 };
 
 const runtimeLabels: Record<Runtime, string> = {
@@ -84,6 +97,9 @@ const runtimeLabels: Record<Runtime, string> = {
   sql: "SQL (SQLite)",
   json: "JSON",
   markdown: "Markdown",
+  rust: "Rust",
+  java: "Java",
+  r: "R",
 };
 
 const runtimeOrder: Runtime[] = [
@@ -100,6 +116,9 @@ const runtimeOrder: Runtime[] = [
   "sql",
   "json",
   "markdown",
+  "rust",
+  "java",
+  "r",
 ];
 
 const quickPresets: Array<{ label: string; runtime: Runtime }> = [
@@ -413,21 +432,70 @@ export default function InterpreterPage() {
             <p className="flex items-center gap-1 pt-2 text-xs font-semibold">
               <History className="size-3.5" /> Historique runs
             </p>
-            <div className="max-h-32 space-y-1 overflow-auto pr-1">
-              {history.slice(0, 6).map((entry) => (
-                <button
-                  className="block w-full rounded-md border border-border/40 px-2 py-1 text-left text-[11px]"
-                  key={entry.createdAt}
-                  onClick={() => {
-                    setRuntime(entry.runtime);
-                    setCode(entry.sourceCode);
-                    setResult(entry.output);
-                  }}
-                  type="button"
-                >
-                  {runtimeLabels[entry.runtime]} ·{" "}
-                  {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
-                </button>
+            <div className="max-h-40 space-y-1 overflow-auto pr-1">
+              {history.slice(0, 12).map((entry) => (
+                <div className="flex items-center gap-1" key={entry.createdAt}>
+                  <button
+                    className="block flex-1 rounded-md border border-border/40 px-2 py-1 text-left text-[11px]"
+                    onClick={() => {
+                      setRuntime(entry.runtime);
+                      setCode(entry.sourceCode);
+                      setResult(entry.output);
+                    }}
+                    type="button"
+                  >
+                    {runtimeLabels[entry.runtime]} · {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="rounded-md border px-2 py-1 text-[10px]"
+                        type="button"
+                      >
+                        <EllipsisVertical className="size-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          setSavedSnippets((current) => [
+                            {
+                              id: crypto.randomUUID(),
+                              name: `Pinned ${runtimeLabels[entry.runtime]}`,
+                              runtime: entry.runtime,
+                              sourceCode: entry.sourceCode,
+                            },
+                            ...current,
+                          ])
+                        }
+                      >
+                        Épingler
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          navigator.clipboard.writeText(entry.sourceCode)
+                        }
+                      >
+                        Copier
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          const blob = new Blob([entry.sourceCode], {
+                            type: "text/plain",
+                          });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `run-${entry.createdAt}.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        Exporter
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ))}
             </div>
           </div>

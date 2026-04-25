@@ -4,9 +4,11 @@ import {
   ArchiveIcon,
   BookOpenIcon,
   BotIcon,
+  CookingPotIcon,
   CreditCardIcon,
   FingerprintIcon,
   Gauge,
+  HeartPulseIcon,
   ImagePlusIcon,
   LanguagesIcon,
   PanelsTopLeftIcon,
@@ -19,6 +21,7 @@ import {
   TrashIcon,
   Volume2Icon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
@@ -37,7 +40,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -82,7 +84,22 @@ const APPLICATION_LINKS = [
   { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
   { href: "/speaky", key: "speaky", icon: Volume2Icon },
   { href: "/humanizy", key: "humanizy", icon: FingerprintIcon },
+  { href: "/cooker", key: "cooker", icon: CookingPotIcon },
+  { href: "/health", key: "health", icon: HeartPulseIcon },
+  { href: "/quizzly", key: "quizzly", icon: QuizzlyAppIcon },
 ] as const;
+
+function QuizzlyAppIcon({ className }: { className?: string }) {
+  return (
+    <Image
+      alt="Quizzly"
+      className={className}
+      height={14}
+      src="/images/logo.png"
+      width={14}
+    />
+  );
+}
 
 const sidebarI18n = {
   en: {
@@ -110,6 +127,9 @@ const sidebarI18n = {
     mais: "mAIs",
     speaky: "Speaky",
     humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
     quickGoTo: "Go to",
     searchPlaceholder: "Global search… (Ctrl/Cmd+K)",
     cancel: "Cancel",
@@ -140,6 +160,9 @@ const sidebarI18n = {
     mais: "mAIs",
     speaky: "Speaky",
     humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
     quickGoTo: "Ir a",
     searchPlaceholder: "Búsqueda global… (Ctrl/Cmd+K)",
     cancel: "Cancelar",
@@ -170,6 +193,9 @@ const sidebarI18n = {
     mais: "mAIs",
     speaky: "Speaky",
     humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
     quickGoTo: "Gehe zu",
     searchPlaceholder: "Globale Suche… (Ctrl/Cmd+K)",
     cancel: "Abbrechen",
@@ -200,10 +226,78 @@ const sidebarI18n = {
     mais: "mAIs",
     speaky: "Speaky",
     humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
     quickGoTo: "Vai a",
     searchPlaceholder: "Ricerca globale… (Ctrl/Cmd+K)",
     cancel: "Annulla",
     delete: "Elimina",
+  },
+  pt: {
+    apps: "Aplicações",
+    discussion: "Discussão",
+    deleteAll: "Apagar tudo",
+    deleteAllConfirm: "Apagar todas as conversas?",
+    deleteAllDesc:
+      "Esta ação é irreversível. Todas as suas conversas serão excluídas permanentemente dos nossos servidores.",
+    deleteFail: "Falha ao excluir. Tente novamente.",
+    deleteSuccess: "Todas as conversas foram excluídas",
+    historyLoading: "Carregando histórico…",
+    modulesNotFound: "Nenhum módulo encontrado.",
+    newChat: "Nova conversa",
+    library: "Biblioteca",
+    pricing: "Preços",
+    studio: "Studio",
+    wave: "Wave",
+    projects: "Projetos",
+    settings: "Configurações",
+    stats: "Estatísticas",
+    archives: "Arquivos",
+    translation: "Tradução",
+    code: "Código",
+    mais: "mAIs",
+    speaky: "Speaky",
+    humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
+    quickGoTo: "Ir para",
+    searchPlaceholder: "Pesquisa global… (Ctrl/Cmd+K)",
+    cancel: "Cancelar",
+    delete: "Excluir",
+  },
+  zh: {
+    apps: "应用",
+    discussion: "对话",
+    deleteAll: "全部删除",
+    deleteAllConfirm: "删除所有对话？",
+    deleteAllDesc: "此操作不可撤销。所有对话将从服务器永久删除。",
+    deleteFail: "删除失败，请重试。",
+    deleteSuccess: "所有对话已删除",
+    historyLoading: "正在加载历史…",
+    modulesNotFound: "未找到模块。",
+    newChat: "新对话",
+    library: "资料库",
+    pricing: "定价",
+    studio: "Studio",
+    wave: "Wave",
+    projects: "项目",
+    settings: "设置",
+    stats: "统计",
+    archives: "归档",
+    translation: "翻译",
+    code: "代码",
+    mais: "mAIs",
+    speaky: "Speaky",
+    humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
+    quickGoTo: "前往",
+    searchPlaceholder: "全局搜索… (Ctrl/Cmd+K)",
+    cancel: "取消",
+    delete: "删除",
   },
   fr: {
     apps: "Applications",
@@ -230,6 +324,9 @@ const sidebarI18n = {
     mais: "mAIs",
     speaky: "Speaky",
     humanizy: "Humanizy",
+    cooker: "Cooker",
+    health: "Health",
+    quizzly: "Quizzly",
     quickGoTo: "Aller vers",
     searchPlaceholder: "Recherche globale… (Ctrl/Cmd+K)",
     cancel: "Annuler",
@@ -356,9 +453,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     onClick={closeMobileSidebar}
                   >
                     <BrandStarLogoIcon size={22} />
-                    <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded-md border border-sidebar-border/70 bg-sidebar/90 p-0.5 opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100">
-                      <PenSquareIcon className="size-3 text-sidebar-foreground/80" />
-                    </span>
                   </Link>
                 </SidebarMenuButton>
                 <label
@@ -439,23 +533,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                           </Link>
                         </DropdownMenuItem>
                       ))}
-                      <div className="my-1 h-px bg-border/60" />
-                      <div className="rounded-md border border-dashed border-border/60 bg-muted/40 px-2 py-2 text-xs text-muted-foreground">
-                        <div className="mb-1 flex items-center justify-between">
-                          <span>Cooker (recettes par IA)</span>
-                          <Badge className="h-5 rounded-full bg-zinc-500/85 text-[10px] text-white hover:bg-zinc-500/85">
-                            Bientôt
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="rounded-md border border-dashed border-border/60 bg-muted/40 px-2 py-2 text-xs text-muted-foreground">
-                        <div className="mb-1 flex items-center justify-between">
-                          <span>Health (bilans & résumés médicaux)</span>
-                          <Badge className="h-5 rounded-full bg-zinc-500/85 text-[10px] text-white hover:bg-zinc-500/85">
-                            Bientôt
-                          </Badge>
-                        </div>
-                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </SidebarMenuItem>

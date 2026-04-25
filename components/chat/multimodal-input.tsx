@@ -1930,7 +1930,6 @@ function PureContextualActionsMenu({
             aria-label="Contextual actions"
             className="flex h-7 w-7 items-center justify-center rounded-full border border-border/40 bg-secondary/50 p-1 text-foreground shadow-sm transition-colors hover:bg-secondary"
             data-testid="context-actions-button"
-            disabled={status !== "ready"}
             variant="ghost"
           >
             <PlusIcon size={16} />

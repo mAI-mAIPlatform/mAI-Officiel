@@ -49,6 +49,24 @@ const aboutI18n = {
     telegramSoon: "Chatta con mAI su Telegram",
     talkDiscord: "Chatta con mAI su Discord",
   },
+  pt: {
+    defaultLanguage: "Idioma padrão da interface:",
+    discordSupport: "Discord e Suporte",
+    joinDiscord: "Entrar no servidor Discord",
+    language: "Idioma",
+    beta: "Beta",
+    telegramSoon: "Conversar com mAI no Telegram",
+    talkDiscord: "Conversar com mAI no Discord",
+  },
+  zh: {
+    defaultLanguage: "默认界面语言：",
+    discordSupport: "Discord 与支持",
+    joinDiscord: "加入 Discord 服务器",
+    language: "语言",
+    beta: "测试版",
+    telegramSoon: "在 Telegram 与 mAI 聊天",
+    talkDiscord: "在 Discord 与 mAI 聊天",
+  },
   fr: {
     defaultLanguage: "Langue d'interface par défaut:",
     discordSupport: "Discord & Support",
@@ -100,6 +118,8 @@ export function AproposSection({
           <option value="es">Español</option>
           <option value="de">Deutsch</option>
           <option value="it">Italiano</option>
+          <option value="pt">Português</option>
+          <option value="zh">中文（普通话）</option>
         </select>
       </div>
 

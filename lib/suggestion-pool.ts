@@ -13,6 +13,18 @@ const suggestionPoolByLanguage: Record<AppLanguage, string[]> = {
     "Aiutami a strutturare una base di conoscenza per il mio team.",
     "Proponi 5 idee di contenuto per presentare il mio prodotto.",
   ],
+  pt: [
+    "Escreva um plano de projeto para lançar um novo recurso de IA.",
+    "Crie um resumo semanal de ações com prioridades.",
+    "Ajude-me a estruturar uma base de conhecimento para minha equipe.",
+    "Sugira 5 ideias de conteúdo para apresentar meu produto.",
+  ],
+  zh: [
+    "为新 AI 功能制定项目启动计划。",
+    "整理本周任务并按优先级排序。",
+    "帮助我搭建团队知识库结构。",
+    "给我 5 个展示产品的内容创意。",
+  ],
   fr: [
     "Rédige un plan projet pour lancer une nouvelle fonctionnalité IA.",
     "Crée un résumé des actions à faire cette semaine avec priorités.",

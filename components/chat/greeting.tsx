@@ -32,6 +32,18 @@ export const Greeting = () => {
       "da dove iniziamo oggi?",
       "quale idea vuoi esplorare ora?",
     ],
+    pt: [
+      "como posso ajudar você hoje?",
+      "o que você quer construir com mAI?",
+      "por onde começamos hoje?",
+      "qual ideia você quer explorar agora?",
+    ],
+    zh: [
+      "今天我可以如何帮助你？",
+      "你想用 mAI 构建什么？",
+      "我们今天从哪里开始？",
+      "你现在想探索什么想法？",
+    ],
     fr: [
       "comment puis-je vous aider aujourd'hui ?",
       "que voulez-vous construire avec mAI ?",
@@ -55,6 +67,10 @@ export const Greeting = () => {
       setTimePrefix(hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend");
     } else if (language === "it") {
       setTimePrefix(hour < 12 ? "Buongiorno" : hour < 18 ? "Buon pomeriggio" : "Buonasera");
+    } else if (language === "pt") {
+      setTimePrefix(hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite");
+    } else if (language === "zh") {
+      setTimePrefix(hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好");
     } else if (hour < 12) {
       setTimePrefix("Bonjour");
     } else if (hour < 18) {
@@ -110,6 +126,10 @@ export const Greeting = () => {
               ? "Mit mAI auf das nächste Level!"
               : language === "it"
                 ? "Con mAI, passa al livello successivo!"
+                : language === "pt"
+                  ? "Com a mAI, vá para o próximo nível!"
+                  : language === "zh"
+                    ? "用 mAI，迈向更高水平！"
             : "Avec mAI, passez à la vitesse supérieure !"}
       </motion.div>
 

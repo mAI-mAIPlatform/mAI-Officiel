@@ -2,7 +2,7 @@
 
 export const LANGUAGE_STORAGE_KEY = "mai.language.v1";
 
-export const SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it"] as const;
+export const SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it", "pt", "zh"] as const;
 
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
@@ -180,6 +180,67 @@ export const dictionary = {
     "errors.documentBadRequest":
       "La richiesta per creare o aggiornare il documento non è valida.",
     "errors.default": "Si è verificato un problema. Riprova più tardi.",
+  },
+
+  pt: {
+    notifications: "Notificações",
+    noNotifications: "Sem notificações.",
+    showNotifications: "Mostrar notificações",
+    ghostMode: "Modo Fantasma",
+    ghostModeActive: "Modo Fantasma ativo",
+    voiceMode: "mAI Voice",
+    voiceModeLabel: "Modo de voz puro (Experimental)",
+    voiceListening: "Ouvindo...",
+    voiceStart: "Iniciar modo de voz",
+    voiceStop: "Parar",
+    voiceTranscript: "Transcrição",
+    voiceSend: "Enviar ao chat",
+    voiceCaptions: "Legendas",
+    "errors.database": "Ocorreu um erro ao executar uma consulta no banco de dados.",
+    "errors.badRequestApi": "A solicitação não pôde ser processada.",
+    "errors.gateway": "AI Gateway requer um cartão de crédito válido.",
+    "errors.authRequired": "Você precisa entrar antes de continuar.",
+    "errors.authForbidden": "Sua conta não tem acesso a este recurso.",
+    "errors.rateLimit": "Você atingiu o limite de mensagens.",
+    "errors.chatNotFound": "Chat não encontrado.",
+    "errors.chatForbidden": "Este chat pertence a outro usuário.",
+    "errors.chatUnauthorized": "Você precisa entrar para ver este chat.",
+    "errors.offline": "Problema de conexão ao enviar sua mensagem.",
+    "errors.documentNotFound": "Documento não encontrado.",
+    "errors.documentForbidden": "Este documento pertence a outro usuário.",
+    "errors.documentUnauthorized": "Você precisa entrar para ver este documento.",
+    "errors.documentBadRequest": "A solicitação de documento é inválida.",
+    "errors.default": "Algo deu errado. Tente novamente mais tarde.",
+  },
+  zh: {
+    notifications: "通知",
+    noNotifications: "暂无通知。",
+    showNotifications: "显示通知",
+    ghostMode: "隐身模式",
+    ghostModeActive: "隐身模式已开启",
+    voiceMode: "mAI 语音",
+    voiceModeLabel: "纯语音模式（实验）",
+    voiceListening: "正在聆听...",
+    voiceStart: "开始语音模式",
+    voiceStop: "停止",
+    voiceTranscript: "转录",
+    voiceSend: "发送到聊天",
+    voiceCaptions: "字幕",
+    "errors.database": "执行数据库查询时发生错误。",
+    "errors.badRequestApi": "请求无法处理，请检查输入。",
+    "errors.gateway": "AI Gateway 需要有效信用卡。",
+    "errors.authRequired": "请先登录后继续。",
+    "errors.authForbidden": "您的账号无权使用此功能。",
+    "errors.rateLimit": "您已达到消息上限。",
+    "errors.chatNotFound": "未找到对应聊天。",
+    "errors.chatForbidden": "该聊天属于其他用户。",
+    "errors.chatUnauthorized": "请先登录查看聊天。",
+    "errors.offline": "发送失败，请检查网络连接。",
+    "errors.documentNotFound": "未找到对应文档。",
+    "errors.documentForbidden": "该文档属于其他用户。",
+    "errors.documentUnauthorized": "请先登录查看文档。",
+    "errors.documentBadRequest": "文档请求无效。",
+    "errors.default": "发生错误，请稍后再试。",
   },
   fr: {
     notifications: "Notifications",

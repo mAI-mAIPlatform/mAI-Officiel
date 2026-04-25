@@ -42,6 +42,23 @@ const languageOptions = [
   { code: "ro", label: "Roumain" },
   { code: "sk", label: "Slovaque" },
   { code: "th", label: "Thaï" },
+  { code: "fa", label: "Persan" },
+  { code: "bn", label: "Bengali" },
+  { code: "sw", label: "Swahili" },
+  { code: "ta", label: "Tamoul" },
+  { code: "te", label: "Télougou" },
+  { code: "ur", label: "Ourdou" },
+  { code: "ms", label: "Malais" },
+  { code: "tl", label: "Tagalog" },
+  { code: "bg", label: "Bulgare" },
+  { code: "hr", label: "Croate" },
+  { code: "sr", label: "Serbe" },
+  { code: "sl", label: "Slovène" },
+  { code: "et", label: "Estonien" },
+  { code: "lv", label: "Letton" },
+  { code: "lt", label: "Lituanien" },
+  { code: "ca", label: "Catalan" },
+  { code: "ga", label: "Irlandais" },
 ] as const;
 
 const synonymsMap: Record<string, string[]> = {

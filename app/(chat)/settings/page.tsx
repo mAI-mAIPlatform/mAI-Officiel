@@ -83,6 +83,9 @@ import { NotificationsSection } from "./sections/notifications-section";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v018";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const DEFAULT_COOKER_MODEL_KEY = "mai.settings.default.cooker-model.v1";
+const DEFAULT_HEALTH_MODEL_KEY = "mai.settings.default.health-model.v1";
+const DEFAULT_QUIZZLY_MODEL_KEY = "mai.settings.default.quizzly-model.v1";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const ACCESSIBILITY_SETTINGS_STORAGE_KEY = "mai.settings.accessibility.v1";
 const VOICE_SETTINGS_STORAGE_KEY = "mai.voice.settings.v1";
@@ -267,7 +270,7 @@ type ParentalSettings = {
 };
 
 type AccessibilitySettings = {
-  fontFamily: "inter" | "open-dyslexic";
+  fontFamily: "inter" | "open-dyslexic" | "lexend" | "atkinson" | "source-serif";
   fontScale: number;
 };
 
@@ -561,6 +564,9 @@ export default function SettingsPage() {
   const [defaultMusicModel, setDefaultMusicModel] = useState(
     FALLBACK_DEFAULT_MUSIC_MODEL
   );
+  const [defaultCookerModel, setDefaultCookerModel] = useState("gpt-5.5");
+  const [defaultHealthModel, setDefaultHealthModel] = useState("gpt-5.4-mini");
+  const [defaultQuizzlyModel, setDefaultQuizzlyModel] = useState("gpt-5.4-mini");
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
@@ -653,7 +659,9 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
-  const uiLabels = settingsLabels[interfaceLanguage];
+  const uiLabels =
+    settingsLabels[interfaceLanguage as keyof typeof settingsLabels] ??
+    settingsLabels.fr;
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
       return ["none", "low", "medium", "high"];
@@ -698,7 +706,12 @@ export default function SettingsPage() {
         const parsed = JSON.parse(rawAccessibility) as Partial<AccessibilitySettings>;
         setAccessibilitySettings((current) => ({
           fontFamily:
-            parsed.fontFamily === "open-dyslexic" ? "open-dyslexic" : "inter",
+            parsed.fontFamily === "open-dyslexic" ||
+            parsed.fontFamily === "lexend" ||
+            parsed.fontFamily === "atkinson" ||
+            parsed.fontFamily === "source-serif"
+              ? parsed.fontFamily
+              : "inter",
           fontScale:
             typeof parsed.fontScale === "number"
               ? Math.min(1.4, Math.max(0.85, parsed.fontScale))
@@ -1077,10 +1090,19 @@ export default function SettingsPage() {
     const storedMusicModel =
       window.localStorage.getItem(DEFAULT_MUSIC_MODEL_KEY) ??
       FALLBACK_DEFAULT_MUSIC_MODEL;
+    const storedCookerModel =
+      window.localStorage.getItem(DEFAULT_COOKER_MODEL_KEY) ?? "gpt-5.5";
+    const storedHealthModel =
+      window.localStorage.getItem(DEFAULT_HEALTH_MODEL_KEY) ?? "gpt-5.4-mini";
+    const storedQuizzlyModel =
+      window.localStorage.getItem(DEFAULT_QUIZZLY_MODEL_KEY) ?? "gpt-5.4-mini";
 
     setDefaultTextModel(storedTextModel);
     setDefaultImageModel(storedImageModel);
     setDefaultMusicModel(storedMusicModel);
+    setDefaultCookerModel(storedCookerModel);
+    setDefaultHealthModel(storedHealthModel);
+    setDefaultQuizzlyModel(storedQuizzlyModel);
   }, []);
 
   useEffect(() => {
@@ -1094,6 +1116,15 @@ export default function SettingsPage() {
   useEffect(() => {
     window.localStorage.setItem(DEFAULT_MUSIC_MODEL_KEY, defaultMusicModel);
   }, [defaultMusicModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_COOKER_MODEL_KEY, defaultCookerModel);
+  }, [defaultCookerModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_HEALTH_MODEL_KEY, defaultHealthModel);
+  }, [defaultHealthModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_QUIZZLY_MODEL_KEY, defaultQuizzlyModel);
+  }, [defaultQuizzlyModel]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1117,14 +1148,7 @@ export default function SettingsPage() {
     );
     const root = document.documentElement;
     root.style.setProperty("--mai-font-scale", `${accessibilitySettings.fontScale}`);
-    if (accessibilitySettings.fontFamily === "open-dyslexic") {
-      root.setAttribute("data-font-family", "open-dyslexic");
-      root.style.fontFamily =
-        "\"OpenDyslexic\", \"Open Dyslexic\", Inter, system-ui, sans-serif";
-    } else {
-      root.removeAttribute("data-font-family");
-      root.style.removeProperty("font-family");
-    }
+    root.setAttribute("data-font-family", accessibilitySettings.fontFamily);
   }, [accessibilitySettings]);
 
   useEffect(() => {
@@ -2313,6 +2337,48 @@ export default function SettingsPage() {
                 ))}
               </select>
             </label>
+            <label className="text-xs text-muted-foreground">
+              Cooker
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultCookerModel(event.target.value)}
+                value={defaultCookerModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`cooker-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Health
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultHealthModel(event.target.value)}
+                value={defaultHealthModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`health-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Quizzly
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultQuizzlyModel(event.target.value)}
+                value={defaultQuizzlyModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`quizzly-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
@@ -2482,8 +2548,11 @@ export default function SettingsPage() {
                   setAccessibilitySettings((current) => ({
                     ...current,
                     fontFamily:
-                      event.target.value === "open-dyslexic"
-                        ? "open-dyslexic"
+                      event.target.value === "open-dyslexic" ||
+                      event.target.value === "lexend" ||
+                      event.target.value === "atkinson" ||
+                      event.target.value === "source-serif"
+                        ? event.target.value
                         : "inter",
                   }))
                 }
@@ -2491,6 +2560,9 @@ export default function SettingsPage() {
               >
                 <option value="inter">Inter (par défaut)</option>
                 <option value="open-dyslexic">Open Dyslexic</option>
+                <option value="lexend">Lexend</option>
+                <option value="atkinson">Atkinson Hyperlegible</option>
+                <option value="source-serif">Source Serif 4</option>
               </select>
             </label>
             <label className="text-xs">
@@ -3791,33 +3863,34 @@ export default function SettingsPage() {
             {creditMetrics.map((metric) => {
               const ratio = metric.limit > 0 ? metric.used / metric.limit : 1;
               const remaining = Math.max(0, metric.limit - metric.used);
+              const availablePercent = Math.max(
+                0,
+                Math.min(100, Math.round((1 - ratio) * 100))
+              );
               return (
                 <article
-                  className="rounded-xl border border-border/60 bg-background/60 p-3"
+                  className="rounded-2xl border border-border/60 bg-background/70 p-5 shadow-sm"
                   key={metric.key}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{metric.title}</p>
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        getCreditBadgeColor(1 - ratio)
-                      )}
-                    >
-                      {remaining}/{metric.limit}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted">
+                  <p className="text-4xl font-bold">
+                    Tier {metric.title.replace(/\D/g, "") || "—"}
+                  </p>
+                  <p className="mt-2 text-2xl text-muted-foreground">
+                    Réinitialisation {formatDateTime(getNextResetDate(metric.period))}
+                  </p>
+                  <div className="mt-8 h-10 rounded-full bg-muted/70 p-1">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-400 transition-all duration-500"
                       style={{
-                        width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
+                        width: `${availablePercent}%`,
                       }}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Réinitialisation:{" "}
-                    {formatDateTime(getNextResetDate(metric.period))}
+                  <p className="mt-6 text-4xl font-bold">
+                    {availablePercent}%
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Restant: {remaining}/{metric.limit}
                   </p>
                 </article>
               );
