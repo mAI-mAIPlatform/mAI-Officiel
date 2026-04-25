@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { useBrand } from "@/components/brand-provider";
 
 export const BotIcon = () => {
   return (
@@ -287,11 +288,13 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => {
 };
 
 export const BrandStarLogoIcon = ({ size = 28 }: { size?: number }) => {
+  const { currentLogoSrc } = useBrand();
+
   return (
     <Image
       alt="mAI Logo"
       height={size}
-      src="/images/logo.png"
+      src={currentLogoSrc}
       style={{ objectFit: "contain", width: size, height: size }}
       width={size}
     />

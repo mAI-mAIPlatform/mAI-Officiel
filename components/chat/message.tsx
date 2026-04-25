@@ -2,6 +2,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import Image from "next/image";
 import { memo } from "react";
+import { useBrand } from "@/components/brand-provider";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
@@ -45,6 +46,8 @@ const PurePreviewMessage = ({
   requiresScrollPadding: boolean;
   onEdit?: (message: ChatMessage) => void;
 }) => {
+  const { currentLogoSrc } = useBrand();
+
   const stripLeadingJsonPayload = (value: string) => {
     const trimmed = value.trimStart();
     if (!trimmed.startsWith("{")) {
@@ -367,7 +370,7 @@ const PurePreviewMessage = ({
                 alt="mAI"
                 className="size-4 object-contain"
                 height={16}
-                src="/images/logo.png"
+                src={currentLogoSrc}
                 width={16}
               />
             </div>
@@ -409,6 +412,8 @@ export const PreviewMessage = memo(
 );
 
 export const ThinkingMessage = () => {
+  const { currentLogoSrc } = useBrand();
+
   return (
     <div
       className="group/message w-full"
@@ -422,7 +427,7 @@ export const ThinkingMessage = () => {
               alt="mAI"
               className="size-4 object-contain"
               height={16}
-              src="/images/logo.png"
+              src={currentLogoSrc}
               width={16}
             />
           </div>

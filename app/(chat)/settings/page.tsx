@@ -72,6 +72,8 @@ import {
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
+import { useBrand } from "@/components/brand-provider";
+import { appLogoOptions } from "@/lib/logo-options";
 import { AproposSection } from "./sections/apropos-section";
 import { CompteSection } from "./sections/compte-section";
 import { NotificationsSection } from "./sections/notifications-section";
@@ -599,6 +601,7 @@ export default function SettingsPage() {
     type: "error" | "success";
   } | null>(null);
   const [improveMaiForAll, setImproveMaiForAll] = useState(false);
+  const { appLogoId, appFaviconId, setAppLogoId, setAppFaviconId } = useBrand();
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -2059,6 +2062,73 @@ export default function SettingsPage() {
               </Button>
             </div>
           )}
+        </div>
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
+          <p className="text-sm font-medium">Identité Visuelle</p>
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Logo de l'application</p>
+            <div className="flex flex-wrap gap-3">
+              {appLogoOptions.map((logo) => {
+                const isLocked = logo.maxOnly && plan !== "max";
+                return (
+                  <button
+                    key={`logo-${logo.id}`}
+                    type="button"
+                    title={isLocked ? `${logo.name} (Forfait Max requis)` : logo.name}
+                    disabled={isLocked || !isHydrated}
+                    onClick={() => setAppLogoId(logo.id)}
+                    className={cn(
+                      "group relative flex size-12 items-center justify-center rounded-xl border transition-all",
+                      appLogoId === logo.id
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border/50 bg-background/50 hover:bg-background/80",
+                      isLocked && "opacity-50 grayscale cursor-not-allowed"
+                    )}
+                  >
+                    <img src={logo.src} alt={logo.name} className="size-6 object-contain" />
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+                        <Lock className="size-4 text-foreground/70" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Favicon du navigateur</p>
+            <div className="flex flex-wrap gap-3">
+              {appLogoOptions.map((logo) => {
+                const isLocked = logo.maxOnly && plan !== "max";
+                return (
+                  <button
+                    key={`fav-${logo.id}`}
+                    type="button"
+                    title={isLocked ? `${logo.name} (Forfait Max requis)` : logo.name}
+                    disabled={isLocked || !isHydrated}
+                    onClick={() => setAppFaviconId(logo.id)}
+                    className={cn(
+                      "group relative flex size-12 items-center justify-center rounded-xl border transition-all",
+                      appFaviconId === logo.id
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border/50 bg-background/50 hover:bg-background/80",
+                      isLocked && "opacity-50 grayscale cursor-not-allowed"
+                    )}
+                  >
+                    <img src={logo.src} alt={logo.name} className="size-6 object-contain" />
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+                        <Lock className="size-4 text-foreground/70" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">

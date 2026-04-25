@@ -2,23 +2,32 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cookies } from "next/headers";
+import { appLogoOptions } from "@/lib/logo-options";
 
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { SessionGuard } from "@/components/security/session-guard";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { BrandProvider } from "@/components/brand-provider";
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://mai-officiel.vercel.app"),
-  title: "mAI",
-  description: "Avec mAI, passez à la vitesse supérieure !",
-  icons: {
-    icon: "/images/logo.png",
-    shortcut: "/images/logo.png",
-    apple: "/images/logo.png",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const faviconId = cookieStore.get("mai-app-favicon")?.value ?? "logo";
+  const faviconSrc = appLogoOptions.find((l) => l.id === faviconId)?.src ?? "/images/logo.png";
+
+  return {
+    metadataBase: new URL("https://mai-officiel.vercel.app"),
+    title: "mAI",
+    description: "Avec mAI, passez à la vitesse supérieure !",
+    icons: {
+      icon: faviconSrc,
+      shortcut: faviconSrc,
+      apple: faviconSrc,
+    },
+  };
+}
 
 export const viewport = {
   maximumScale: 1,
@@ -76,22 +85,24 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          disableTransitionOnChange
-          enableSystem
-        >
-          <SessionProvider
-            basePath={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/auth`}
+        <BrandProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            disableTransitionOnChange
+            enableSystem
           >
-            <TooltipProvider>
-              <RegisterServiceWorker />
-              <SessionGuard />
-              {children}
-            </TooltipProvider>
-          </SessionProvider>
-        </ThemeProvider>
+            <SessionProvider
+              basePath={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/auth`}
+            >
+              <TooltipProvider>
+                <RegisterServiceWorker />
+                <SessionGuard />
+                {children}
+              </TooltipProvider>
+            </SessionProvider>
+          </ThemeProvider>
+        </BrandProvider>
         <SpeedInsights />
       </body>
     </html>
