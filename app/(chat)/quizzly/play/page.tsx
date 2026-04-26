@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishQuiz } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Settings, Play, CheckCircle, XCircle } from "lucide-react";
+import { Play, CheckCircle, XCircle, Shuffle } from "lucide-react";
+import { chatModels } from "@/lib/ai/models";
 
 const GRADES = [
   "CE1",
@@ -30,12 +31,27 @@ const SUBJECTS = [
   "Technologie",
 ];
 const DIFFICULTIES = ["Facile", "Moyen", "Difficile"];
-// Hardcoded based on memory constraints, but should ideally come from AI provider list
-const MODELS = [
-  { id: "gpt-4o-mini", name: "GPT-4o Mini" },
-  { id: "gpt-4o", name: "GPT-4o" },
-  { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet" },
-];
+const RANDOM_MODEL_ID = "__random__";
+
+type QuizQuestion = {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+};
+
+type QuizResult = {
+  xpGain: number;
+  newLevel: number;
+};
+
+function normalizeQuizCount(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    return 5;
+  }
+  return Math.min(20, Math.max(1, parsed));
+}
 
 export default function QuizzlyPlayPage() {
   const router = useRouter();
@@ -47,38 +63,80 @@ export default function QuizzlyPlayPage() {
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
   const [count, setCount] = useState(5);
-  const [modelId, setModelId] = useState("gpt-4o-mini");
+  const [modelId, setModelId] = useState(RANDOM_MODEL_ID);
+
+  const textModels = useMemo(() => {
+    const unique = new Map<string, { id: string; name: string; provider: string }>();
+    for (const model of chatModels) {
+      if (!unique.has(model.id)) {
+        unique.set(model.id, {
+          id: model.id,
+          name: model.name,
+          provider: model.provider,
+        });
+      }
+    }
+    return Array.from(unique.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { sensitivity: "base" })
+    );
+  }, []);
 
   // Play State
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
 
   // Result State
-  const [resultData, setResultData] = useState<any>(null);
+  const [resultData, setResultData] = useState<QuizResult | null>(null);
 
   const startQuiz = async () => {
     setStep("loading");
     try {
+      const chosenModelId =
+        modelId === RANDOM_MODEL_ID
+          ? textModels[Math.floor(Math.random() * textModels.length)]?.id
+          : modelId;
+
+      if (!chosenModelId) {
+        throw new Error("Aucun modèle de génération disponible pour Quizzly.");
+      }
+
       const res = await fetch("/api/quizzly/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, subject, difficulty, count, modelId })
+        body: JSON.stringify({
+          grade,
+          subject,
+          difficulty,
+          count,
+          modelId: chosenModelId,
+        }),
       });
 
-      if (!res.ok) throw new Error("Erreur de génération du quiz");
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error ?? "Erreur de génération du quiz");
+      }
 
-      const data = await res.json();
+      const data = (await res.json()) as { questions: QuizQuestion[] };
+      if (!Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error("Le quiz généré est vide. Réessaie avec un autre modèle.");
+      }
+
       setQuestions(data.questions);
       setStep("playing");
       setCurrentIndex(0);
       setCorrectAnswers(0);
       setIsAnswered(false);
       setSelectedOption(null);
-    } catch (err: any) {
-      toast.error(err.message);
+      toast.success(`Quiz généré avec ${chosenModelId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
       setStep("setup");
     }
   };
@@ -90,21 +148,19 @@ export default function QuizzlyPlayPage() {
 
     const isCorrect = index === questions[currentIndex].correctAnswerIndex;
     if (isCorrect) {
-      setCorrectAnswers(prev => prev + 1);
-      // Play sound here if accessibility enabled
+      setCorrectAnswers((prev) => prev + 1);
     }
   };
 
   const handleNext = async () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setIsAnswered(false);
       setSelectedOption(null);
     } else {
-      // Finish Quiz
       try {
         setStep("loading");
-        const result = await finishQuiz(correctAnswers, null); // passing null for booster for now
+        const result = (await finishQuiz(correctAnswers, null)) as QuizResult;
         setResultData(result);
         setStep("result");
       } catch {
@@ -239,15 +295,22 @@ export default function QuizzlyPlayPage() {
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Nombre de questions</label>
-            <input type="number" min={1} max={20} value={count} onChange={e => setCount(parseInt(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-violet-500" />
+            <input type="number" min={1} max={20} value={count} onChange={e => setCount(normalizeQuizCount(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-violet-500" />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">Modèle d'IA</label>
           <select value={modelId} onChange={e => setModelId(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-violet-500">
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            <option value={RANDOM_MODEL_ID}>🎲 Aléatoire (tous les modèles texte)</option>
+            {textModels.map(m => (
+              <option key={m.id} value={m.id}>{m.name} · {m.provider}</option>
+            ))}
           </select>
+          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+            <Shuffle className="w-3 h-3" />
+            Inclut OpenAI, Azure, AI Horde, Ollama, OpenRouter et autres modèles texte disponibles.
+          </p>
         </div>
 
         <div className="pt-4">
