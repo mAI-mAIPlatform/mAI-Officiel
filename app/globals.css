@@ -215,6 +215,28 @@
   }
 }
 
+.quizzly-theme {
+  background-color: var(--q-bg, #f8fafc);
+  color: var(--q-text, #0f172a);
+}
+
+.quizzly-theme .bg-white {
+  background-color: var(--q-card, #ffffff) !important;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.quizzly-theme .text-slate-800,
+.quizzly-theme .text-slate-700,
+.quizzly-theme .text-slate-600,
+.quizzly-theme .text-slate-500 {
+  color: var(--q-text, #0f172a) !important;
+}
+
+.quizzly-theme [class*="bg-violet-6"],
+.quizzly-theme [class*="text-violet-7"] {
+  color: var(--q-accent, #7c3aed);
+}
+
 @layer base {
   *,
   ::after,
