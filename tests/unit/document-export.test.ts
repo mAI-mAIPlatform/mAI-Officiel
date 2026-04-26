@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildExportFileName } from "../../lib/document-export.ts";
+import { buildExportFileName } from "../../lib/document-export";
 
 test("buildExportFileName", async (t) => {
   await t.test("formats normal title correctly", () => {

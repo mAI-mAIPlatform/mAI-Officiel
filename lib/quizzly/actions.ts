@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db/queries";
+import { auth } from "@/app/(auth)/auth";
 import {
   quizzlyProfile,
   quizzlyInventory,
@@ -8,22 +9,31 @@ import {
   quizzlyFriendship,
 } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { getUser } from "@/lib/db/queries";
 import { revalidatePath } from "next/cache";
 
+async function getAuthenticatedUserId() {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  return userId;
+}
+
 export async function getQuizzlyProfile() {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   const [profile] = await db
     .select()
     .from(quizzlyProfile)
-    .where(eq(quizzlyProfile.userId, user.id));
+    .where(eq(quizzlyProfile.userId, userId));
 
   if (!profile) {
     const [newProfile] = await db
       .insert(quizzlyProfile)
-      .values({ userId: user.id })
+      .values({ userId })
       .returning();
     return newProfile;
   }
@@ -32,20 +42,18 @@ export async function getQuizzlyProfile() {
 }
 
 export async function updateQuizzlyProfile(data: Partial<typeof quizzlyProfile.$inferInsert>) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   await db
     .update(quizzlyProfile)
     .set(data)
-    .where(eq(quizzlyProfile.userId, user.id));
+    .where(eq(quizzlyProfile.userId, userId));
 
   revalidatePath("/(chat)/quizzly", "layout");
 }
 
 export async function claimDailyReward() {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  await getAuthenticatedUserId();
 
   const profile = await getQuizzlyProfile();
   const today = new Date().toISOString().split("T")[0];
@@ -75,18 +83,16 @@ export async function claimDailyReward() {
 }
 
 export async function getQuizzlyInventory() {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   return await db
     .select()
     .from(quizzlyInventory)
-    .where(eq(quizzlyInventory.userId, user.id));
+    .where(eq(quizzlyInventory.userId, userId));
 }
 
 export async function buyItem(itemKey: string, price: number, amount: number = 1) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   const profile = await getQuizzlyProfile();
 
@@ -101,7 +107,7 @@ export async function buyItem(itemKey: string, price: number, amount: number = 1
   const [existingItem] = await db
     .select()
     .from(quizzlyInventory)
-    .where(and(eq(quizzlyInventory.userId, user.id), eq(quizzlyInventory.itemKey, itemKey)));
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, itemKey)));
 
   if (existingItem) {
     await db
@@ -109,8 +115,8 @@ export async function buyItem(itemKey: string, price: number, amount: number = 1
       .set({ quantity: existingItem.quantity + amount })
       .where(eq(quizzlyInventory.id, existingItem.id));
   } else {
-    await db.insert(quizzlyInventory).values({
-      userId: user.id,
+      await db.insert(quizzlyInventory).values({
+      userId,
       itemKey,
       quantity: amount,
     });
@@ -125,13 +131,12 @@ import dailyQuestsRaw from "./quests/daily-quests.json";
 import weeklyQuestsRaw from "./quests/weekly-quests.json";
 
 export async function getOrAssignQuests() {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   const activeQuests = await db
     .select()
     .from(quizzlyUserQuest)
-    .where(and(eq(quizzlyUserQuest.userId, user.id), eq(quizzlyUserQuest.isCompleted, false)));
+    .where(and(eq(quizzlyUserQuest.userId, userId), eq(quizzlyUserQuest.isCompleted, false)));
 
   const now = new Date();
 
@@ -146,7 +151,7 @@ export async function getOrAssignQuests() {
     for (let i = 0; i < 3; i++) {
       const q = dailyQuestsRaw[Math.floor(Math.random() * dailyQuestsRaw.length)];
       await db.insert(quizzlyUserQuest).values({
-        userId: user.id,
+        userId,
         questId: q.id,
         type: "daily",
         expiresAt: endOfDay
@@ -164,7 +169,7 @@ export async function getOrAssignQuests() {
     for (let i = 0; i < 3; i++) {
       const q = weeklyQuestsRaw[Math.floor(Math.random() * weeklyQuestsRaw.length)];
       await db.insert(quizzlyUserQuest).values({
-        userId: user.id,
+        userId,
         questId: q.id,
         type: "weekly",
         expiresAt: endOfWeek
@@ -175,12 +180,11 @@ export async function getOrAssignQuests() {
   return await db
     .select()
     .from(quizzlyUserQuest)
-    .where(and(eq(quizzlyUserQuest.userId, user.id), eq(quizzlyUserQuest.isCompleted, false)));
+    .where(and(eq(quizzlyUserQuest.userId, userId), eq(quizzlyUserQuest.isCompleted, false)));
 }
 
 export async function finishQuiz(correctAnswers: number, activeBooster: string | null) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
+  const userId = await getAuthenticatedUserId();
 
   const profile = await getQuizzlyProfile();
 
@@ -209,7 +213,7 @@ export async function finishQuiz(correctAnswers: number, activeBooster: string |
     const [item] = await db
       .select()
       .from(quizzlyInventory)
-      .where(and(eq(quizzlyInventory.userId, user.id), eq(quizzlyInventory.itemKey, activeBooster)));
+      .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, activeBooster)));
 
     if (item && item.quantity > 0) {
       await db
