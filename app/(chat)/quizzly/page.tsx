@@ -28,6 +28,8 @@ const WELCOME_OPENERS = {
   fr: ["Salut", "Bienvenue", "Prêt(e) à tout casser", "Hello champion", "C'est parti", "On relance la flamme"],
   en: ["Hi", "Welcome", "Ready to crush it", "Hey champion", "Let's go", "Keep the streak alive"],
 } as const;
+const LEAGUES = ["Bronze", "Argent", "Or", "Diamant", "Champion"] as const;
+const SUBJECTS = ["Maths", "Histoire", "Français", "SVT"] as const;
 
 export default function QuizzlyDashboardPage() {
   const router = useRouter();
@@ -60,6 +62,18 @@ export default function QuizzlyDashboardPage() {
     const index = (new Date().getDate() + profile.pseudo.length) % openers.length;
     return `${openers[index]}, ${profile.pseudo} ${profile.emoji}`;
   }, [language, profile]);
+  const myRank = useMemo(
+    () => leaderboard.findIndex((entry) => entry.pseudo === (profile?.pseudo ?? "")) + 1,
+    [leaderboard, profile?.pseudo]
+  );
+  const leagueIndex = Math.min(LEAGUES.length - 1, Math.max(0, Math.floor((profile?.level ?? 1) / 5)));
+  const currentLeague = LEAGUES[leagueIndex];
+  const leagueStatus = myRank > 0 && myRank <= 3 ? "Promotion en vue" : myRank > 0 && myRank >= 8 ? "Relégation à éviter" : "Maintien";
+  const subjectLeaderboard = SUBJECTS.map((subject, index) => ({
+    subject,
+    score: (leaderboard[index]?.weeklyXp ?? 0) + (index + 1) * 8,
+    pseudo: leaderboard[index]?.pseudo ?? "Ami",
+  }));
 
   const handleClaim = async () => {
     try {
@@ -167,7 +181,7 @@ export default function QuizzlyDashboardPage() {
 
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-xl font-black text-slate-800">🏆 Classement hebdomadaire ({weekKey})</h3>
+          <h3 className="text-xl font-black text-slate-800">🏆 Ligue hebdomadaire — {currentLeague} ({weekKey})</h3>
           <div className="rounded-xl bg-slate-100 p-1">
             <button
               className={`rounded-lg px-3 py-1 text-xs font-bold ${leaderboardView === "global" ? "bg-white text-violet-700" : "text-slate-500"}`}
@@ -185,6 +199,9 @@ export default function QuizzlyDashboardPage() {
             </button>
           </div>
         </div>
+        <div className="mb-4 rounded-xl bg-violet-50 px-3 py-2 text-sm text-violet-800">
+          Position: {myRank > 0 ? `#${myRank}` : "Non classé"} · Statut: <span className="font-bold">{leagueStatus}</span>
+        </div>
         <div className="space-y-2">
           {leaderboard.slice(0, 10).map((entry, index) => (
             <div key={entry.userId} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
@@ -197,6 +214,17 @@ export default function QuizzlyDashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-6">
+          <h4 className="font-black text-slate-700">Classement par matière</h4>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {subjectLeaderboard.map((item) => (
+              <div key={item.subject} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                <p className="font-bold">{item.subject}</p>
+                <p className="text-slate-600">{item.pseudo} · {item.score} XP</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

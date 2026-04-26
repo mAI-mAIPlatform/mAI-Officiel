@@ -29,6 +29,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -278,7 +279,7 @@ const settingsLabels = {
     about: "À propos",
     account: "Compte",
     credits: "Crédits",
-    data: "Données",
+    data: "Compte & Sécurité",
     navigation: "Navigation des paramètres",
     notifications: "Accessibilité",
     parental: "Contrôle parental",
@@ -322,6 +323,7 @@ type ProfileSettingsShape = {
   avatarDataUrl?: string;
   avatarId: string;
   displayName: string;
+  bio?: string;
   personalContext: string;
   profession: string;
   projectDescription: string;
@@ -412,6 +414,7 @@ const defaultProfileSettings: ProfileSettingsShape = {
   avatarDataUrl: undefined,
   avatarId: "aurora",
   displayName: "",
+  bio: "",
   personalContext: "",
   profession: "",
   projectDescription: "",
@@ -646,6 +649,7 @@ export default function SettingsPage() {
   const [showWordCounter, setShowWordCounter] = useState(false);
   const [interfaceLanguage, setInterfaceLanguage] = useState<AppLanguage>("fr");
   const [profileName, setProfileName] = useState("");
+  const [profileBio, setProfileBio] = useState("");
   const [defaultTextModel, setDefaultTextModel] = useState(
     FALLBACK_DEFAULT_TEXT_MODEL
   );
@@ -684,6 +688,7 @@ export default function SettingsPage() {
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
+  const [settingsSearch, setSettingsSearch] = useState("");
   const [positionEnabled, setPositionEnabled] = useState(false);
   const [positionLabel, setPositionLabel] = useState("");
   const [isResolvingPosition, setIsResolvingPosition] = useState(false);
@@ -920,6 +925,7 @@ export default function SettingsPage() {
     );
     if (!savedProfile) {
       setProfileName(defaultProfileSettings.displayName);
+      setProfileBio(defaultProfileSettings.bio ?? "");
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
       setAiBehavior({ concision: 50, register: 50, tone: 50 });
@@ -946,6 +952,7 @@ export default function SettingsPage() {
       const nextMemoryEntries =
         parsedMemoryEntries.length > 0 ? parsedMemoryEntries : fallbackEntries;
       setProfileName(parsed.displayName?.trim() ?? "");
+      setProfileBio(parsed.bio?.trim() ?? "");
       setProfileLogoDataUrl(parsed.avatarDataUrl);
       setProfession(parsed.profession ?? "");
       setAiBehavior({
@@ -979,6 +986,7 @@ export default function SettingsPage() {
     } catch {
       // Ignore un éventuel JSON invalide pour ne pas bloquer l'écran.
       setProfileName(defaultProfileSettings.displayName);
+      setProfileBio(defaultProfileSettings.bio ?? "");
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
       setAiBehavior({ concision: 50, register: 50, tone: 50 });
@@ -1081,6 +1089,7 @@ export default function SettingsPage() {
             ? parsed.avatarId
             : defaultProfileSettings.avatarId,
         displayName: profileName.trim(),
+        bio: profileBio.trim(),
         personalContext,
         profession,
         stylisticDirectives: [aiPersonality.trim(), behaviorDirective]
@@ -1114,6 +1123,7 @@ export default function SettingsPage() {
           aiPersonality,
           avatarDataUrl: profileLogoDataUrl,
           displayName: profileName.trim(),
+          bio: profileBio.trim(),
           personalContext,
           profession,
           stylisticDirectives: aiPersonality.trim(),
@@ -1130,6 +1140,7 @@ export default function SettingsPage() {
     profession,
     profileLogoDataUrl,
     profileName,
+    profileBio,
   ]);
 
   useEffect(() => {
@@ -2063,6 +2074,13 @@ export default function SettingsPage() {
     { href: "#donnees", key: "donnees", label: uiLabels.data },
     { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
+  const filteredSettingsSections = settingsSections.filter((section) => {
+    const haystack = `${section.label} ${section.key}`.toLowerCase();
+    const query = settingsSearch.trim().toLowerCase();
+    if (!query) return true;
+    if (haystack.includes(query)) return true;
+    return query.split("").every((char) => haystack.includes(char));
+  });
   const sectionVisibility = (key: string) =>
     activeSettingsSection === key ? "block" : "hidden";
   const isParentalSessionUnlocked =
@@ -2128,6 +2146,17 @@ export default function SettingsPage() {
       type: "success",
     });
   };
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key !== ",") return;
+      event.preventDefault();
+      setActiveSettingsSection("compte");
+      toast.success("Paramètres ouverts.");
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
 
   const handleUnlockParentalSection = () => {
     if (!parentalSettings.lockCodeHash) {
@@ -2253,8 +2282,14 @@ export default function SettingsPage() {
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           {uiLabels.navigation}
         </p>
+        <Input
+          className="mt-3"
+          onChange={(event) => setSettingsSearch(event.target.value)}
+          placeholder="Rechercher un paramètre (ex: voix, PIN, export...)"
+          value={settingsSearch}
+        />
         <div className="mt-3 flex flex-wrap gap-2">
-          {settingsSections.map((item) => (
+          {filteredSettingsSections.map((item) => (
             <a
               className={cn(
                 "rounded-full border px-3 py-1 text-xs transition-colors",
@@ -2581,6 +2616,35 @@ export default function SettingsPage() {
               value={profession}
             />
           </div>
+        </div>
+        <div className="mt-4 space-y-2">
+          <label className="text-xs text-muted-foreground" htmlFor="profile-bio">
+            Bio courte
+          </label>
+          <Input
+            id="profile-bio"
+            maxLength={120}
+            onChange={(event) => setProfileBio(event.target.value)}
+            placeholder="Ex: Passionné(e) de sciences et de code."
+            value={profileBio}
+          />
+          {(() => {
+            const fields = [
+              profileName.trim().length > 0,
+              profession.trim().length > 0,
+              profileBio.trim().length > 0,
+              Boolean(profileLogoDataUrl),
+            ];
+            const completion = Math.round((fields.filter(Boolean).length / fields.length) * 100);
+            return (
+              <div>
+                <p className="text-[11px] text-muted-foreground">Complétude du profil: {completion}%</p>
+                <div className="mt-1 h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-violet-500 transition-all" style={{ width: `${completion}%` }} />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">

@@ -178,7 +178,11 @@ export default function QuizzlySocialPage() {
                   {social.friendRequests.map((pseudo) => (
                     <div key={pseudo} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg">
                       <span>{pseudo}</span>
-                      <button onClick={() => setSocial((prev) => ({ ...prev, friendRequests: prev.friendRequests.filter((r) => r !== pseudo), friends: [pseudo, ...prev.friends] }))} className="text-xs font-bold bg-emerald-500 text-white px-2 py-1 rounded">Accepter</button>
+                      <div className="flex gap-1">
+                        <button onClick={() => setSocial((prev) => ({ ...prev, friendRequests: prev.friendRequests.filter((r) => r !== pseudo), friends: [pseudo, ...prev.friends] }))} className="text-xs font-bold bg-emerald-500 text-white px-2 py-1 rounded">Accepter</button>
+                        <button onClick={() => setSocial((prev) => ({ ...prev, friendRequests: prev.friendRequests.filter((r) => r !== pseudo) }))} className="text-xs font-bold bg-slate-400 text-white px-2 py-1 rounded">Refuser</button>
+                        <button onClick={() => { setSocial((prev) => ({ ...prev, friendRequests: prev.friendRequests.filter((r) => r !== pseudo), blockedUsers: Array.from(new Set([pseudo, ...prev.blockedUsers])) })); toast.success(`${pseudo} bloqué.`); }} className="text-xs font-bold bg-red-500 text-white px-2 py-1 rounded">Bloquer</button>
+                      </div>
                     </div>
                   ))}
                 </div>
