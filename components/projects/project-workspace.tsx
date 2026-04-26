@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { ProjectDashboard } from "./project-dashboard";
-import { ProjectTaskManager } from "./project-task-manager";
+import { ProjectTaskViews } from "./project-task-views";
 
 type ProjectWorkspaceProps = {
   projectColor: string | null;
@@ -194,7 +194,7 @@ export function ProjectWorkspace({
       </article>
 
       <div className="lg:col-span-2">
-        <ProjectTaskManager projectId={projectId} />
+        <ProjectTaskViews projectId={projectId} />
       </div>
       </div>
     </section>
