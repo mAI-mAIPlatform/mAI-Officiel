@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { addStatsEvent } from "@/lib/user-stats";
+import { addInterpreterRun } from "@/lib/user-stats";
 
 type Runtime =
   | "python"
@@ -64,6 +65,7 @@ type SavedSnippet = {
   runtime: Runtime;
   sourceCode: string;
 };
+type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -160,6 +162,12 @@ export default function InterpreterPage() {
     "mai.interpreter.snippets.v1",
     []
   );
+  const [assistantMessages, setAssistantMessages] = useLocalStorage<AssistantMessage[]>(
+    "mai.interpreter.ai-messages.v1",
+    []
+  );
+  const [assistantPrompt, setAssistantPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const features = useMemo(
     () => [
@@ -193,6 +201,7 @@ export default function InterpreterPage() {
 
       const payload = (await response.json()) as ExecutionResponse;
       addStatsEvent("api_call", 1);
+      addInterpreterRun(1);
       setResult(payload);
       setHistory((current) =>
         [
@@ -227,6 +236,53 @@ export default function InterpreterPage() {
       );
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const askAssistant = async () => {
+    if (!assistantPrompt.trim()) return;
+    const userMessage: AssistantMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: assistantPrompt.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    setAssistantMessages((current) => [userMessage, ...current].slice(0, 30));
+    setIsGenerating(true);
+    try {
+      const response = await fetch("/api/code-interpreter/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: assistantPrompt.trim(), runtime }),
+      });
+      const payload = (await response.json()) as { answer?: string; error?: string };
+      if (!response.ok || !payload.answer) {
+        throw new Error(payload.error ?? "Réponse IA indisponible");
+      }
+      const assistantMessage: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: payload.answer,
+        createdAt: new Date().toISOString(),
+      };
+      setAssistantMessages((current) => [assistantMessage, ...current].slice(0, 30));
+      const codeBlockMatch = payload.answer.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
+      if (codeBlockMatch?.[1]) {
+        setCode(codeBlockMatch[1].trim());
+      }
+      setAssistantPrompt("");
+    } catch (error) {
+      setAssistantMessages((current) => [
+        {
+          id: crypto.randomUUID(),
+          role: "assistant" as const,
+          content: `Erreur: ${error instanceof Error ? error.message : "inconnue"}`,
+          createdAt: new Date().toISOString(),
+        },
+        ...current,
+      ].slice(0, 30));
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -499,6 +555,43 @@ export default function InterpreterPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 space-y-2 rounded-xl border border-border/40 p-2">
+            <p className="text-xs font-semibold">Assistant IA code + historique</p>
+            <textarea
+              className="min-h-16 w-full rounded-md border border-border/50 bg-background/70 p-2 text-xs"
+              onChange={(event) => setAssistantPrompt(event.target.value)}
+              placeholder="Ex: Crée un script Python qui lit un CSV et exporte le top 5 en JSON."
+              value={assistantPrompt}
+            />
+            <div className="flex gap-2">
+              <button className="rounded-md bg-violet-600 px-2 py-1 text-xs text-white disabled:opacity-50" disabled={isGenerating} onClick={askAssistant} type="button">
+                {isGenerating ? "Génération..." : "Demander à l'IA"}
+              </button>
+              <button
+                className="rounded-md border border-border/50 px-2 py-1 text-xs"
+                onClick={() => {
+                  const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `generated-${runtime}.${runtime === "python" ? "py" : "txt"}`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                type="button"
+              >
+                Télécharger le code
+              </button>
+            </div>
+            <div className="max-h-40 space-y-1 overflow-auto">
+              {assistantMessages.slice(0, 8).map((message) => (
+                <div className="rounded-md border border-border/40 p-1 text-[11px]" key={message.id}>
+                  <p className="font-semibold">{message.role === "assistant" ? "IA" : "Vous"} · {new Date(message.createdAt).toLocaleTimeString("fr-FR")}</p>
+                  <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">{message.content}</p>
                 </div>
               ))}
             </div>

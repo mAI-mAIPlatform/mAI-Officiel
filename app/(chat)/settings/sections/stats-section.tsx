@@ -66,6 +66,14 @@ function getBadgeProgress(
     b66: { current: stats.quizzlyPerfectQuizzes, target: 5 },
     b67: { current: stats.quizzlyPassClaims, target: 10 },
     b68: { current: stats.quizzlyQuizzesPlayed, target: 100 },
+    b69: { current: stats.quizzlyQuizzesPlayed, target: 10 },
+    b70: { current: stats.quizzlyPassClaims, target: 25 },
+    b71: { current: stats.interpreterRuns, target: 1 },
+    b72: { current: stats.interpreterRuns, target: 25 },
+    b73: { current: stats.interpreterRuns, target: 100 },
+    b74: { current: stats.apiCalls, target: 100 },
+    b75: { current: stats.imagesGenerated + stats.musicsGenerated, target: 60 },
+    b76: { current: stats.apiCalls, target: 500 },
   };
 
   const tracked = objectives[badgeId];

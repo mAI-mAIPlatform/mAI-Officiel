@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { finishQuiz } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { CheckCircle, Clock3, Download, Share2, XCircle } from "lucide-react";
+import { chatModels, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 type QuizQuestion = {
   question: string;
@@ -38,6 +39,10 @@ type LocalQuiz = {
 const FAVORITES_KEY = "mai.quizzly.favorites.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
 const CHRONO_OPTIONS = [15, 30, 60] as const;
+const GRADE_OPTIONS = ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale", "Supérieur"] as const;
+const SUBJECT_OPTIONS = ["Mathématiques", "Français", "Histoire", "Géographie", "SVT", "Physique-Chimie", "Anglais", "Philosophie"] as const;
+const DIFFICULTY_OPTIONS = ["Facile", "Moyen", "Difficile", "Expert"] as const;
+const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20] as const;
 
 export default function QuizzlyPlayPage() {
   const router = useRouter();
@@ -46,6 +51,7 @@ export default function QuizzlyPlayPage() {
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
   const [count, setCount] = useState(5);
+  const [modelId, setModelId] = useState(DEFAULT_CHAT_MODEL);
   const [chapter, setChapter] = useState("");
   const [themePrompt, setThemePrompt] = useState("");
   const [chronoEnabled, setChronoEnabled] = useState(false);
@@ -111,7 +117,7 @@ export default function QuizzlyPlayPage() {
       const res = await fetch("/api/quizzly/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, subject, difficulty, count, chapter, themePrompt }),
+        body: JSON.stringify({ grade, subject, difficulty, count, chapter, themePrompt, modelId }),
       });
       const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
       if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
@@ -324,10 +330,31 @@ export default function QuizzlyPlayPage() {
       )}
 
       <div className="grid gap-3 md:grid-cols-2">
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Classe" value={grade} onChange={(e) => setGrade(e.target.value)} />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Matière" value={subject} onChange={(e) => setSubject(e.target.value)} />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Difficulté" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value) || 5)} />
+        <label className="text-sm font-medium text-slate-700">Classe
+          <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={grade} onChange={(e) => setGrade(e.target.value)}>
+            {GRADE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-700">Matière
+          <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={subject} onChange={(e) => setSubject(e.target.value)}>
+            {SUBJECT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-700">Difficulté
+          <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+            {DIFFICULTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-700">Nombre de questions
+          <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={count} onChange={(e) => setCount(Number(e.target.value) || 5)}>
+            {QUESTION_COUNT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-700 md:col-span-2">Modèle IA
+          <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={modelId} onChange={(e) => setModelId(e.target.value)}>
+            {chatModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+          </select>
+        </label>
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Chapitre" value={chapter} onChange={(e) => setChapter(e.target.value)} />
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Thème" value={themePrompt} onChange={(e) => setThemePrompt(e.target.value)} />
       </div>

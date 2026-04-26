@@ -41,6 +41,16 @@ const PASS_REWARDS: PassReward[] = Array.from({ length: 20 }, (_, index) => {
 });
 
 type Profile = { xp: number; diamonds: number; stars: number };
+const rewardTypeIcon: Record<PassReward["type"], string> = {
+  diamonds: "💎",
+  theme: "🎨",
+  effect: "✨",
+  stars: "⭐",
+  "booster_x1.5": "⚡",
+  booster_x2: "🚀",
+  shield_1d: "🛡️",
+  shield_3d: "🛡️",
+};
 const PRO_PASS_REWARDS: PassReward[] = Array.from({ length: 10 }, (_, index) => {
   const id = index + 1;
   if (id % 5 === 0) return { id: 100 + id, requirementXp: id * 180, label: "Avatar légendaire", type: "theme", value: 1 };
@@ -105,8 +115,8 @@ export default function QuizzlyPassPage() {
         <p className="text-xs text-violet-700 mt-1">Pass Pro: récompenses bonus pour les comptes Plus/Pro/Max.</p>
       </div>
       <div className="bg-white p-5 rounded-2xl border border-slate-100">XP actuelle: <span className="font-black">{profile.xp}</span></div>
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
+      <div className="grid md:grid-cols-[1fr_1fr] gap-4 items-stretch">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 md:order-1">
           <h3 className="font-black text-slate-800">Pass Gratuit</h3>
           <p className="text-xs text-slate-500 mt-1">Récompenses de base chaque mois.</p>
           <ul className="text-sm mt-3 space-y-1 text-slate-700">
@@ -116,7 +126,7 @@ export default function QuizzlyPassPage() {
             <li>• Boosters</li>
           </ul>
         </div>
-        <div className="bg-gradient-to-b from-yellow-50 to-amber-100 rounded-2xl border border-yellow-300 p-4 shadow-[0_0_40px_rgba(234,179,8,0.22)]">
+        <div className="bg-gradient-to-b from-yellow-50 to-amber-100 rounded-2xl border border-yellow-300 p-4 shadow-[0_0_40px_rgba(234,179,8,0.22)] md:order-2">
           <h3 className="font-black text-amber-900 flex items-center gap-2"><Crown className="w-5 h-5" /> Pass Pro</h3>
           <p className="text-xs text-amber-800 mt-1">Débloqué avec mAI Max ou 500 diamants.</p>
           <ul className="text-sm mt-3 space-y-1 text-amber-900">
@@ -126,14 +136,18 @@ export default function QuizzlyPassPage() {
           </ul>
         </div>
       </div>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid gap-4 lg:grid-cols-2">
         {PASS_REWARDS.map((reward) => {
           const unlocked = profile.xp >= reward.requirementXp;
           const isClaimed = claimed.includes(reward.id);
           return (
             <div key={reward.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
               <div>
-                <p className="font-black text-slate-800">Palier {reward.id} · {reward.label}</p>
+                <p className="font-black text-slate-800 flex items-center gap-2">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base">{rewardTypeIcon[reward.type]}</span>
+                  Palier {reward.id}
+                </p>
+                <p className="text-sm text-slate-700">{reward.label}</p>
                 <p className="text-sm text-slate-500">Requis: {reward.requirementXp} XP</p>
               </div>
               <button
@@ -163,7 +177,7 @@ export default function QuizzlyPassPage() {
             Débloquer avec 500 💎
           </button>
         )}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid gap-4 lg:grid-cols-2">
           {PRO_PASS_REWARDS.map((reward) => {
             const unlockedByPlan = plan === "max" || hasProAccess;
             const unlockedByXp = profile.xp >= reward.requirementXp;
@@ -172,7 +186,11 @@ export default function QuizzlyPassPage() {
             return (
               <div key={reward.id} className="bg-gradient-to-b from-yellow-50 to-amber-100 p-5 rounded-2xl border border-yellow-300 shadow-[0_0_24px_rgba(234,179,8,0.25)] flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-black text-amber-900 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Pro {reward.id - 100} · {reward.label}</p>
+                  <p className="font-black text-amber-900 flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-base">{rewardTypeIcon[reward.type]}</span>
+                    <Sparkles className="w-3.5 h-3.5" /> Pro {reward.id - 100}
+                  </p>
+                  <p className="text-sm text-amber-900">{reward.label}</p>
                   <p className="text-sm text-amber-800">Requis: {reward.requirementXp} XP</p>
                 </div>
                 <button
