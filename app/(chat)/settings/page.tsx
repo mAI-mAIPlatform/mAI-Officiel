@@ -4024,16 +4024,16 @@ export default function SettingsPage() {
               );
               return (
                 <article
-                  className="rounded-2xl border border-border/60 bg-background/70 p-5 shadow-sm"
+                  className="rounded-xl border border-border/60 bg-background/70 p-3 shadow-sm"
                   key={metric.key}
                 >
-                  <p className="text-4xl font-bold">
+                  <p className="text-sm font-semibold">
                     Tier {metric.title.replace(/\D/g, "") || "—"}
                   </p>
-                  <p className="mt-2 text-2xl text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Réinitialisation {formatDateTime(getNextResetDate(metric.period))}
                   </p>
-                  <div className="mt-8 h-10 rounded-full bg-muted/70 p-1">
+                  <div className="mt-3 h-3 rounded-full bg-muted/70 p-0.5">
                     <div
                       className="h-full rounded-full bg-emerald-400 transition-all duration-500"
                       style={{
@@ -4041,7 +4041,7 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
-                  <p className="mt-6 text-4xl font-bold">
+                  <p className="mt-2 text-lg font-bold">
                     {availablePercent}%
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
