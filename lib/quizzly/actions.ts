@@ -345,6 +345,16 @@ export async function getFriendStreaks() {
 export async function spinWheelOfFortune() {
   const userId = await getAuthenticatedUserId();
   const profile = await getQuizzlyProfile();
+  const weekKey = getWeekKey();
+  const weeklySpinKey = `wheel-spin:${weekKey}`;
+  const [alreadySpunThisWeek] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, weeklySpinKey)));
+  if (alreadySpunThisWeek) {
+    throw new Error("Roue déjà utilisée cette semaine. Reviens la semaine prochaine.");
+  }
+
   const cost = 10;
   if (profile.diamonds < cost) {
     throw new Error("Pas assez de diamants pour tourner la roue.");
@@ -356,10 +366,11 @@ export async function spinWheelOfFortune() {
   await updateQuizzlyProfile({
     diamonds: profile.diamonds - cost + result,
   });
+  await upsertInventoryItem(userId, weeklySpinKey, 1);
   await upsertInventoryItem(userId, "stats:diamonds-spent", cost);
   await upsertInventoryItem(userId, "stats:diamonds-earned", result);
 
-  return { cost, isJackpot: result === 100, result, success: true };
+  return { cost, isJackpot: result === 100, result, success: true, weekKey };
 }
 
 export async function claimComebackReward() {

@@ -30,6 +30,14 @@ const SHOP_ITEMS = [
 
 type Profile = { diamonds: number };
 type InventoryItem = { itemKey: string; quantity: number };
+function getWeekKey(date = new Date()) {
+  const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
 
 export default function QuizzlyShopPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -38,7 +46,7 @@ export default function QuizzlyShopPage() {
   const [dailyClaiming, setDailyClaiming] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [lastWheelResult, setLastWheelResult] = useState<number | null>(null);
-  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelFxLevel, setWheelFxLevel] = useState<"idle" | "normal" | "jackpot">("idle");
 
   const loadData = async () => {
     const [p, inv] = await Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]);
@@ -54,6 +62,10 @@ export default function QuizzlyShopPage() {
   const canClaimDaily = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return !inventory.some((item) => item.itemKey === `daily-reward:${today}`);
+  }, [inventory]);
+  const canSpinWheel = useMemo(() => {
+    const weekKey = getWeekKey();
+    return !inventory.some((item) => item.itemKey === `wheel-spin:${weekKey}`);
   }, [inventory]);
 
   const handleDailyClaim = async () => {
@@ -93,16 +105,15 @@ export default function QuizzlyShopPage() {
   const handleSpin = async () => {
     if (!confirm("Tourner la roue coûte 10 diamants. Continuer ?")) return;
     setSpinning(true);
+    setWheelFxLevel("idle");
     try {
       const res = await spinWheelOfFortune();
-      const segmentIndex = [0, 5, 10, 15, 25, 50, 75, 100].indexOf(res.result);
-      const baseRotation = 360 * 6;
-      const target = baseRotation + (360 - segmentIndex * 45);
-      setWheelRotation((prev) => prev + target);
       setLastWheelResult(res.result);
       if (res.isJackpot) {
+        setWheelFxLevel("jackpot");
         toast.success("🎉 JACKPOT 100 💎 ! La tribu va en entendre parler !");
       } else {
+        setWheelFxLevel("normal");
         toast.success(`Roue terminée : ${res.result} 💎`);
       }
       await loadData();
@@ -148,8 +159,9 @@ export default function QuizzlyShopPage() {
           <div>
             <p className="font-black text-slate-800">🎰 Roue de la Fortune</p>
             <p className="mt-1 text-sm text-slate-600">
-              Mise fixe: <strong>10 💎</strong>. Gains possibles: 0, 5, 10, 15, 25, 50, 75, 100.
+              Mise fixe: <strong>10 💎</strong>. Disponible <strong>1 fois par semaine</strong>. Gains possibles: 0, 5, 10, 15, 25, 50, 75, 100.
             </p>
+            {!canSpinWheel && <p className="mt-1 text-xs font-semibold text-amber-700">Roue déjà utilisée cette semaine.</p>}
             {lastWheelResult !== null && (
               <p className="mt-2 text-xs font-bold text-fuchsia-700">Dernier résultat: {lastWheelResult} 💎</p>
             )}
@@ -157,21 +169,20 @@ export default function QuizzlyShopPage() {
           <div className="relative h-28 w-28">
             <div className="absolute left-1/2 -top-2 h-0 w-0 -translate-x-1/2 border-x-8 border-b-[12px] border-x-transparent border-b-violet-700" />
             <div
-              className="h-28 w-28 rounded-full border-4 border-white shadow transition-transform duration-[2800ms] ease-out"
+              className={`h-28 w-28 rounded-full border-4 border-white shadow ${wheelFxLevel === "normal" ? "ring-4 ring-fuchsia-300/70" : ""} ${wheelFxLevel === "jackpot" ? "animate-pulse ring-4 ring-yellow-300" : ""}`}
               style={{
                 background:
                   "conic-gradient(#f43f5e 0 45deg,#fb7185 45deg 90deg,#f97316 90deg 135deg,#f59e0b 135deg 180deg,#84cc16 180deg 225deg,#22d3ee 225deg 270deg,#3b82f6 270deg 315deg,#8b5cf6 315deg 360deg)",
-                transform: `rotate(${wheelRotation}deg)`,
               }}
             />
           </div>
           <button
             className="rounded-xl bg-fuchsia-600 px-4 py-2.5 font-bold text-white disabled:opacity-50"
-            disabled={spinning || profile.diamonds < 10}
+            disabled={spinning || profile.diamonds < 10 || !canSpinWheel}
             onClick={handleSpin}
             type="button"
           >
-            {spinning ? "Rotation..." : "Parier 10💎"}
+            {spinning ? "Résolution..." : canSpinWheel ? "Parier 10💎" : "Déjà joué cette semaine"}
           </button>
         </div>
       </div>

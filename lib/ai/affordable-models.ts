@@ -1,4 +1,5 @@
 import { hordeTextModelOptions } from "@/lib/ai/horde-models";
+import { hordeImageModelOptions } from "@/lib/ai/horde-image-models";
 
 export type AffordableModelOption = {
   id: string;
@@ -31,21 +32,5 @@ export const affordableTextModels: AffordableModelOption[] = [
 ];
 
 export const affordableImageModels: AffordableModelOption[] = [
-  { id: "horde/stable_diffusion", label: "Stable Diffusion" },
-  { id: "horde/AbsoluteReality", label: "AbsoluteReality" },
-  { id: "horde/Realistic Vision", label: "Realistic Vision" },
-  { id: "horde/Juggernaut XL", label: "Juggernaut XL" },
-  { id: "horde/SDXL 1.0", label: "SDXL 1.0" },
-  { id: "horde/DreamShaper", label: "DreamShaper" },
-  { id: "horde/Anything v5", label: "Anything v5" },
-  { id: "horde/ChilloutMix", label: "ChilloutMix" },
-  { id: "horde/Deliberate", label: "Deliberate" },
-  { id: "horde/Stable Cascade 1.0", label: "Stable Cascade 1.0" },
-  { id: "horde/AbyssOrangeMix-AfterDark", label: "AbyssOrangeMix-AfterDark" },
-  { id: "horde/WAI-NSFW-illustrious-SDXL", label: "WAI-NSFW-illustrious-SDXL" },
-  { id: "horde/Animagine XL", label: "Animagine XL" },
-  { id: "horde/ZavyChromaXL", label: "ZavyChromaXL" },
-  { id: "horde/Realism Engine", label: "Realism Engine" },
-  { id: "horde/Inkpunk Diffusion", label: "Inkpunk Diffusion" },
-  { id: "horde/MeinaMix", label: "MeinaMix" },
+  ...hordeImageModelOptions,
 ];
