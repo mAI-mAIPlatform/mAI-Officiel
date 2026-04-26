@@ -33,7 +33,7 @@ export default async function ProjectDetailPage({
   }
 
   const [projectChats, allUserChats, projectStats] = await Promise.all([
-    getChatsByProjectId({ projectId: id, userId: session.user.id }),
+    getChatsByProjectId({ projectId: id }),
     getChatsByUserId({
       id: session.user.id,
       limit: 100,

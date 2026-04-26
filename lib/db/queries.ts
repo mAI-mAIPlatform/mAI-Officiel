@@ -106,16 +106,14 @@ export async function saveChat({
 
 export async function getChatsByProjectId({
   projectId,
-  userId,
 }: {
   projectId: string;
-  userId: string;
 }) {
   try {
     return await db
       .select()
       .from(chat)
-      .where(and(eq(chat.projectId, projectId), eq(chat.userId, userId)))
+      .where(eq(chat.projectId, projectId))
       .orderBy(desc(chat.createdAt));
   } catch (_error) {
     throw new ChatbotError(

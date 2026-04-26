@@ -29,7 +29,6 @@ export async function GET(
 
   const chats = await getChatsByProjectId({
     projectId: id,
-    userId: session.user.id,
   });
 
   return NextResponse.json(chats);

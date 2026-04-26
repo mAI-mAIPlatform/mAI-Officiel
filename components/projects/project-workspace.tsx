@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { BarChart3, BookOpen, MessageSquare, Settings, SquareKanban } from "lucide-react";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { ProjectDashboard } from "./project-dashboard";
 import { ProjectLibrary } from "./project-library";
 import { ProjectTaskViews } from "./project-task-views";
+import { ProjectHistoryView } from "./project-history-view";
 
 type ProjectWorkspaceProps = {
   projectColor: string | null;
@@ -45,8 +47,9 @@ export function ProjectWorkspace({
   stats,
 }: ProjectWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "discussions" | "tasks" | "library" | "settings"
+    "dashboard" | "discussions" | "tasks" | "library" | "history" | "settings"
   >("dashboard");
+  const searchParams = useSearchParams();
   const [selectedChatId, setSelectedChatId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -54,6 +57,16 @@ export function ProjectWorkspace({
     `mai.projects.quick-notes.${projectId}`,
     ""
   );
+  const tabFromUrl = searchParams?.get("tab");
+  const effectiveTab =
+    tabFromUrl === "tasks" ||
+    tabFromUrl === "library" ||
+    tabFromUrl === "history" ||
+    tabFromUrl === "discussions" ||
+    tabFromUrl === "dashboard" ||
+    tabFromUrl === "settings"
+      ? tabFromUrl
+      : activeTab;
 
   const canImport = selectedChatId.trim().length > 0 && !isImporting;
 
@@ -110,16 +123,24 @@ export function ProjectWorkspace({
           { key: "discussions", label: "Discussions" },
           { key: "tasks", label: "Tâches" },
           { key: "library", label: "Bibliothèque" },
+          { key: "history", label: "Historique" },
         ].map((tab) => (
           <button
             className={`min-h-11 rounded-xl px-3 py-1.5 text-sm transition ${
-              activeTab === tab.key
+              effectiveTab === tab.key
                 ? "bg-cyan-200/80 text-black"
                 : "text-black/70 hover:bg-white/80"
             }`}
             key={tab.key}
             onClick={() =>
-              setActiveTab(tab.key as "dashboard" | "discussions" | "tasks" | "library")
+              setActiveTab(
+                tab.key as
+                  | "dashboard"
+                  | "discussions"
+                  | "tasks"
+                  | "library"
+                  | "history"
+              )
             }
             type="button"
           >
@@ -128,7 +149,7 @@ export function ProjectWorkspace({
         ))}
       </div>
 
-      {activeTab === "dashboard" ? (
+      {effectiveTab === "dashboard" ? (
         <ProjectDashboard
         color={projectColor}
         completedTasks={stats.completedTasks}
@@ -148,7 +169,7 @@ export function ProjectWorkspace({
         />
       ) : null}
 
-      {activeTab === "discussions" ? (
+      {effectiveTab === "discussions" ? (
         <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
           <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
         <h2 className="text-lg font-semibold text-black">
@@ -158,6 +179,13 @@ export function ProjectWorkspace({
           Cliquez sur une conversation pour discuter avec la même interface que
           le chat principal.
         </p>
+        <button
+          className="mt-3 rounded-lg border border-black/20 bg-white px-3 py-1 text-xs"
+          onClick={() => setActiveTab("history")}
+          type="button"
+        >
+          Ouvrir l'historique complet
+        </button>
 
         <div className="mt-4 space-y-2">
           {projectChats.length === 0 ? (
@@ -168,7 +196,7 @@ export function ProjectWorkspace({
             projectChats.map((chat) => (
               <Link
                 className="flex items-center justify-between rounded-xl border border-black/20 bg-white/80 px-3 py-2 text-sm text-black transition hover:bg-white"
-                href={`/chat/${chat.id}`}
+                href={`/chat/${chat.id}?projectId=${projectId}`}
                 key={chat.id}
               >
                 <span className="font-medium">{chat.title}</span>
@@ -246,11 +274,13 @@ export function ProjectWorkspace({
         </div>
       ) : null}
 
-      {activeTab === "tasks" ? <ProjectTaskViews projectId={projectId} /> : null}
+      {effectiveTab === "tasks" ? <ProjectTaskViews projectId={projectId} /> : null}
 
-      {activeTab === "library" ? <ProjectLibrary projectId={projectId} /> : null}
+      {effectiveTab === "library" ? <ProjectLibrary projectId={projectId} /> : null}
 
-      {activeTab === "settings" ? (
+      {effectiveTab === "history" ? <ProjectHistoryView projectId={projectId} /> : null}
+
+      {effectiveTab === "settings" ? (
         <div className="rounded-2xl border border-white/30 bg-white/85 p-4">
           <Link
             className="flex min-h-11 items-center rounded-xl border border-black/20 bg-white px-3"
@@ -262,17 +292,18 @@ export function ProjectWorkspace({
       ) : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/30 bg-white/90 p-1 backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {[
             { key: "dashboard", label: "Dashboard", icon: BarChart3 },
             { key: "tasks", label: "Tâches", icon: SquareKanban },
             { key: "library", label: "Bibliothèque", icon: BookOpen },
+            { key: "history", label: "Historique", icon: MessageSquare },
             { key: "discussions", label: "Chat", icon: MessageSquare },
             { key: "settings", label: "Paramètres", icon: Settings },
           ].map((item) => (
             <button
               className={`flex min-h-11 flex-col items-center justify-center rounded-lg text-[11px] ${
-                activeTab === item.key ? "bg-cyan-200/80" : "bg-white/70"
+                effectiveTab === item.key ? "bg-cyan-200/80" : "bg-white/70"
               }`}
               key={item.key}
               onClick={() =>
@@ -282,6 +313,7 @@ export function ProjectWorkspace({
                     | "discussions"
                     | "tasks"
                     | "library"
+                    | "history"
                     | "settings"
                 )
               }

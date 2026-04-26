@@ -429,7 +429,7 @@ export const memoryEntry = pgTable("Memory", {
     .references(() => user.id),
   projectId: uuid("projectId").references(() => project.id),
   content: text("content").notNull(),
-  type: varchar("type", { enum: ["auto", "manual"] })
+  type: varchar("type", { enum: ["auto", "manual", "summary"] })
     .notNull()
     .default("manual"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
