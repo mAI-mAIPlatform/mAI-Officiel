@@ -275,6 +275,55 @@ export const taskComment = pgTable("TaskComment", {
 
 export type TaskComment = InferSelectModel<typeof taskComment>;
 
+export const notification = pgTable("Notification", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  projectId: uuid("projectId").references(() => project.id),
+  taskId: uuid("taskId").references(() => task.id),
+  type: varchar("type", {
+    enum: [
+      "task_due",
+      "task_assigned",
+      "comment_added",
+      "project_deadline",
+      "task_completed",
+      "mention",
+    ],
+  }).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("isRead").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type Notification = InferSelectModel<typeof notification>;
+
+export const projectNotificationPreference = pgTable(
+  "ProjectNotificationPreference",
+  {
+    projectId: uuid("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: uuid("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    deadlineReminders: boolean("deadlineReminders").notNull().default(true),
+    taskAssignment: boolean("taskAssignment").notNull().default(true),
+    commentAdded: boolean("commentAdded").notNull().default(true),
+    taskCompleted: boolean("taskCompleted").notNull().default(true),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.projectId, table.userId] }),
+  })
+);
+
+export type ProjectNotificationPreference = InferSelectModel<
+  typeof projectNotificationPreference
+>;
+
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")

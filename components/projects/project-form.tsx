@@ -58,7 +58,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
             tags: parsedTags,
             templateId: initialValues?.templateId,
           }
-        : { name, instructions };
+        : { name, description, instructions, tags: parsedTags };
 
     const response = await fetch(endpoint, {
       method,

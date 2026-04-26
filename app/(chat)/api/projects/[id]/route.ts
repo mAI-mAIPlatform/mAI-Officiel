@@ -9,6 +9,7 @@ import {
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(5000).optional(),
   instructions: z.string().trim().max(5000).optional(),
   startDate: z.coerce.date().nullable().optional(),
   endDate: z.coerce.date().nullable().optional(),

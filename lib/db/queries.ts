@@ -722,9 +722,13 @@ import {
   type MemoryEntry,
   memoryEntry,
   type Project,
+  type ProjectNotificationPreference,
+  projectNotificationPreference,
   project,
   type ProjectTemplate,
   projectTemplate,
+  notification,
+  type Notification,
   type Subtask,
   subscription,
   subtask,
@@ -1044,6 +1048,125 @@ export async function createProjectTemplate(
   } catch (error) {
     console.error("Failed to create project template:", error);
     throw new Error("Failed to create project template");
+  }
+}
+
+export async function getProjectNotificationPreference(
+  projectId: string,
+  userId: string
+): Promise<ProjectNotificationPreference | undefined> {
+  try {
+    const [pref] = await db
+      .select()
+      .from(projectNotificationPreference)
+      .where(
+        and(
+          eq(projectNotificationPreference.projectId, projectId),
+          eq(projectNotificationPreference.userId, userId)
+        )
+      );
+    return pref;
+  } catch (error) {
+    console.error("Failed to get project notification preference:", error);
+    throw new Error("Failed to get project notification preference");
+  }
+}
+
+export async function upsertProjectNotificationPreference(
+  projectId: string,
+  userId: string,
+  data: Partial<
+    Pick<
+      ProjectNotificationPreference,
+      "deadlineReminders" | "taskAssignment" | "commentAdded" | "taskCompleted"
+    >
+  >
+) {
+  try {
+    return await db
+      .insert(projectNotificationPreference)
+      .values({ projectId, userId, ...data })
+      .onConflictDoUpdate({
+        target: [
+          projectNotificationPreference.projectId,
+          projectNotificationPreference.userId,
+        ],
+        set: { ...data, updatedAt: new Date() },
+      })
+      .returning();
+  } catch (error) {
+    console.error("Failed to upsert project notification preference:", error);
+    throw new Error("Failed to upsert project notification preference");
+  }
+}
+
+export async function getNotificationsByUser(
+  userId: string,
+  limit = 50,
+  offset = 0
+) {
+  try {
+    return await db
+      .select()
+      .from(notification)
+      .where(eq(notification.userId, userId))
+      .orderBy(desc(notification.createdAt))
+      .limit(limit)
+      .offset(offset);
+  } catch (error) {
+    console.error("Failed to get notifications:", error);
+    throw new Error("Failed to get notifications");
+  }
+}
+
+export async function getUnreadNotificationCount(userId: string) {
+  try {
+    const [row] = await db
+      .select({ count: count(notification.id) })
+      .from(notification)
+      .where(and(eq(notification.userId, userId), eq(notification.isRead, false)));
+    return row?.count ?? 0;
+  } catch (error) {
+    console.error("Failed to get unread notification count:", error);
+    throw new Error("Failed to get unread notification count");
+  }
+}
+
+export async function createNotification(
+  data: Pick<Notification, "userId" | "type" | "title" | "message"> &
+    Partial<Pick<Notification, "projectId" | "taskId" | "isRead">>
+) {
+  try {
+    return await db.insert(notification).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create notification:", error);
+    throw new Error("Failed to create notification");
+  }
+}
+
+export async function markNotificationAsRead(id: string, userId: string) {
+  try {
+    return await db
+      .update(notification)
+      .set({ isRead: true })
+      .where(and(eq(notification.id, id), eq(notification.userId, userId)))
+      .returning();
+  } catch (error) {
+    console.error("Failed to mark notification as read:", error);
+    throw new Error("Failed to mark notification as read");
+  }
+}
+
+export async function markAllNotificationsAsRead(userId: string) {
+  try {
+    return await db
+      .update(notification)
+      .set({ isRead: true })
+      .where(eq(notification.userId, userId))
+      .returning();
+  } catch (error) {
+    console.error("Failed to mark all notifications as read:", error);
+    throw new Error("Failed to mark all notifications as read");
   }
 }
 

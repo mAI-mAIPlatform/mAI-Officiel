@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { ProjectForm } from "@/components/projects/project-form";
+import { ProjectNotificationSettings } from "@/components/projects/project-notification-settings";
 import { getProjectById } from "@/lib/db/queries";
 
 export default async function EditProjectPage({
@@ -34,10 +35,13 @@ export default async function EditProjectPage({
         initialValues={{
           id: project.id,
           name: project.name,
+          description: project.description,
           instructions: project.instructions,
+          tags: project.tags ?? [],
         }}
         mode="edit"
       />
+      <ProjectNotificationSettings projectId={project.id} />
     </main>
   );
 }
