@@ -1,7 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { myProvider } from "@/lib/ai/providers";
-import { getUser } from "@/lib/db/queries";
+import { getLanguageModel } from "@/lib/ai/providers";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +14,7 @@ export async function POST(req: Request) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const model = myProvider.languageModel(modelId);
+    const model = getLanguageModel(modelId);
 
     const prompt = `Tu es un professeur expert. Génère ${count} questions à choix multiples (QCM) pour la matière "${subject}", niveau "${grade}", avec une difficulté "${difficulty}".
     Chaque question doit avoir 4 propositions, une seule bonne réponse, et une courte explication.`;

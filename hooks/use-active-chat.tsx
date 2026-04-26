@@ -51,7 +51,11 @@ type ActiveChatContextValue = {
 const ActiveChatContext = createContext<ActiveChatContextValue | null>(null);
 const GHOST_CHAT_ID_STORAGE_KEY = "mai.ghost-chat-id";
 
-function extractChatId(pathname: string): string | null {
+function extractChatId(pathname: string | null): string | null {
+  if (!pathname) {
+    return null;
+  }
+
   const match = pathname.match(/\/chat\/([^/]+)/);
   return match ? match[1] : null;
 }
@@ -65,15 +69,15 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   const chatIdFromUrl = extractChatId(pathname);
   const isNewChat = !chatIdFromUrl;
   const newChatIdRef = useRef(generateUUID());
-  const prevPathnameRef = useRef(pathname);
+  const prevPathnameRef = useRef(pathname ?? "");
 
-  if (isNewChat && prevPathnameRef.current !== pathname) {
+  if (isNewChat && prevPathnameRef.current !== (pathname ?? "")) {
     newChatIdRef.current = generateUUID();
   }
-  prevPathnameRef.current = pathname;
+  prevPathnameRef.current = pathname ?? "";
 
   const chatId = chatIdFromUrl ?? newChatIdRef.current;
-  const projectId = searchParams.get("projectId");
+  const projectId = searchParams?.get("projectId") ?? null;
   const getGhostChatId = () => {
     if (typeof window === "undefined") {
       return null;
