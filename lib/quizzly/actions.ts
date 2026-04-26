@@ -8,7 +8,7 @@ import {
   quizzlyInventory,
   quizzlyUserQuest,
 } from "@/lib/db/schema";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, like, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import dailyQuestsRaw from "./quests/daily-quests.json";
 import weeklyQuestsRaw from "./quests/weekly-quests.json";
@@ -43,6 +43,44 @@ function getWeekKey(date = new Date()) {
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+async function updateFriendStreaksForUser(userId: string) {
+  const today = getDateKey();
+  const friendships = await db
+    .select()
+    .from(quizzlyFriendship)
+    .where(
+      and(
+        eq(quizzlyFriendship.status, "accepted"),
+        or(eq(quizzlyFriendship.userId, userId), eq(quizzlyFriendship.friendId, userId))
+      )
+    );
+
+  const friendIds = friendships.map((item) => (item.userId === userId ? item.friendId : item.userId));
+  for (const friendId of friendIds) {
+    const myPlayMarker = `friend-play:${friendId}:${today}`;
+    const friendPlayMarker = `friend-play:${userId}:${today}`;
+    const countedMarker = `friend-streak-counted:${friendId}:${today}`;
+    await upsertInventoryItem(userId, myPlayMarker, 1);
+
+    const [friendPlayed] = await db
+      .select()
+      .from(quizzlyInventory)
+      .where(and(eq(quizzlyInventory.userId, friendId), eq(quizzlyInventory.itemKey, friendPlayMarker)));
+    if (!friendPlayed) continue;
+
+    const [alreadyCounted] = await db
+      .select()
+      .from(quizzlyInventory)
+      .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, countedMarker)));
+    if (alreadyCounted) continue;
+
+    await upsertInventoryItem(userId, `friend-streak:${friendId}`, 1);
+    await upsertInventoryItem(friendId, `friend-streak:${userId}`, 1);
+    await upsertInventoryItem(userId, countedMarker, 1);
+    await upsertInventoryItem(friendId, `friend-streak-counted:${userId}:${today}`, 1);
+  }
 }
 
 export async function getQuizzlyProfile() {
@@ -272,6 +310,36 @@ export async function getQuizzlyInventory() {
   const userId = await getAuthenticatedUserId();
 
   return await db.select().from(quizzlyInventory).where(eq(quizzlyInventory.userId, userId));
+}
+
+export async function getFriendStreaks() {
+  const userId = await getAuthenticatedUserId();
+  const friendships = await db
+    .select()
+    .from(quizzlyFriendship)
+    .where(
+      and(
+        eq(quizzlyFriendship.status, "accepted"),
+        or(eq(quizzlyFriendship.userId, userId), eq(quizzlyFriendship.friendId, userId))
+      )
+    );
+  const friendIds = friendships.map((item) => (item.userId === userId ? item.friendId : item.userId));
+  if (friendIds.length === 0) {
+    return [];
+  }
+  const profiles = await db.select().from(quizzlyProfile).where(or(...friendIds.map((id) => eq(quizzlyProfile.userId, id))));
+  const streakItems = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), like(quizzlyInventory.itemKey, "friend-streak:%")));
+
+  const streakByFriendId = Object.fromEntries(
+    streakItems.map((item) => [item.itemKey.replace("friend-streak:", ""), item.quantity])
+  );
+  return profiles.map((profile) => ({
+    pseudo: profile.pseudo,
+    streak: streakByFriendId[profile.userId] ?? 0,
+  }));
 }
 
 export async function spinWheelOfFortune() {
@@ -591,6 +659,7 @@ export async function finishQuiz(
   if (bonusDiamonds > 0) {
     await upsertInventoryItem(userId, "stats:diamonds-earned", bonusDiamonds);
   }
+  await updateFriendStreaksForUser(userId);
 
   return { xpGain, newLevel, levelUps, bonusDiamonds, shieldsUsed, streak };
 }

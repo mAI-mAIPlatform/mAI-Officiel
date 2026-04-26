@@ -9,6 +9,7 @@ const bodySchema = z.object({
   difficulty: z.string().min(1),
   grade: z.string().min(1),
   modelId: z.string().min(1).optional(),
+  questionTypes: z.array(z.string().min(1)).max(5).optional(),
   subject: z.string().min(1),
   themePrompt: z.string().max(500).optional(),
 });
@@ -147,13 +148,14 @@ export async function POST(req: Request) {
       return Response.json({ error: "Paramètres invalides pour la génération du quiz." }, { status: 400 });
     }
 
-    const { chapter, count, difficulty, grade, subject, themePrompt } = payload.data;
+    const { chapter, count, difficulty, grade, subject, themePrompt, questionTypes } = payload.data;
     const resolvedModelId = resolveModelId(payload.data.modelId);
     const model = getLanguageModel(resolvedModelId);
 
     const prompt = `Tu es un professeur expert. Génère ${count} questions à choix multiples (QCM) pour la matière "${subject}", niveau "${grade}", difficulté "${difficulty}".
 Chapitre ciblé: "${chapter ?? "général"}".
 Thème personnalisé utilisateur: "${themePrompt ?? "aucun"}".
+Types souhaités: "${(questionTypes ?? ["qcm"]).join(", ")}". Si un type n'est pas nativement QCM (vrai/faux, association, compléter, inversé), convertis-le en QCM pédagogique de 4 options.
 Chaque question doit avoir 4 propositions, une seule bonne réponse, et une courte explication.
 Réponds uniquement avec un JSON valide qui respecte strictement le schéma attendu.`;
 

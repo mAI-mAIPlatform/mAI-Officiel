@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
+import { getFriendStreaks } from "@/lib/quizzly/actions";
 
 const SOCIAL_STORAGE_KEY = "mai.quizzly.social.v1";
 const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
@@ -38,6 +39,7 @@ export default function QuizzlySocialPage() {
   });
   const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [friendStreaks, setFriendStreaks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     try {
@@ -55,6 +57,16 @@ export default function QuizzlySocialPage() {
   useEffect(() => {
     window.localStorage.setItem(SOCIAL_STORAGE_KEY, JSON.stringify(social));
   }, [social]);
+
+  useEffect(() => {
+    getFriendStreaks()
+      .then((rows) =>
+        setFriendStreaks(
+          Object.fromEntries(rows.map((row) => [row.pseudo, row.streak]))
+        )
+      )
+      .catch(() => setFriendStreaks({}));
+  }, [social.friends]);
 
   useEffect(() => {
     if (!socket) return;
@@ -194,7 +206,7 @@ export default function QuizzlySocialPage() {
                 {social.friends.map((friend) => (
                   <div key={friend} className="bg-violet-50 text-violet-700 px-3 py-2 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span>{friend}</span>
+                      <span>{friend} <span className="text-xs text-orange-500">🔥 {friendStreaks[friend] ?? 0}</span></span>
                       <Trophy className="w-4 h-4 text-yellow-500" />
                     </div>
                     <div className="flex gap-2">

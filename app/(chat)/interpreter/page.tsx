@@ -173,6 +173,7 @@ export default function InterpreterPage() {
   );
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [compareWithEntry, setCompareWithEntry] = useState<ExecutionEntry | null>(null);
 
   const features = useMemo(
     () => [
@@ -314,6 +315,23 @@ export default function InterpreterPage() {
     }
   };
 
+  const computeLineDiff = (oldText: string, newText: string) => {
+    const before = oldText.split("\n");
+    const after = newText.split("\n");
+    const max = Math.max(before.length, after.length);
+    const lines: string[] = [];
+    for (let i = 0; i < max; i += 1) {
+      const a = before[i] ?? "";
+      const b = after[i] ?? "";
+      if (a === b) lines.push(`  ${b}`);
+      else {
+        if (a) lines.push(`- ${a}`);
+        if (b) lines.push(`+ ${b}`);
+      }
+    }
+    return lines.join("\n");
+  };
+
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -384,7 +402,7 @@ export default function InterpreterPage() {
             value={code}
           />
           <div className="mt-3 space-y-2 rounded-xl border border-border/40 p-3">
-            <p className="text-xs font-semibold">Fichiers additionnels (multi-fichiers)</p>
+            <p className="text-xs font-semibold">Arborescence fichiers (multi-fichiers)</p>
             {virtualFiles.map((file) => (
               <div key={file.id} className="space-y-1 rounded-md border border-border/40 p-2">
                 <div className="flex gap-2">
@@ -623,12 +641,29 @@ export default function InterpreterPage() {
                       >
                         Exporter
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => setCompareWithEntry(entry)}
+                      >
+                        Comparer (diff)
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               ))}
             </div>
           </div>
+          {compareWithEntry ? (
+            <div className="mt-4 rounded-xl border border-border/40 p-2">
+              <p className="text-xs font-semibold">Diff avec version {new Date(compareWithEntry.createdAt).toLocaleTimeString("fr-FR")}</p>
+              <pre className="mt-2 max-h-40 overflow-auto rounded bg-background/80 p-2 text-[11px]">
+                {computeLineDiff(compareWithEntry.sourceCode, code)}
+              </pre>
+              <div className="mt-2 flex gap-2">
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setCode(compareWithEntry.sourceCode)} type="button">Restaurer cette version</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setCompareWithEntry(null)} type="button">Fermer</button>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 space-y-2 rounded-xl border border-border/40 p-2">
             <p className="text-xs font-semibold">Assistant IA code + historique</p>
             <textarea

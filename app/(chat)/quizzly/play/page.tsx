@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { finishQuiz } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { CheckCircle, Clock3, Download, Share2, XCircle } from "lucide-react";
@@ -43,9 +43,14 @@ const GRADE_OPTIONS = ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Ter
 const SUBJECT_OPTIONS = ["Mathématiques", "Français", "Histoire", "Géographie", "SVT", "Physique-Chimie", "Anglais", "Philosophie"] as const;
 const DIFFICULTY_OPTIONS = ["Facile", "Moyen", "Difficile", "Expert"] as const;
 const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20] as const;
+const QUESTION_TYPE_OPTIONS = ["qcm", "vrai_faux", "association", "completer", "inverse"] as const;
+const REVIEW_QUEUE_KEY = "mai.quizzly.review.v1";
+const REVIEW_INTERVALS_DAYS = [1, 3, 7, 30] as const;
+type ReviewCard = { question: QuizQuestion; stage: number; dueAt: string };
 
 export default function QuizzlyPlayPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<"setup" | "playing" | "loading" | "result">("setup");
   const [grade, setGrade] = useState("3ème");
   const [subject, setSubject] = useState("Mathématiques");
@@ -64,6 +69,10 @@ export default function QuizzlyPlayPage() {
   const [correct, setCorrect] = useState(0);
   const [favorites, setFavorites] = useState<SavedFavorite[]>([]);
   const [localQuizzes, setLocalQuizzes] = useState<LocalQuiz[]>([]);
+  const [examMode, setExamMode] = useState(false);
+  const [questionTypes, setQuestionTypes] = useState<string[]>(["qcm"]);
+  const [reviewCards, setReviewCards] = useState<ReviewCard[]>([]);
+  const [strictScore, setStrictScore] = useState(0);
 
   const current = questions[index];
 
@@ -71,11 +80,34 @@ export default function QuizzlyPlayPage() {
     try {
       setFavorites(JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]"));
       setLocalQuizzes(JSON.parse(localStorage.getItem(LOCAL_QUIZ_KEY) ?? "[]"));
+      setReviewCards(JSON.parse(localStorage.getItem(REVIEW_QUEUE_KEY) ?? "[]"));
     } catch {
       setFavorites([]);
       setLocalQuizzes([]);
+      setReviewCards([]);
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(REVIEW_QUEUE_KEY, JSON.stringify(reviewCards));
+  }, [reviewCards]);
+
+  useEffect(() => {
+    const shared = searchParams.get("quiz");
+    if (!shared) return;
+    try {
+      const payload = JSON.parse(atob(shared));
+      setGrade(payload.grade ?? grade);
+      setSubject(payload.subject ?? subject);
+      setDifficulty(payload.difficulty ?? difficulty);
+      setCount(Number(payload.count) || count);
+      setChapter(payload.chapter ?? "");
+      setThemePrompt(payload.themePrompt ?? "");
+      setQuestionTypes(Array.isArray(payload.questionTypes) ? payload.questionTypes : ["qcm"]);
+    } catch {
+      // ignore invalid share payload
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (step !== "playing" || !chronoEnabled || selected !== null) return;
@@ -118,7 +150,7 @@ export default function QuizzlyPlayPage() {
       const res = await fetch("/api/quizzly/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, subject, difficulty, count, chapter, themePrompt, modelId }),
+        body: JSON.stringify({ grade, subject, difficulty, count, chapter, themePrompt, modelId, questionTypes }),
       });
       const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
       if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
@@ -128,6 +160,7 @@ export default function QuizzlyPlayPage() {
       setIndex(0);
       setSelected(null);
       setCorrect(0);
+      setStrictScore(0);
       setQuizStartedAt(Date.now());
       setStep("playing");
     } catch (error) {
@@ -177,7 +210,7 @@ export default function QuizzlyPlayPage() {
         subject,
         difficulty,
         questions,
-        score: correct,
+        score: examMode ? strictScore : correct,
       },
       ...localQuizzes,
     ].slice(0, 50);
@@ -219,6 +252,37 @@ export default function QuizzlyPlayPage() {
     toast.success("Résultat copié (partage rapide)");
   };
 
+  const shareQuizConfig = () => {
+    const payload = {
+      grade,
+      subject,
+      difficulty,
+      count,
+      chapter,
+      themePrompt,
+      questionTypes,
+    };
+    const encoded = btoa(JSON.stringify(payload));
+    const url = `${window.location.origin}/quizzly/play?quiz=${encoded}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Lien du quiz copié.");
+  };
+
+  const startReviewSession = () => {
+    const dueNow = reviewCards.filter((item) => new Date(item.dueAt).getTime() <= Date.now()).slice(0, 12);
+    if (dueNow.length === 0) {
+      toast.info("Aucune carte de révision due.");
+      return;
+    }
+    setQuestions(dueNow.map((item) => item.question));
+    setIndex(0);
+    setSelected(null);
+    setCorrect(0);
+    setStrictScore(0);
+    setStep("playing");
+    setExamMode(false);
+  };
+
   if (step === "loading") {
     return <div className="py-24 text-center font-bold text-slate-600">Chargement du quiz…</div>;
   }
@@ -228,6 +292,7 @@ export default function QuizzlyPlayPage() {
       <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
         <h1 className="text-3xl font-black text-slate-800">Quiz terminé !</h1>
         <p className="text-lg font-semibold text-violet-700">{correct} / {questions.length}</p>
+        {examMode && <p className="text-sm text-slate-600">Note finale: {Math.min(20, Number(((strictScore / questions.length) * 20).toFixed(2)))}/20</p>}
         <div className="flex flex-wrap justify-center gap-2">
           <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={downloadQuiz} type="button"><Download className="mr-1 inline h-4 w-4" /> Télécharger PDF</button>
           <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
@@ -271,8 +336,19 @@ export default function QuizzlyPlayPage() {
                   onClick={() => {
                     setSelected(i);
                     if (isCorrect) {
+                      setStrictScore((prev) => prev + 1);
                       const bonus = chronoEnabled ? Math.max(0, Math.floor(remainingSeconds / 5)) : 0;
-                      setCorrect((prev) => prev + 1 + bonus);
+                      setCorrect((prev) => prev + (examMode ? 1 : 1 + bonus));
+                    } else {
+                      navigator.vibrate?.(80);
+                      setReviewCards((prev) => {
+                        const existing = prev.find((item) => item.question.question === current.question);
+                        const nextStage = Math.min(REVIEW_INTERVALS_DAYS.length - 1, (existing?.stage ?? -1) + 1);
+                        const due = new Date();
+                        due.setDate(due.getDate() + REVIEW_INTERVALS_DAYS[nextStage]);
+                        const next: ReviewCard = { question: current, stage: nextStage, dueAt: due.toISOString() };
+                        return [next, ...prev.filter((item) => item.question.question !== current.question)].slice(0, 200);
+                      });
                     }
                   }}
                   type="button"
@@ -305,9 +381,16 @@ export default function QuizzlyPlayPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-black text-slate-800">Configurer un quiz</h1>
+        <div className="flex gap-2">
         <button className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold" onClick={saveFavorite} type="button">
           ⭐ Sauvegarder en favori
         </button>
+        <button className="rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700" onClick={shareQuizConfig} type="button">🔗 Partager</button>
+        </div>
+      </div>
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+        Répétition espacée (1/3/7/30j) — cartes dues: {reviewCards.filter((item) => new Date(item.dueAt).getTime() <= Date.now()).length}
+        <button className="ml-3 rounded-lg bg-sky-600 px-3 py-1 text-xs font-bold text-white" onClick={startReviewSession} type="button">Mode Révision</button>
       </div>
 
       {favorites.length > 0 && (
@@ -363,6 +446,11 @@ export default function QuizzlyPlayPage() {
         </label>
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Chapitre" value={chapter} onChange={(e) => setChapter(e.target.value)} />
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Thème" value={themePrompt} onChange={(e) => setThemePrompt(e.target.value)} />
+        <label className="text-sm font-medium text-slate-700 md:col-span-2">Types de questions IA
+          <select multiple className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" value={questionTypes} onChange={(e) => setQuestionTypes(Array.from(e.target.selectedOptions).map((option) => option.value))}>
+            {QUESTION_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -377,6 +465,9 @@ export default function QuizzlyPlayPage() {
             ))}
           </select>
         )}
+        <label className="ml-4 text-sm">
+          <input checked={examMode} onChange={(e) => setExamMode(e.target.checked)} type="checkbox" /> Mode examen / Brevet blanc
+        </label>
       </div>
 
       {localQuizzes.length > 0 && (
