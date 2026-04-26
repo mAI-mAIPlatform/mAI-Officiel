@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
-  getProjectById,
   getProjectNotificationPreference,
   upsertProjectNotificationPreference,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const updateSchema = z.object({
   deadlineReminders: z.boolean().optional(),
@@ -25,10 +25,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
   }
 
   const pref = await getProjectNotificationPreference(id, session.user.id);
@@ -54,10 +53,9 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = updateSchema.safeParse(await request.json());

@@ -3,9 +3,9 @@ import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
   createProjectWebSource,
-  getProjectById,
   getProjectWebSources,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const schema = z.object({
   url: z.string().url(),
@@ -26,9 +26,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const sources = await getProjectWebSources(id);
@@ -45,9 +45,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = schema.safeParse(await request.json());

@@ -39,6 +39,7 @@ import {
   deleteChatById,
   getChatById,
   getMessageCountByUserId,
+  getProjectAccess,
   getMessagesByChatId,
   getProjectById,
   getSubscriptionPlan,
@@ -156,7 +157,11 @@ export async function POST(request: Request) {
 
     if (linkedProjectId) {
       linkedProject = await getProjectById(linkedProjectId);
-      if (!linkedProject || linkedProject.userId !== session.user.id) {
+      const linkedProjectAccess = await getProjectAccess(
+        linkedProjectId,
+        session.user.id
+      );
+      if (!linkedProject || !linkedProjectAccess) {
         return new ChatbotError("forbidden:chat").toResponse();
       }
     }

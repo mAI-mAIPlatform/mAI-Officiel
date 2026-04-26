@@ -4,10 +4,10 @@ import { auth } from "@/app/(auth)/auth";
 import {
   createTask,
   deleteTask,
-  getProjectById,
   getTaskById,
   updateTask,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 import { computeNextDueDate } from "@/lib/tasks";
 
 const updateTaskSchema = z.object({
@@ -25,11 +25,6 @@ const updateTaskSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
-async function assertOwnership(projectId: string, userId: string) {
-  const project = await getProjectById(projectId);
-  return project && project.userId === userId;
-}
-
 export async function PUT(
   request: Request,
   context: { params: Promise<{ id: string; taskId: string }> }
@@ -41,10 +36,9 @@ export async function PUT(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -117,10 +111,9 @@ export async function DELETE(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);

@@ -9,6 +9,7 @@ import {
   gt,
   gte,
   inArray,
+  isNull,
   lt,
   or,
   type SQL,
@@ -724,6 +725,12 @@ import {
   type Project,
   type ProjectFile,
   projectFile,
+  type ProjectInvitation,
+  type ProjectInvitationRole,
+  projectInvitation,
+  type ProjectMember,
+  type ProjectMemberRole,
+  projectMember,
   type ProjectNotificationPreference,
   projectNotificationPreference,
   project,
@@ -842,6 +849,32 @@ export async function getProjectsByUser(userId: string): Promise<Project[]> {
       .orderBy(desc(project.createdAt));
   } catch (error) {
     console.error("Failed to get projects by user:", error);
+    throw new Error("Failed to get projects");
+  }
+}
+
+export async function getProjectsForUser(userId: string): Promise<Project[]> {
+  try {
+    return await db
+      .selectDistinct({ project })
+      .from(project)
+      .leftJoin(
+        projectMember,
+        and(
+          eq(projectMember.projectId, project.id),
+          eq(projectMember.userId, userId)
+        )
+      )
+      .where(
+        and(
+          isNull(project.archivedAt),
+          or(eq(project.userId, userId), eq(projectMember.userId, userId))
+        )
+      )
+      .orderBy(desc(project.createdAt))
+      .then((rows) => rows.map((row) => row.project));
+  } catch (error) {
+    console.error("Failed to get projects for user:", error);
     throw new Error("Failed to get projects");
   }
 }
@@ -970,7 +1003,144 @@ export async function deleteProject(id: string) {
 }
 
 export function getProjects(userId: string): Promise<Project[]> {
-  return getProjectsByUser(userId);
+  return getProjectsForUser(userId);
+}
+
+export async function getProjectAccess(
+  projectId: string,
+  userId: string
+): Promise<{ role: ProjectMemberRole; isOwner: boolean } | null> {
+  const item = await getProjectById(projectId);
+
+  if (!item) {
+    return null;
+  }
+
+  if (item.userId === userId) {
+    return { role: "owner", isOwner: true };
+  }
+
+  const [membership] = await db
+    .select({ role: projectMember.role })
+    .from(projectMember)
+    .where(
+      and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId))
+    )
+    .limit(1);
+
+  if (!membership) {
+    return null;
+  }
+
+  return {
+    role: membership.role as ProjectMemberRole,
+    isOwner: false,
+  };
+}
+
+export async function listProjectMembers(projectId: string) {
+  const ownerRows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: sql<ProjectMemberRole>`'owner'`,
+      acceptedAt: project.createdAt,
+    })
+    .from(project)
+    .innerJoin(user, eq(user.id, project.userId))
+    .where(eq(project.id, projectId));
+
+  const memberRows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: projectMember.role,
+      acceptedAt: projectMember.acceptedAt,
+    })
+    .from(projectMember)
+    .innerJoin(user, eq(user.id, projectMember.userId))
+    .where(eq(projectMember.projectId, projectId));
+
+  return [...ownerRows, ...memberRows];
+}
+
+export async function createProjectMember(
+  data: Pick<ProjectMember, "projectId" | "userId"> &
+    Partial<Pick<ProjectMember, "role" | "invitedByUserId" | "acceptedAt">>
+) {
+  return db.insert(projectMember).values(data).onConflictDoNothing().returning();
+}
+
+export async function updateProjectMemberRole(
+  projectId: string,
+  memberUserId: string,
+  role: ProjectInvitationRole
+) {
+  return db
+    .update(projectMember)
+    .set({ role })
+    .where(
+      and(eq(projectMember.projectId, projectId), eq(projectMember.userId, memberUserId))
+    )
+    .returning();
+}
+
+export async function removeProjectMember(projectId: string, memberUserId: string) {
+  return db
+    .delete(projectMember)
+    .where(
+      and(eq(projectMember.projectId, projectId), eq(projectMember.userId, memberUserId))
+    )
+    .returning();
+}
+
+export async function createProjectInvitation(
+  data: Pick<
+    ProjectInvitation,
+    "projectId" | "email" | "role" | "token" | "expiresAt"
+  >
+) {
+  return db.insert(projectInvitation).values(data).returning();
+}
+
+export async function listProjectInvitations(projectId: string) {
+  return db
+    .select()
+    .from(projectInvitation)
+    .where(eq(projectInvitation.projectId, projectId))
+    .orderBy(desc(projectInvitation.createdAt));
+}
+
+export async function getProjectInvitationByToken(token: string) {
+  const [item] = await db
+    .select()
+    .from(projectInvitation)
+    .where(eq(projectInvitation.token, token))
+    .limit(1);
+  return item;
+}
+
+export async function deleteProjectInvitation(projectId: string, invitationId: string) {
+  return db
+    .delete(projectInvitation)
+    .where(
+      and(
+        eq(projectInvitation.projectId, projectId),
+        eq(projectInvitation.id, invitationId)
+      )
+    )
+    .returning();
+}
+
+export async function deleteProjectInvitationByToken(token: string) {
+  return db
+    .delete(projectInvitation)
+    .where(eq(projectInvitation.token, token))
+    .returning();
 }
 
 export async function updateProjectByUser(

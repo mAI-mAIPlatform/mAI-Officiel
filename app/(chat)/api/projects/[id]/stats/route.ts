@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { getProjectById, getProjectStatsById } from "@/lib/db/queries";
+import { getProjectStatsById } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 export async function GET(
   _request: Request,
@@ -13,10 +14,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const item = await getProjectById(id);
-
-  if (!item || item.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const stats = await getProjectStatsById(id);

@@ -3,13 +3,13 @@ import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
   createTask,
-  getProjectById,
   getSubtasksByTaskIds,
   getTasksByProject,
   db,
 } from "@/lib/db/queries";
 import { inArray } from "drizzle-orm";
 import { user } from "@/lib/db/schema";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const taskSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -45,10 +45,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const query = Object.fromEntries(new URL(request.url).searchParams.entries());
@@ -153,10 +152,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = taskSchema.safeParse(await request.json());

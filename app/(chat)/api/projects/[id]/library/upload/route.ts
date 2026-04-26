@@ -1,7 +1,8 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { createProjectFile, getProjectById } from "@/lib/db/queries";
+import { createProjectFile } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 export async function POST(
   request: Request,
@@ -14,10 +15,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const formData = await request.formData();

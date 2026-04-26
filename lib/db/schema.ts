@@ -166,6 +166,9 @@ export type ProjectNotificationSettings = {
   taskCompleted: boolean;
 };
 
+export type ProjectMemberRole = "owner" | "editor" | "viewer";
+export type ProjectInvitationRole = "editor" | "viewer";
+
 export const project = pgTable("Project", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")
@@ -201,6 +204,42 @@ export const project = pgTable("Project", {
 });
 
 export type Project = InferSelectModel<typeof project>;
+
+export const projectMember = pgTable("ProjectMember", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: varchar("role", {
+    enum: ["owner", "editor", "viewer"],
+  })
+    .notNull()
+    .default("viewer"),
+  invitedByUserId: uuid("invitedByUserId").references(() => user.id),
+  invitedAt: timestamp("invitedAt").notNull().defaultNow(),
+  acceptedAt: timestamp("acceptedAt"),
+});
+
+export type ProjectMember = InferSelectModel<typeof projectMember>;
+
+export const projectInvitation = pgTable("ProjectInvitation", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 320 }).notNull(),
+  role: varchar("role", { enum: ["editor", "viewer"] })
+    .notNull()
+    .default("viewer"),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectInvitation = InferSelectModel<typeof projectInvitation>;
 
 export type ProjectTemplateTaskModel = {
   title: string;

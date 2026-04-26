@@ -6,6 +6,7 @@ import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import {
   getChatsByProjectId,
   getChatsByUserId,
+  getProjectAccess,
   getProjectById,
   getProjectStatsById,
 } from "@/lib/db/queries";
@@ -22,9 +23,12 @@ export default async function ProjectDetailPage({
   }
 
   const { id } = await params;
-  const project = await getProjectById(id);
+  const [project, access] = await Promise.all([
+    getProjectById(id),
+    getProjectAccess(id, session.user.id),
+  ]);
 
-  if (!project || project.userId !== session.user.id) {
+  if (!project || !access) {
     notFound();
   }
 

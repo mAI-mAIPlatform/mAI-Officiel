@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
-import { createProjectFile, getProjectById } from "@/lib/db/queries";
+import { createProjectFile } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -18,9 +19,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = schema.safeParse(await request.json());

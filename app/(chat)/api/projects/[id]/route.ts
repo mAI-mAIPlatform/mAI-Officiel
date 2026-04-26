@@ -7,6 +7,7 @@ import {
   updateProjectByUser,
 } from "@/lib/db/queries";
 import type { Project } from "@/lib/db/schema";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const DEFAULT_PROJECT_NOTIFICATION_SETTINGS = {
   deadlineReminders: true,
@@ -52,9 +53,13 @@ export async function GET(
   }
 
   const { id } = await context.params;
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
+  }
   const item = await getProjectById(id);
 
-  if (!item || item.userId !== session.user.id) {
+  if (!item) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -89,9 +94,13 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
+  }
   const existing = await getProjectById(id);
 
-  if (!existing || existing.userId !== session.user.id) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -133,6 +142,10 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
+  }
   await deleteProjectByUser(id, session.user.id);
 
   return NextResponse.json({ success: true });

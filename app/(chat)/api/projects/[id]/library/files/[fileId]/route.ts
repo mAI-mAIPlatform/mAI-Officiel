@@ -3,10 +3,10 @@ import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
   deleteProjectFile,
-  getProjectById,
   getProjectFiles,
   updateProjectFile,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),
@@ -24,9 +24,9 @@ export async function PATCH(
   }
 
   const { id, fileId } = await context.params;
-  const project = await getProjectById(id);
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = patchSchema.safeParse(await request.json());
@@ -48,9 +48,9 @@ export async function DELETE(
   }
 
   const { id, fileId } = await context.params;
-  const project = await getProjectById(id);
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const files = await getProjectFiles(id);
