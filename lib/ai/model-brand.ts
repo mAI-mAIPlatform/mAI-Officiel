@@ -30,7 +30,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
     return "deepseek";
   }
   if (id.includes("qwen") || name.includes("qwen")) {
-    return "qwen";
+    return "alibaba";
   }
   if (provider === "horde") {
     if (id.includes("claude")) {
@@ -95,7 +95,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "qwen";
+      return "alibaba";
     }
     if (
       id.includes("mistral") ||
@@ -119,7 +119,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "qwen";
+      return "alibaba";
     }
     if (id.includes("llama")) {
       return "meta";

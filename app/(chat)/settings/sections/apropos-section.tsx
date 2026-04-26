@@ -136,6 +136,7 @@ export function AproposSection({
 }: AproposSectionProps) {
   const t = aboutI18n[language];
   const [modelsOpen, setModelsOpen] = useState(false);
+  const [modelsCategory, setModelsCategory] = useState<"all" | "text" | "image" | "music">("all");
   const musicModels = useMemo(() => ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"], []);
 
   return (
@@ -219,12 +220,14 @@ export function AproposSection({
           />
           {t.telegramSoon}
         </button>
-        <button
-          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
-          onClick={() => setModelsOpen(true)}
-          type="button"
-        >
-          Voir tous les modèles IA
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300" onClick={() => { setModelsCategory("text"); setModelsOpen(true); }} type="button">
+          Modèles Texte <span className="rounded border border-emerald-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-500/20 dark:text-sky-300" onClick={() => { setModelsCategory("image"); setModelsOpen(true); }} type="button">
+          Modèles Images <span className="rounded border border-sky-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-2 text-sm font-medium text-fuchsia-700 transition-colors hover:bg-fuchsia-500/20 dark:text-fuchsia-300" onClick={() => { setModelsCategory("music"); setModelsOpen(true); }} type="button">
+          Modèles Musiques <span className="rounded border border-fuchsia-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
         </button>
       </div>
 
@@ -236,7 +239,7 @@ export function AproposSection({
               <button className="rounded-lg border px-2 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
             </div>
             <div className="grid gap-4 overflow-auto p-4 md:grid-cols-3">
-              <div>
+              {(modelsCategory === "all" || modelsCategory === "text") && <div>
                 <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Texte ({chatModels.length})</p>
                 <div className="space-y-1 text-xs">
                   {chatModels.map((model) => (
@@ -245,8 +248,8 @@ export function AproposSection({
                     </div>
                   ))}
                 </div>
-              </div>
-              <div>
+              </div>}
+              {(modelsCategory === "all" || modelsCategory === "image") && <div>
                 <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Images ({affordableImageModels.length})</p>
                 <div className="space-y-1 text-xs">
                   {affordableImageModels.map((model) => (
@@ -255,8 +258,8 @@ export function AproposSection({
                     </div>
                   ))}
                 </div>
-              </div>
-              <div>
+              </div>}
+              {(modelsCategory === "all" || modelsCategory === "music") && <div>
                 <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Musiques ({musicModels.length})</p>
                 <div className="space-y-1 text-xs">
                   {musicModels.map((model) => (
@@ -265,7 +268,7 @@ export function AproposSection({
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
         </div>

@@ -2455,7 +2455,11 @@ function PureModelSelectorCompact({
 
   const dynamicModels: ChatModel[] | undefined = modelsData?.models;
   const normalizeModelDisplayName = (model: ChatModel) => {
-    if (!model.id.startsWith("horde/")) return model.name;
+    const isHordeLike =
+      model.provider.toLowerCase() === "horde" ||
+      model.id.startsWith("horde/") ||
+      model.name.includes("/");
+    if (!isHordeLike) return model.name;
     const raw = model.name || model.id.slice("horde/".length);
     const last = raw.split("/").pop() ?? raw;
     return last.trim();
