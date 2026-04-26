@@ -1,5 +1,10 @@
+"use client";
+
 import { MessageCircle } from "lucide-react";
 import Image from "next/image";
+import { useMemo, useState } from "react";
+import { chatModels } from "@/lib/ai/models";
+import { affordableImageModels } from "@/lib/ai/affordable-models";
 import { LANGUAGE_OPTIONS, type AppLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -130,6 +135,9 @@ export function AproposSection({
   onLanguageChange,
 }: AproposSectionProps) {
   const t = aboutI18n[language];
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const musicModels = useMemo(() => ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"], []);
+
   return (
     <section
       className={cn(
@@ -211,7 +219,57 @@ export function AproposSection({
           />
           {t.telegramSoon}
         </button>
+        <button
+          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
+          onClick={() => setModelsOpen(true)}
+          type="button"
+        >
+          Voir tous les modèles IA
+        </button>
       </div>
+
+      {modelsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl">
+            <div className="flex items-center justify-between border-b border-border/50 p-4">
+              <h3 className="text-base font-semibold">Modèles référencés</h3>
+              <button className="rounded-lg border px-2 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
+            </div>
+            <div className="grid gap-4 overflow-auto p-4 md:grid-cols-3">
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Texte ({chatModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {chatModels.map((model) => (
+                    <div key={`text-${model.id}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Images ({affordableImageModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {affordableImageModels.map((model) => (
+                    <div key={`img-${model.id}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Musiques ({musicModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {musicModels.map((model) => (
+                    <div key={`music-${model}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.replaceAll("_", ".")}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
