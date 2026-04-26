@@ -475,6 +475,27 @@ export async function buyItem(itemKey: string, price: number, amount = 1) {
   return { success: true };
 }
 
+export async function spendHintDiamonds(cost: number, hintType: "fifty" | "first_letter" | "contextual") {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const normalizedCost = Math.max(1, Math.floor(cost));
+
+  if (profile.diamonds < normalizedCost) {
+    throw new Error("Pas assez de diamants pour utiliser cet indice.");
+  }
+
+  await updateQuizzlyProfile({ diamonds: profile.diamonds - normalizedCost });
+  await upsertInventoryItem(userId, "stats:diamonds-spent", normalizedCost);
+  await upsertInventoryItem(userId, "stats:hints-used", 1);
+  await upsertInventoryItem(userId, `stats:hints-used:${hintType}`, 1);
+
+  return {
+    cost: normalizedCost,
+    diamondsLeft: profile.diamonds - normalizedCost,
+    success: true,
+  };
+}
+
 export async function getOrAssignQuests() {
   const userId = await getAuthenticatedUserId();
 

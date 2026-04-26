@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { finishQuiz, getQuizzlyInventory, getQuizzlyProfile } from "@/lib/quizzly/actions";
+import { finishQuiz, getQuizzlyInventory, getQuizzlyProfile, spendHintDiamonds } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { CheckCircle, Clock3, Download, Heart, Shield, Share2, Snowflake, Sword, Trophy, XCircle } from "lucide-react";
+import { CheckCircle, Clock3, Download, Heart, Lightbulb, Shield, Share2, Snowflake, Sword, Trophy, XCircle } from "lucide-react";
 import { chatModels, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 type QuizQuestion = {
@@ -49,6 +49,7 @@ type DuelOpponent = {
   level: number;
   streak: number;
 };
+type HintType = "fifty" | "first_letter" | "contextual";
 
 const FAVORITES_KEY = "mai.quizzly.favorites.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
@@ -99,7 +100,7 @@ export default function QuizzlyPlayPage() {
   const [reviewCards, setReviewCards] = useState<ReviewCard[]>([]);
   const [strictScore, setStrictScore] = useState(0);
   const [customQuestions, setCustomQuestions] = useState<CustomDraftQuestion[]>([]);
-  const [profile, setProfile] = useState<{ pseudo: string; emoji: string; level: number; streak: number } | null>(null);
+  const [profile, setProfile] = useState<{ pseudo: string; emoji: string; level: number; streak: number; diamonds: number } | null>(null);
   const [eloScore, setEloScore] = useState(1000);
   const [matchmakingSeconds, setMatchmakingSeconds] = useState(0);
   const [duelOpponent, setDuelOpponent] = useState<DuelOpponent | null>(null);
@@ -115,6 +116,13 @@ export default function QuizzlyPlayPage() {
   const [survivalLeaderboard, setSurvivalLeaderboard] = useState<Array<{ pseudo: string; score: number; stage: number; duration: number }>>([]);
   const [survivalFreezeSeconds, setSurvivalFreezeSeconds] = useState(0);
   const [survivalBonusLives, setSurvivalBonusLives] = useState(0);
+  const [usedHintsByQuestion, setUsedHintsByQuestion] = useState<Record<number, HintType[]>>({});
+  const [disabledOptionsByQuestion, setDisabledOptionsByQuestion] = useState<Record<number, number[]>>({});
+  const [contextHintByQuestion, setContextHintByQuestion] = useState<Record<number, string>>({});
+  const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  const [hintBusy, setHintBusy] = useState<HintType | null>(null);
+  const [answerInput, setAnswerInput] = useState("");
+  const [hintedQuestions, setHintedQuestions] = useState<number[]>([]);
 
   const current = questions[index];
   const duelCurrent = questions[duelIndex];
@@ -157,7 +165,7 @@ export default function QuizzlyPlayPage() {
 
   useEffect(() => {
     Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]).then(([p, inv]) => {
-      const asProfile = p as { pseudo: string; emoji: string; level: number; streak: number };
+      const asProfile = p as { pseudo: string; emoji: string; level: number; streak: number; diamonds: number };
       setProfile(asProfile);
       const stats = inv as Array<{ itemKey: string; quantity: number }>;
       const totalCorrect = stats.find((item) => item.itemKey === "stats:total-correct")?.quantity ?? 0;
@@ -298,6 +306,11 @@ export default function QuizzlyPlayPage() {
         setSelected(null);
         setCorrect(0);
         setStrictScore(0);
+        setUsedHintsByQuestion({});
+        setDisabledOptionsByQuestion({});
+        setContextHintByQuestion({});
+        setHintedQuestions([]);
+        setAnswerInput("");
         setQuizStartedAt(Date.now());
         setStep("playing");
         return;
@@ -319,6 +332,11 @@ export default function QuizzlyPlayPage() {
       setSelected(null);
       setCorrect(0);
       setStrictScore(0);
+      setUsedHintsByQuestion({});
+      setDisabledOptionsByQuestion({});
+      setContextHintByQuestion({});
+      setHintedQuestions([]);
+      setAnswerInput("");
       setQuizStartedAt(Date.now());
       setStep("playing");
     } catch (error) {
@@ -448,6 +466,80 @@ export default function QuizzlyPlayPage() {
     }
     setIndex((prev) => prev + 1);
     setSelected(null);
+    setHintPanelOpen(false);
+    setAnswerInput("");
+  };
+
+  const hintCosts = [5, 10, 15] as const;
+  const hintsForCurrentQuestion = usedHintsByQuestion[index] ?? [];
+  const hintCountForCurrentQuestion = hintsForCurrentQuestion.length;
+  const canUseHint = hintCountForCurrentQuestion < 2;
+
+  const registerHintUsage = (hintType: HintType) => {
+    setUsedHintsByQuestion((prev) => ({
+      ...prev,
+      [index]: [...(prev[index] ?? []), hintType],
+    }));
+    setHintedQuestions((prev) => (prev.includes(index) ? prev : [...prev, index]));
+  };
+
+  const consumeHint = async (hintType: HintType) => {
+    if (!current || selected !== null) return;
+    if (!canUseHint) {
+      toast.error("Maximum 2 indices atteint pour cette question.");
+      return;
+    }
+    if (hintsForCurrentQuestion.includes(hintType)) {
+      toast.error("Cet indice est déjà utilisé pour cette question.");
+      return;
+    }
+    const cost = hintCosts[Math.min(hintCosts.length - 1, hintCountForCurrentQuestion)] ?? 15;
+    setHintBusy(hintType);
+    try {
+      const usage = await spendHintDiamonds(cost, hintType);
+      setProfile((prev) => (prev ? { ...prev, diamonds: usage.diamondsLeft } : prev));
+
+      if (hintType === "fifty") {
+        const wrongIndexes = current.options
+          .map((_, optionIndex) => optionIndex)
+          .filter((optionIndex) => optionIndex !== current.correctAnswerIndex);
+        const shuffled = wrongIndexes.sort(() => Math.random() - 0.5);
+        const disabled = shuffled.slice(0, 2);
+        setDisabledOptionsByQuestion((prev) => ({
+          ...prev,
+          [index]: Array.from(new Set([...(prev[index] ?? []), ...disabled])),
+        }));
+      } else if (hintType === "first_letter") {
+        const firstLetter = (current.options[current.correctAnswerIndex] ?? "").trim().charAt(0);
+        if (firstLetter) {
+          setAnswerInput(firstLetter.toUpperCase());
+        }
+      } else if (hintType === "contextual") {
+        const res = await fetch("/api/quizzly/hint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: current.question,
+            options: current.options,
+            explanation: current.explanation,
+            subject,
+            difficulty,
+            modelId,
+          }),
+        });
+        const data = (await res.json()) as { hint?: string; error?: string };
+        if (!res.ok || !data.hint) {
+          throw new Error(data.error ?? "Impossible de générer un indice IA");
+        }
+        setContextHintByQuestion((prev) => ({ ...prev, [index]: data.hint ?? "" }));
+      }
+      registerHintUsage(hintType);
+      toast.success(`Indice utilisé (-${cost}💎)`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Utilisation de l'indice impossible");
+    } finally {
+      setHintBusy(null);
+    }
   };
 
   const finalizeDuel = async () => {
@@ -546,6 +638,11 @@ export default function QuizzlyPlayPage() {
     setSelected(null);
     setCorrect(0);
     setStrictScore(0);
+    setUsedHintsByQuestion({});
+    setDisabledOptionsByQuestion({});
+    setContextHintByQuestion({});
+    setHintedQuestions([]);
+    setAnswerInput("");
     setStep("playing");
     setExamMode(false);
   };
@@ -564,6 +661,21 @@ export default function QuizzlyPlayPage() {
           <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={downloadQuiz} type="button"><Download className="mr-1 inline h-4 w-4" /> Télécharger PDF</button>
           <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
           <button className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Rejouer</button>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-4 text-left">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-500">Récapitulatif des questions</p>
+          <div className="space-y-2 text-xs text-slate-700">
+            {questions.map((question, questionIndex) => (
+              <div key={`result-${questionIndex}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2">
+                <span>Q{questionIndex + 1} · {question.question.slice(0, 52)}{question.question.length > 52 ? "…" : ""}</span>
+                {hintedQuestions.includes(questionIndex) ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-700">Indice utilisé</span>
+                ) : (
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 font-bold text-emerald-700">Sans aide</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -730,6 +842,9 @@ export default function QuizzlyPlayPage() {
 
   if (step === "playing" && current) {
     const ratio = chronoEnabled ? (remainingSeconds / chronoSeconds) * 100 : 100;
+    const eliminatedOptions = disabledOptionsByQuestion[index] ?? [];
+    const contextualHint = contextHintByQuestion[index];
+    const isOpenQuestionMode = questionTypes.includes("completer");
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -749,16 +864,28 @@ export default function QuizzlyPlayPage() {
         </div>
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-2xl font-black text-slate-800">{current.question}</h2>
+          {isOpenQuestionMode && (
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="text-xs font-bold text-slate-600">Réponse libre</label>
+              <input
+                className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${answerInput ? "border-amber-300 bg-amber-50 ring-2 ring-amber-200" : "border-slate-200 bg-white"}`}
+                onChange={(e) => setAnswerInput(e.target.value)}
+                placeholder="Écris ta réponse (optionnel)"
+                value={answerInput}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             {current.options.map((opt, i) => {
               const isCorrect = i === current.correctAnswerIndex;
               const isSelected = selected === i;
               const showState = selected !== null;
+              const isEliminated = eliminatedOptions.includes(i);
               return (
                 <button
                   key={opt}
-                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${showState ? isCorrect ? "border-green-500 bg-green-50" : isSelected ? "border-red-500 bg-red-50" : "opacity-60" : "border-slate-200 hover:border-violet-300"}`}
-                  disabled={selected !== null}
+                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${isEliminated ? "border-slate-200 bg-slate-100 text-slate-400 opacity-60 line-through animate-pulse" : showState ? isCorrect ? "border-green-500 bg-green-50" : isSelected ? "border-red-500 bg-red-50" : "opacity-60" : "border-slate-200 hover:border-violet-300"}`}
+                  disabled={selected !== null || isEliminated}
                   onClick={() => {
                     setSelected(i);
                     if (isCorrect) {
@@ -795,6 +922,11 @@ export default function QuizzlyPlayPage() {
               );
             })}
           </div>
+          <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+            <p className="font-bold">Indices utilisés sur cette question: {hintCountForCurrentQuestion}/2</p>
+            {answerInput ? <p className="mt-1">Première lettre révélée: <span className="rounded bg-white px-2 py-0.5 font-black text-amber-700">{answerInput}</span></p> : null}
+            {contextualHint ? <p className="mt-2 whitespace-pre-wrap">{contextualHint}</p> : null}
+          </div>
           {selected !== null && (
             <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
               <strong>Explication:</strong> {current.explanation}
@@ -805,6 +937,25 @@ export default function QuizzlyPlayPage() {
               <button className="rounded-xl bg-violet-600 px-4 py-2 font-bold text-white" onClick={nextQuestion} type="button">
                 {index < questions.length - 1 ? "Suivant" : "Terminer"}
               </button>
+            </div>
+          )}
+        </div>
+        <div className="fixed bottom-6 right-6 z-20">
+          <button
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-xl transition hover:scale-105"
+            onClick={() => setHintPanelOpen((prev) => !prev)}
+            type="button"
+          >
+            <Lightbulb className="h-6 w-6" />
+          </button>
+          {hintPanelOpen && (
+            <div className="mt-3 w-72 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-2xl">
+              <p className="font-bold text-slate-700">Indices ({hintCountForCurrentQuestion}/2)</p>
+              <p className="text-slate-500">Coût prochain indice: {hintCosts[Math.min(hintCosts.length - 1, hintCountForCurrentQuestion)]} 💎</p>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("fifty")} onClick={() => consumeHint("fifty")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">50/50 (QCM) — élimine 2 mauvaises réponses</button>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("first_letter")} onClick={() => consumeHint("first_letter")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">Première lettre (compléter/libre)</button>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("contextual")} onClick={() => consumeHint("contextual")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">Indice contextuel IA</button>
+              <p className="text-[11px] text-slate-400">Les indices guident sans donner la réponse exacte.</p>
             </div>
           )}
         </div>
