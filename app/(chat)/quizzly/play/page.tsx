@@ -122,7 +122,7 @@ export default function QuizzlyPlayPage() {
   }, [reviewCards]);
 
   useEffect(() => {
-    const shared = searchParams.get("quiz");
+    const shared = searchParams?.get("quiz");
     if (!shared) return;
     try {
       const payload = JSON.parse(atob(shared));
