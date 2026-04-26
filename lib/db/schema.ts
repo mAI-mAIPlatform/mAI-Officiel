@@ -168,6 +168,14 @@ export const project = pgTable("Project", {
   description: text("description"),
   image: text("image"),
   instructions: text("instructions"),
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  color: varchar("color", { length: 7 }),
+  icon: varchar("icon", { length: 50 }),
+  templateId: uuid("templateId"),
+  pinned: boolean("pinned").notNull().default(false),
+  archivedAt: timestamp("archivedAt"),
   memory: text("memory"), // plain text knowledge/sources
   files: json("files").default([]), // uploaded files metadata
   createdAt: timestamp("createdAt").notNull().defaultNow(),

@@ -4,22 +4,43 @@ import Link from "next/link";
 import { useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
+import { ProjectDashboard } from "./project-dashboard";
 import { ProjectTaskManager } from "./project-task-manager";
 
 type ProjectWorkspaceProps = {
+  projectColor: string | null;
   importableChats: Array<{ id: string; title: string }>;
+  projectEndDate: string | null;
   projectChats: Array<{ id: string; title: string; createdAt: string }>;
   projectId: string;
   projectInstructions: string;
   projectName: string;
+  projectStartDate: string | null;
+  projectTags: string[];
+  stats: {
+    completedTasks: number;
+    completedSubtasks: number;
+    daysRemaining: number | null;
+    inProgressTasks: number;
+    progressPercentage: number;
+    totalChats: number;
+    totalSubtasks: number;
+    totalTasks: number;
+    todoTasks: number;
+  };
 };
 
 export function ProjectWorkspace({
+  projectColor,
   importableChats,
+  projectEndDate,
   projectChats,
   projectId,
   projectInstructions,
   projectName,
+  projectStartDate,
+  projectTags,
+  stats,
 }: ProjectWorkspaceProps) {
   const [selectedChatId, setSelectedChatId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
@@ -59,7 +80,25 @@ export function ProjectWorkspace({
   };
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+    <section className="space-y-4">
+      <ProjectDashboard
+        color={projectColor}
+        completedTasks={stats.completedTasks}
+        completedSubtasks={stats.completedSubtasks}
+        daysRemaining={stats.daysRemaining}
+        endDate={projectEndDate}
+        id={projectId}
+        inProgressTasks={stats.inProgressTasks}
+        name={projectName}
+        progressPercentage={stats.progressPercentage}
+        startDate={projectStartDate}
+        tags={projectTags}
+        todoTasks={stats.todoTasks}
+        totalChats={stats.totalChats}
+        totalSubtasks={stats.totalSubtasks}
+        totalTasks={stats.totalTasks}
+      />
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
       <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
         <h2 className="text-lg font-semibold text-black">
           Discussions du projet
@@ -156,6 +195,7 @@ export function ProjectWorkspace({
 
       <div className="lg:col-span-2">
         <ProjectTaskManager projectId={projectId} />
+      </div>
       </div>
     </section>
   );

@@ -846,6 +846,94 @@ export async function getProjectById(id: string): Promise<Project | undefined> {
   }
 }
 
+export type ProjectStats = {
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  todoTasks: number;
+  progressPercentage: number;
+  totalChats: number;
+  daysRemaining: number | null;
+  totalSubtasks: number;
+  completedSubtasks: number;
+};
+
+export async function getProjectStatsById(
+  projectId: string
+): Promise<ProjectStats> {
+  try {
+    const [stats] = (await db.execute(sql<ProjectStats>`
+      SELECT
+        COALESCE(task_counts.total_tasks, 0)::int AS "totalTasks",
+        COALESCE(task_counts.completed_tasks, 0)::int AS "completedTasks",
+        COALESCE(task_counts.in_progress_tasks, 0)::int AS "inProgressTasks",
+        COALESCE(task_counts.todo_tasks, 0)::int AS "todoTasks",
+        CASE
+          WHEN COALESCE(task_counts.total_tasks, 0) = 0 THEN 0
+          ELSE ROUND(
+            (COALESCE(task_counts.completed_tasks, 0)::numeric / task_counts.total_tasks::numeric) * 100
+          )::int
+        END AS "progressPercentage",
+        COALESCE(chat_counts.total_chats, 0)::int AS "totalChats",
+        CASE
+          WHEN p."endDate" IS NULL THEN NULL
+          ELSE (DATE(p."endDate") - CURRENT_DATE)::int
+        END AS "daysRemaining",
+        COALESCE(subtask_counts.total_subtasks, 0)::int AS "totalSubtasks",
+        COALESCE(subtask_counts.completed_subtasks, 0)::int AS "completedSubtasks"
+      FROM "Project" p
+      LEFT JOIN (
+        SELECT
+          t."projectId",
+          COUNT(*) AS total_tasks,
+          COUNT(*) FILTER (WHERE t.status = 'done') AS completed_tasks,
+          COUNT(*) FILTER (WHERE t.status = 'doing') AS in_progress_tasks,
+          COUNT(*) FILTER (WHERE t.status = 'todo') AS todo_tasks
+        FROM "Task" t
+        WHERE t."projectId" = ${projectId}
+        GROUP BY t."projectId"
+      ) task_counts ON task_counts."projectId" = p.id
+      LEFT JOIN (
+        SELECT
+          c."projectId",
+          COUNT(*) AS total_chats
+        FROM "Chat" c
+        WHERE c."projectId" = ${projectId}
+        GROUP BY c."projectId"
+      ) chat_counts ON chat_counts."projectId" = p.id
+      LEFT JOIN (
+        SELECT
+          t."projectId",
+          COUNT(st.id) AS total_subtasks,
+          COUNT(st.id) FILTER (WHERE st.status = 'done') AS completed_subtasks
+        FROM "Task" t
+        LEFT JOIN "Subtask" st ON st."taskId" = t.id
+        WHERE t."projectId" = ${projectId}
+        GROUP BY t."projectId"
+      ) subtask_counts ON subtask_counts."projectId" = p.id
+      WHERE p.id = ${projectId}
+      LIMIT 1
+    `)) as ProjectStats[];
+
+    return (
+      stats ?? {
+        totalTasks: 0,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        todoTasks: 0,
+        progressPercentage: 0,
+        totalChats: 0,
+        daysRemaining: null,
+        totalSubtasks: 0,
+        completedSubtasks: 0,
+      }
+    );
+  } catch (error) {
+    console.error("Failed to get project stats by id:", error);
+    throw new Error("Failed to get project stats");
+  }
+}
+
 export async function updateProject(id: string, data: Partial<Project>) {
   try {
     return await db

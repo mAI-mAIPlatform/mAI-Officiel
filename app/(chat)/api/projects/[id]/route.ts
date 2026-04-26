@@ -10,6 +10,16 @@ import {
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   instructions: z.string().trim().max(5000).optional(),
+  startDate: z.coerce.date().nullable().optional(),
+  endDate: z.coerce.date().nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(30).optional(),
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
+  icon: z.string().trim().max(50).nullable().optional(),
 });
 
 export async function GET(
@@ -33,6 +43,13 @@ export async function GET(
 }
 
 export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PATCH(request, context);
+}
+
+export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {

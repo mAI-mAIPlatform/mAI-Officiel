@@ -6,6 +6,7 @@ import {
   getChatsByProjectId,
   getChatsByUserId,
   getProjectById,
+  getProjectStatsById,
 } from "@/lib/db/queries";
 
 export default async function ProjectDetailPage({
@@ -26,7 +27,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [projectChats, allUserChats] = await Promise.all([
+  const [projectChats, allUserChats, projectStats] = await Promise.all([
     getChatsByProjectId({ projectId: id, userId: session.user.id }),
     getChatsByUserId({
       id: session.user.id,
@@ -34,6 +35,7 @@ export default async function ProjectDetailPage({
       startingAfter: null,
       endingBefore: null,
     }).then((result) => result.chats),
+    getProjectStatsById(id),
   ]);
 
   const importableChats = allUserChats.filter((chat) => chat.projectId !== id);
@@ -81,6 +83,21 @@ export default async function ProjectDetailPage({
         projectId={project.id}
         projectInstructions={project.instructions ?? ""}
         projectName={project.name}
+        projectStartDate={project.startDate?.toISOString() ?? null}
+        projectEndDate={project.endDate?.toISOString() ?? null}
+        projectTags={project.tags ?? []}
+        projectColor={project.color ?? null}
+        stats={{
+          totalTasks: projectStats.totalTasks,
+          completedTasks: projectStats.completedTasks,
+          inProgressTasks: projectStats.inProgressTasks,
+          todoTasks: projectStats.todoTasks,
+          progressPercentage: projectStats.progressPercentage,
+          totalChats: projectStats.totalChats,
+          daysRemaining: projectStats.daysRemaining,
+          totalSubtasks: projectStats.totalSubtasks,
+          completedSubtasks: projectStats.completedSubtasks,
+        }}
       />
     </main>
   );
