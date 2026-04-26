@@ -1,3 +1,4 @@
+import type { PlanKey } from "@/lib/subscription";
 export type BadgeRarity = "common" | "uncommon" | "rare" | "legendary";
 
 export type BadgeDefinition = {
@@ -24,6 +25,10 @@ export type UserStatsSnapshot = {
   lastLoginDate: string;
   loginCount: number;
   badgesUnlocked: string[];
+  quizzlyPassClaims: number;
+  quizzlyPerfectQuizzes: number;
+  quizzlyQuizzesPlayed: number;
+  interpreterRuns: number;
 };
 
 export const USER_STATS_STORAGE_KEY = "mai.user.stats.v1";
@@ -54,6 +59,10 @@ const defaultSnapshot = (): UserStatsSnapshot => ({
   lastLoginDate: "",
   loginCount: 0,
   badgesUnlocked: [],
+  quizzlyPassClaims: 0,
+  quizzlyPerfectQuizzes: 0,
+  quizzlyQuizzesPlayed: 0,
+  interpreterRuns: 0,
 });
 
 export const badgesCatalog: BadgeDefinition[] = [
@@ -117,6 +126,22 @@ export const badgesCatalog: BadgeDefinition[] = [
   { id: "b58", category: "🏆 Challenges & Progression", name: "Sprint 24h", emoji: "⏱️", condition: "50 messages en 24h", rarity: "uncommon" },
   { id: "b59", category: "🏆 Challenges & Progression", name: "Grand Sage", emoji: "🧙", condition: "1 000 conversations", rarity: "legendary" },
   { id: "b60", category: "🏆 Challenges & Progression", name: "Constellation", emoji: "🌌", condition: "Débloquer 50 badges", rarity: "legendary" },
+  { id: "b61", category: "💳 Forfaits", name: "Un petit Plus", emoji: "➕", condition: "Activer le forfait mAI Plus", rarity: "uncommon" },
+  { id: "b62", category: "💳 Forfaits", name: "Professionnel en tout genre", emoji: "🧑‍💼", condition: "Activer le forfait Pro", rarity: "rare" },
+  { id: "b63", category: "💳 Forfaits", name: "Vitesse maxium !", emoji: "⚡", condition: "Activer le forfait mAIMax", rarity: "legendary" },
+  { id: "b64", category: "🎯 Quizzly", name: "Premier Quiz", emoji: "🧩", condition: "Jouer 1 quiz Quizzly", rarity: "common" },
+  { id: "b65", category: "🎯 Quizzly", name: "Quiz Master", emoji: "🏅", condition: "Jouer 25 quiz Quizzly", rarity: "uncommon" },
+  { id: "b66", category: "🎯 Quizzly", name: "Sans Faute", emoji: "💯", condition: "Réussir 5 quiz parfaits", rarity: "rare" },
+  { id: "b67", category: "🎯 Quizzly", name: "Pass Addict", emoji: "🎟️", condition: "Réclamer 10 récompenses du Quizzly Pass", rarity: "rare" },
+  { id: "b68", category: "🎯 Quizzly", name: "Légende Quizzly", emoji: "👑", condition: "Jouer 100 quiz Quizzly", rarity: "legendary" },
+  { id: "b69", category: "🎯 Quizzly", name: "Régulier Quizzly", emoji: "📚", condition: "Jouer 10 quiz Quizzly", rarity: "uncommon" },
+  { id: "b70", category: "🎯 Quizzly", name: "Diamant Quizzly", emoji: "💎", condition: "Réclamer 25 récompenses du Quizzly Pass", rarity: "legendary" },
+  { id: "b71", category: "💻 Code Interpreter", name: "Premier Run", emoji: "▶️", condition: "Exécuter 1 code", rarity: "common" },
+  { id: "b72", category: "💻 Code Interpreter", name: "Ingénieur", emoji: "🧑‍💻", condition: "Exécuter 25 codes", rarity: "uncommon" },
+  { id: "b73", category: "💻 Code Interpreter", name: "Automate", emoji: "⚙️", condition: "Exécuter 100 codes", rarity: "rare" },
+  { id: "b74", category: "🧠 Apps mAI", name: "Multi-Apps", emoji: "🧩", condition: "Atteindre 100 appels API", rarity: "uncommon" },
+  { id: "b75", category: "🧠 Apps mAI", name: "Créateur Total", emoji: "🚀", condition: "Générer 50 images et 10 musiques", rarity: "rare" },
+  { id: "b76", category: "🧠 Apps mAI", name: "Power User", emoji: "🌟", condition: "Atteindre 500 appels API", rarity: "legendary" },
 ];
 
 const rarityOrder: BadgeRarity[] = ["common", "uncommon", "rare", "legendary"];
@@ -212,7 +237,7 @@ export function getLevelFromXp(xp: number): { level: number; currentLevelXp: num
   return { level, currentLevelXp: remaining, nextLevelXp: requirement };
 }
 
-function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot): string[] {
+function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot, subscriptionPlan: PlanKey = "free"): string[] {
   const unlocked = new Set(snapshot.badgesUnlocked);
 
   const unlockIf = (id: string, condition: boolean) => {
@@ -235,6 +260,22 @@ function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot): string[] {
   unlockIf("b26", snapshot.webSearches >= 100);
   unlockIf("b34", snapshot.conversationsCreated >= 20);
   unlockIf("b44", snapshot.musicsGenerated >= 1);
+  unlockIf("b61", subscriptionPlan === "plus" || subscriptionPlan === "pro" || subscriptionPlan === "max");
+  unlockIf("b62", subscriptionPlan === "pro" || subscriptionPlan === "max");
+  unlockIf("b63", subscriptionPlan === "max");
+  unlockIf("b64", snapshot.quizzlyQuizzesPlayed >= 1);
+  unlockIf("b65", snapshot.quizzlyQuizzesPlayed >= 25);
+  unlockIf("b66", snapshot.quizzlyPerfectQuizzes >= 5);
+  unlockIf("b67", snapshot.quizzlyPassClaims >= 10);
+  unlockIf("b68", snapshot.quizzlyQuizzesPlayed >= 100);
+  unlockIf("b69", snapshot.quizzlyQuizzesPlayed >= 10);
+  unlockIf("b70", snapshot.quizzlyPassClaims >= 25);
+  unlockIf("b71", snapshot.interpreterRuns >= 1);
+  unlockIf("b72", snapshot.interpreterRuns >= 25);
+  unlockIf("b73", snapshot.interpreterRuns >= 100);
+  unlockIf("b74", snapshot.apiCalls >= 100);
+  unlockIf("b75", snapshot.imagesGenerated >= 50 && snapshot.musicsGenerated >= 10);
+  unlockIf("b76", snapshot.apiCalls >= 500);
 
   if (unlocked.size >= 50) {
     unlocked.add("b60");
@@ -266,8 +307,8 @@ export function syncDailyLoginBonus(snapshot: UserStatsSnapshot): UserStatsSnaps
   return applyBadgeRewards(next);
 }
 
-export function applyBadgeRewards(snapshot: UserStatsSnapshot): UserStatsSnapshot {
-  const evaluated = evaluateUnlockedBadgeIds(snapshot);
+export function applyBadgeRewards(snapshot: UserStatsSnapshot, subscriptionPlan: PlanKey = "free"): UserStatsSnapshot {
+  const evaluated = evaluateUnlockedBadgeIds(snapshot, subscriptionPlan);
   const previous = new Set(snapshot.badgesUnlocked);
   const newBadges = evaluated.filter((id) => !previous.has(id));
   const badgeXpGain = newBadges.reduce((total, badgeId) => {
@@ -349,6 +390,47 @@ export function addStatsEvent(
     appendXpHistory("Appel API (application/mode)", gainedXp);
   }
 
+  const rewarded = applyBadgeRewards(next);
+  saveUserStatsSnapshot(rewarded);
+  return rewarded;
+}
+
+export function addQuizzlyStatsEvent(
+  event: "quiz_played" | "quiz_perfect" | "pass_claim",
+  amount = 1
+): UserStatsSnapshot {
+  const snapshot = getUserStatsSnapshot();
+  const next = { ...snapshot };
+
+  if (event === "quiz_played") {
+    next.quizzlyQuizzesPlayed += amount;
+    const gainedXp = amount * 8;
+    next.xp += gainedXp;
+    appendXpHistory("Quiz Quizzly terminé", gainedXp);
+  }
+
+  if (event === "quiz_perfect") {
+    next.quizzlyPerfectQuizzes += amount;
+    const gainedXp = amount * 12;
+    next.xp += gainedXp;
+    appendXpHistory("Quiz parfait (Quizzly)", gainedXp);
+  }
+
+  if (event === "pass_claim") {
+    next.quizzlyPassClaims += amount;
+    const gainedXp = amount * 4;
+    next.xp += gainedXp;
+    appendXpHistory("Récompense Quizzly Pass", gainedXp);
+  }
+
+  const rewarded = applyBadgeRewards(next);
+  saveUserStatsSnapshot(rewarded);
+  return rewarded;
+}
+
+export function addInterpreterRun(amount = 1): UserStatsSnapshot {
+  const snapshot = getUserStatsSnapshot();
+  const next = { ...snapshot, interpreterRuns: snapshot.interpreterRuns + amount };
   const rewarded = applyBadgeRewards(next);
   saveUserStatsSnapshot(rewarded);
   return rewarded;

@@ -91,6 +91,7 @@ export default function SpeakyPage() {
   const [history, setHistory] = useLocalStorage<
     Array<{
       createdAt: string;
+      pinned?: boolean;
       text: string;
       voice: string;
       url: string;
@@ -187,7 +188,7 @@ export default function SpeakyPage() {
       setProvider(payload.provider);
       setHistory(
         [
-          { createdAt: new Date().toISOString(), text, voice, url: nextUrl },
+          { createdAt: new Date().toISOString(), pinned: false, text, voice, url: nextUrl },
           ...history,
         ].slice(0, 20)
       );
@@ -598,21 +599,68 @@ export default function SpeakyPage() {
               Historique des générations
             </p>
             <div className="max-h-28 space-y-1 overflow-auto">
-              {history.slice(0, 8).map((item) => (
-                <button
-                  className="block w-full rounded-md border border-border/40 px-2 py-1 text-left text-[11px]"
-                  key={`${item.createdAt}-${item.voice}`}
-                  onClick={() => {
-                    setText(item.text);
-                    setVoice(item.voice);
-                    setAudioUrl(item.url);
-                  }}
-                  type="button"
-                >
-                  {item.voice} ·{" "}
-                  {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
-                </button>
-              ))}
+              {history
+                .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
+                .slice(0, 8)
+                .map((item) => (
+                  <div
+                    className="rounded-md border border-border/40 px-2 py-1 text-[11px]"
+                    key={`${item.createdAt}-${item.voice}`}
+                  >
+                    <button
+                      className="block w-full text-left"
+                      onClick={() => {
+                        setText(item.text);
+                        setVoice(item.voice);
+                        setAudioUrl(item.url);
+                      }}
+                      type="button"
+                    >
+                      {item.voice} ·{" "}
+                      {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
+                    </button>
+                    <div className="mt-1 flex gap-1">
+                      <button
+                        className="rounded border px-1"
+                        onClick={() => {
+                          const link = document.createElement("a");
+                          link.href = item.url;
+                          link.download = `speaky-history-${Date.now()}.mp3`;
+                          link.click();
+                        }}
+                        type="button"
+                      >
+                        DL
+                      </button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={() =>
+                          setHistory((prev) =>
+                            prev.map((row) =>
+                              row.createdAt === item.createdAt
+                                ? { ...row, pinned: !row.pinned }
+                                : row
+                            )
+                          )
+                        }
+                        type="button"
+                      >
+                        {item.pinned ? "Unpin" : "Pin"}
+                      </button>
+                      <button
+                        className="rounded border border-red-300 px-1 text-red-500"
+                        onClick={() =>
+                          setHistory((prev) =>
+                            prev.filter((row) => row.createdAt !== item.createdAt)
+                          )
+                        }
+                        type="button"
+                      >
+                        Del
+                      </button>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         </aside>

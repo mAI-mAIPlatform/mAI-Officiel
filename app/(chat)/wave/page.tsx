@@ -64,9 +64,6 @@ export default function WavePage() {
   const [title, setTitle] = useState("");
   const [style, setStyle] = useState("");
   const [negativeTags, setNegativeTags] = useState("");
-  const [callbackUrl, setCallbackUrl] = useState("");
-  const [personaId, setPersonaId] = useState("");
-  const [personaModel, setPersonaModel] = useState("style_persona");
   const [model, setModel] = useState<WaveModel>("V4_5ALL");
   const [instrumental, setInstrumental] = useState(true);
   const [vocalGender, setVocalGender] = useState<Gender>("n");
@@ -209,12 +206,9 @@ export default function WavePage() {
           customMode: true,
           instrumental,
           model,
-          callBackUrl: callbackUrl,
           prompt,
           style,
           title,
-          personaId,
-          personaModel,
           negativeTags,
           vocalGender,
           styleWeight,
@@ -399,16 +393,13 @@ export default function WavePage() {
             <input className="rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Style musical" value={style} onChange={(e) => setStyle(e.target.value)} />
             <textarea className="min-h-24 rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Prompt musical détaillé" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
             <textarea className="min-h-20 rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Negative tags" value={negativeTags} onChange={(e) => setNegativeTags(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2" placeholder="Persona ID" value={personaId} onChange={(e) => setPersonaId(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2" placeholder="Persona model" value={personaModel} onChange={(e) => setPersonaModel(e.target.value)} />
-            <input className="rounded-md border bg-background/70 p-2 md:col-span-2" placeholder="Callback URL" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} />
             <label className="flex items-center gap-2 text-sm"><input checked={instrumental} onChange={(e) => setInstrumental(e.target.checked)} type="checkbox" /> Instrumental</label>
             <select className="mai-select" value={vocalGender} onChange={(e) => setVocalGender(e.target.value as Gender)}>
               <option value="n">Neutre</option><option value="m">Voix masculine</option><option value="f">Voix féminine</option>
             </select>
-            <label className="text-xs">Style weight {styleWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} /></label>
-            <label className="text-xs">Weirdness {weirdnessConstraint.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={weirdnessConstraint} onChange={(e) => setWeirdnessConstraint(Number(e.target.value))} /></label>
-            <label className="text-xs md:col-span-2">Audio weight {audioWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={audioWeight} onChange={(e) => setAudioWeight(Number(e.target.value))} /></label>
+            <label className="text-xs">Style weight {styleWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} /><span className="text-[10px] text-muted-foreground">Équilibre style/structure (recommandé 0.65).</span></label>
+            <label className="text-xs">Weirdness {weirdnessConstraint.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={weirdnessConstraint} onChange={(e) => setWeirdnessConstraint(Number(e.target.value))} /><span className="text-[10px] text-muted-foreground">Variété créative (recommandé 0.65).</span></label>
+            <label className="text-xs md:col-span-2">Audio weight {audioWeight.toFixed(2)}<input className="w-full" type="range" min={0} max={1} step={0.01} value={audioWeight} onChange={(e) => setAudioWeight(Number(e.target.value))} /><span className="text-[10px] text-muted-foreground">Accent sur le rendu audio (recommandé 0.65).</span></label>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">{modelDescriptions[model]}</p>
           <Button className="mt-4" disabled={isLoading} onClick={handleGenerateMusic}><Sparkles className="mr-2 size-4" />{isLoading ? "Génération..." : "Générer la musique"}</Button>

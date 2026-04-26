@@ -44,6 +44,36 @@ export const Greeting = () => {
       "我们今天从哪里开始？",
       "你现在想探索什么想法？",
     ],
+    ar: [
+      "كيف يمكنني مساعدتك اليوم؟",
+      "ماذا تريد أن تبني باستخدام mAI؟",
+      "من أين نبدأ اليوم؟",
+      "ما الفكرة التي تريد استكشافها الآن؟",
+    ],
+    ko: [
+      "오늘 무엇을 도와드릴까요?",
+      "mAI로 무엇을 만들고 싶으신가요?",
+      "오늘 어디서부터 시작할까요?",
+      "지금 어떤 아이디어를 탐색하고 싶나요?",
+    ],
+    pl: [
+      "w czym mogę Ci dziś pomóc?",
+      "co chcesz zbudować z mAI?",
+      "od czego dziś zaczynamy?",
+      "jaki pomysł chcesz teraz odkryć?",
+    ],
+    hr: [
+      "kako vam danas mogu pomoći?",
+      "što želite izgraditi uz mAI?",
+      "odakle danas krećemo?",
+      "koju ideju želite sada istražiti?",
+    ],
+    sv: [
+      "hur kan jag hjälpa dig idag?",
+      "vad vill du bygga med mAI?",
+      "var ska vi börja idag?",
+      "vilken idé vill du utforska nu?",
+    ],
     fr: [
       "comment puis-je vous aider aujourd'hui ?",
       "que voulez-vous construire avec mAI ?",
@@ -71,6 +101,16 @@ export const Greeting = () => {
       setTimePrefix(hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite");
     } else if (language === "zh") {
       setTimePrefix(hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好");
+    } else if (language === "ar") {
+      setTimePrefix(hour < 12 ? "صباح الخير" : hour < 18 ? "مساء الخير" : "مساء الخير");
+    } else if (language === "ko") {
+      setTimePrefix(hour < 12 ? "좋은 아침" : hour < 18 ? "안녕하세요" : "좋은 저녁");
+    } else if (language === "pl") {
+      setTimePrefix(hour < 12 ? "Dzień dobry" : hour < 18 ? "Dzień dobry" : "Dobry wieczór");
+    } else if (language === "hr") {
+      setTimePrefix(hour < 12 ? "Dobro jutro" : hour < 18 ? "Dobar dan" : "Dobra večer");
+    } else if (language === "sv") {
+      setTimePrefix(hour < 12 ? "God morgon" : hour < 18 ? "God eftermiddag" : "God kväll");
     } else if (hour < 12) {
       setTimePrefix("Bonjour");
     } else if (hour < 18) {
@@ -130,6 +170,16 @@ export const Greeting = () => {
                   ? "Com a mAI, vá para o próximo nível!"
                   : language === "zh"
                     ? "用 mAI，迈向更高水平！"
+                    : language === "ar"
+                      ? "مع mAI، انتقل إلى المستوى التالي!"
+                      : language === "ko"
+                        ? "mAI와 함께 한 단계 더 나아가세요!"
+                        : language === "pl"
+                          ? "Z mAI wejdź na wyższy poziom!"
+                          : language === "hr"
+                            ? "S mAI prijeđite na višu razinu!"
+                            : language === "sv"
+                              ? "Med mAI, ta nästa steg!"
             : "Avec mAI, passez à la vitesse supérieure !"}
       </motion.div>
 

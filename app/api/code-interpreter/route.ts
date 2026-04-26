@@ -24,7 +24,11 @@ type Runtime =
   | "php"
   | "sql"
   | "json"
-  | "markdown";
+  | "markdown"
+  | "rust"
+  | "java"
+  | "r"
+  | "perl";
 
 type RuntimeFile = {
   contentBase64: string;
@@ -114,6 +118,26 @@ const runtimeConfigs: Record<Runtime, RuntimeConfig> = {
       "echo 'Markdown preview (first 120 lines):'; sed -n '1,120p' main.md",
     ],
     entryFile: "main.md",
+  },
+  rust: {
+    command: "bash",
+    args: ["-lc", "rustc main.rs -O -o main && ./main"],
+    entryFile: "main.rs",
+  },
+  java: {
+    command: "bash",
+    args: ["-lc", "javac Main.java && java Main"],
+    entryFile: "Main.java",
+  },
+  r: {
+    command: "Rscript",
+    args: ["main.r"],
+    entryFile: "main.r",
+  },
+  perl: {
+    command: "perl",
+    args: ["main.pl"],
+    entryFile: "main.pl",
   },
 };
 

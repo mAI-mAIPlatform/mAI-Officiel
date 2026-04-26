@@ -1,6 +1,8 @@
 "use client";
 
 import { Award, BarChart3, Info, Pin, PinOff, Search, Sparkles, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import type { PlanKey } from "@/lib/subscription";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,7 @@ import {
   getBadgeRarityOrder,
   getBadgeXpByRarity,
   getLevelFromXp,
+  applyBadgeRewards,
   getLevelRewards,
   getXpForNextLevel,
   getXpHistory,
@@ -30,6 +33,7 @@ type StatsSectionProps = {
   isAuthenticated: boolean;
   stats: UserStatsSnapshot;
   tokenUsage: { inputTokens: number; outputTokens: number };
+  subscriptionPlan: PlanKey;
 };
 
 const PINNED_BADGES_STORAGE_KEY = "mai.stats.badges.pinned.v1";
@@ -57,6 +61,19 @@ function getBadgeProgress(
     b34: { current: stats.conversationsCreated, target: 20 },
     b44: { current: stats.musicsGenerated, target: 1 },
     b60: { current: unlockedCount, target: 50 },
+    b64: { current: stats.quizzlyQuizzesPlayed, target: 1 },
+    b65: { current: stats.quizzlyQuizzesPlayed, target: 25 },
+    b66: { current: stats.quizzlyPerfectQuizzes, target: 5 },
+    b67: { current: stats.quizzlyPassClaims, target: 10 },
+    b68: { current: stats.quizzlyQuizzesPlayed, target: 100 },
+    b69: { current: stats.quizzlyQuizzesPlayed, target: 10 },
+    b70: { current: stats.quizzlyPassClaims, target: 25 },
+    b71: { current: stats.interpreterRuns, target: 1 },
+    b72: { current: stats.interpreterRuns, target: 25 },
+    b73: { current: stats.interpreterRuns, target: 100 },
+    b74: { current: stats.apiCalls, target: 100 },
+    b75: { current: stats.imagesGenerated + stats.musicsGenerated, target: 60 },
+    b76: { current: stats.apiCalls, target: 500 },
   };
 
   const tracked = objectives[badgeId];
@@ -77,12 +94,16 @@ export function StatsSection({
   isAuthenticated,
   stats,
   tokenUsage,
+  subscriptionPlan,
 }: StatsSectionProps) {
   const [badgeSearch, setBadgeSearch] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<"all" | "unlocked" | "locked">("all");
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [pinnedBadges, setPinnedBadges] = useState<string[]>([]);
   const [xpHistory, setXpHistory] = useState(() => getXpHistory());
+  const [knownUnlocked, setKnownUnlocked] = useState<string[]>([]);
+
+  const effectiveStats = useMemo(() => applyBadgeRewards(stats, subscriptionPlan), [stats, subscriptionPlan]);
 
   useEffect(() => {
     const syncPinned = () => {
@@ -111,9 +132,20 @@ export function StatsSection({
     };
   }, []);
 
-  const levelData = getLevelFromXp(stats.xp);
+  useEffect(() => {
+    const fresh = effectiveStats.badgesUnlocked.filter((id) => !knownUnlocked.includes(id));
+    if (knownUnlocked.length > 0 && fresh.length > 0) {
+      const last = badgesCatalog.find((badge) => badge.id === fresh[0]);
+      if (last) {
+        toast.success(`Nouveau badge débloqué: ${last.emoji} ${last.name}`);
+      }
+    }
+    setKnownUnlocked(effectiveStats.badgesUnlocked);
+  }, [effectiveStats.badgesUnlocked, knownUnlocked]);
+
+  const levelData = getLevelFromXp(effectiveStats.xp);
   const rewards = getLevelRewards(levelData.level);
-  const unlocked = new Set(stats.badgesUnlocked);
+  const unlocked = new Set(effectiveStats.badgesUnlocked);
   const pinned = new Set(pinnedBadges);
 
   const sortedBadges = useMemo(() => {
@@ -238,7 +270,7 @@ export function StatsSection({
           <div className="mt-5 rounded-xl border border-border/60 bg-background/60 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="flex items-center gap-2 text-sm font-medium">
-                <Trophy className="size-4 text-primary" /> Badges ({stats.badgesUnlocked.length}/60)
+                <Trophy className="size-4 text-primary" /> Badges ({effectiveStats.badgesUnlocked.length}/63)
               </p>
               <div className="group relative">
                 <button className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground" type="button">
@@ -281,14 +313,14 @@ export function StatsSection({
                 const badgeProgress = getBadgeProgress(
                   badge.id,
                   stats,
-                  stats.badgesUnlocked.length
+                  effectiveStats.badgesUnlocked.length
                 );
                 return (
                   <article
                     className={cn(
                       "group relative rounded-xl border p-3 transition-all duration-300",
                       isUnlocked
-                        ? "border-emerald-400/40 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(16,185,129,0.18)]"
+                        ? "border-emerald-400/40 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(16,185,129,0.18)] animate-in zoom-in-95"
                         : "border-border/50 bg-card/60 opacity-80"
                     )}
                     key={badge.id}

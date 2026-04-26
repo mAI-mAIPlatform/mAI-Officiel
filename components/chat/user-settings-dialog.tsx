@@ -32,7 +32,7 @@ import {
 } from "@/lib/chat-preferences";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
 import { getGuestDisplayName } from "@/lib/guest-display";
-import { type AppLanguage, LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
+import { type AppLanguage, LANGUAGE_OPTIONS, LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type ProfileSettings = {
@@ -783,13 +783,11 @@ export function UserSettingsDialog({
                 }
                 value={language}
               >
-                <option value="fr">Français</option>
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="pt">Português</option>
-                <option value="zh">中文（普通话）</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </section>
 

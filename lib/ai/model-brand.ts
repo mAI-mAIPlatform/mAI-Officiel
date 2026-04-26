@@ -30,7 +30,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
     return "deepseek";
   }
   if (id.includes("qwen") || name.includes("qwen")) {
-    return "qwen";
+    return "alibaba";
   }
   if (provider === "horde") {
     if (id.includes("claude")) {
@@ -95,7 +95,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "qwen";
+      return "alibaba";
     }
     if (
       id.includes("mistral") ||
@@ -119,7 +119,7 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
       return "deepseek";
     }
     if (id.includes("qwen")) {
-      return "qwen";
+      return "alibaba";
     }
     if (id.includes("llama")) {
       return "meta";
@@ -131,4 +131,17 @@ export function resolveModelLogoProvider(model: ModelBrandInput): string {
   }
 
   return model.provider;
+}
+
+export function getModelIconGlyph(modelIdOrName: string): string {
+  const value = modelIdOrName.toLowerCase();
+  if (value.includes("stable") || value.includes("sdxl") || value.includes("diffusion")) return "🖼️";
+  if (value.includes("suno") || value.includes("v5") || value.includes("v4_5") || value.includes("music")) return "🎵";
+  if (value.includes("qwen")) return "🀄";
+  if (value.includes("gemini") || value.includes("gemma")) return "✦";
+  if (value.includes("gpt")) return "◎";
+  if (value.includes("claude")) return "☁️";
+  if (value.includes("mistral")) return "🌪️";
+  if (value.includes("llama")) return "🦙";
+  return "🤖";
 }

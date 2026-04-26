@@ -80,6 +80,7 @@ import {
   getTierRemaining,
 } from "@/lib/ai/credits";
 import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import { toHordeDisplayName } from "@/lib/ai/horde-models";
 import {
   type ChatModel,
   chatModels,
@@ -2454,7 +2455,22 @@ function PureModelSelectorCompact({
   );
 
   const dynamicModels: ChatModel[] | undefined = modelsData?.models;
-  const activeModels = dynamicModels ?? chatModels;
+  const normalizeModelDisplayName = (model: ChatModel) => {
+    const isHordeLike =
+      model.provider.toLowerCase() === "horde" ||
+      model.id.startsWith("horde/") ||
+      model.name.includes("/");
+    if (!isHordeLike) return model.name;
+    const raw = model.id.startsWith("horde/")
+      ? model.id.slice("horde/".length)
+      : model.name;
+    return toHordeDisplayName(raw);
+  };
+  const dynamicModelsNormalized = dynamicModels?.map((model) => ({
+    ...model,
+    name: normalizeModelDisplayName(model),
+  }));
+  const activeModels = dynamicModelsNormalized ?? chatModels;
 
   const selectedModel =
     activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
@@ -2481,10 +2497,10 @@ function PureModelSelectorCompact({
         <ModelSelectorList>
           {(() => {
             const curatedIds = new Set(chatModels.map((m) => m.id));
-            const allModels = dynamicModels
+            const allModels = dynamicModelsNormalized
               ? [
                   ...chatModels,
-                  ...dynamicModels.filter((m) => !curatedIds.has(m.id)),
+                  ...dynamicModelsNormalized.filter((m) => !curatedIds.has(m.id)),
                 ]
               : chatModels;
 

@@ -2,6 +2,7 @@
 
 import { BrainCircuit, ScanText } from "lucide-react";
 import { useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { addStatsEvent } from "@/lib/user-stats";
 
@@ -14,7 +15,9 @@ type HumanizyResult = {
 
 export default function HumanizyPage() {
   const [text, setText] = useState("");
-  const [history, setHistory] = useState<HumanizyResult[]>([]);
+  const [history, setHistory] = useLocalStorage<
+    Array<{ id: string; text: string; pinned: boolean; result: HumanizyResult }>
+  >("mai.humanizy.history.v1", []);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HumanizyResult | null>(null);
 
@@ -38,7 +41,12 @@ export default function HumanizyPage() {
       const payload = (await response.json()) as HumanizyResult;
       addStatsEvent("api_call", 1);
       setResult(payload);
-      setHistory((prev) => [payload, ...prev].slice(0, 5));
+      setHistory((prev) =>
+        [
+          { id: crypto.randomUUID(), text, pinned: false, result: payload },
+          ...prev,
+        ].slice(0, 40)
+      );
     } catch {
       setResult({
         confidence: 0,
@@ -114,11 +122,33 @@ export default function HumanizyPage() {
         <section className="liquid-panel rounded-2xl border border-border/60 p-4">
           <p className="text-sm font-medium">Historique récent</p>
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-            {history.map((entry, index) => (
-              <li key={`${entry.label}-${entry.confidence}-${index}`}>
-                {entry.label} · {entry.confidence}% — {entry.explanation}
-              </li>
-            ))}
+            {history
+              .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+              .slice(0, 12)
+              .map((entry) => (
+                <li key={entry.id} className="rounded-lg border border-border/50 bg-background/60 p-2">
+                  <p className="text-[11px] text-muted-foreground">Requête: {entry.text.slice(0, 80)}</p>
+                  <p>
+                    {entry.result.label} · {entry.result.confidence}% —{" "}
+                    {entry.result.explanation}
+                  </p>
+                  <div className="mt-1 flex gap-2">
+                    <button className="text-[11px]" onClick={() => setText(entry.text)} type="button">Revoir</button>
+                    <button
+                      className="text-[11px]"
+                      onClick={() =>
+                        setHistory((prev) =>
+                          prev.map((item) => item.id === entry.id ? { ...item, pinned: !item.pinned } : item)
+                        )
+                      }
+                      type="button"
+                    >
+                      {entry.pinned ? "Désépingler" : "Épingler"}
+                    </button>
+                    <button className="text-[11px] text-red-500" onClick={() => setHistory((prev) => prev.filter((item) => item.id !== entry.id))} type="button">Supprimer</button>
+                  </div>
+                </li>
+              ))}
           </ul>
         </section>
       ) : null}

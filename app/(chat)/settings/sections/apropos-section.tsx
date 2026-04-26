@@ -1,6 +1,11 @@
+"use client";
+
 import { MessageCircle } from "lucide-react";
 import Image from "next/image";
-import type { AppLanguage } from "@/lib/i18n";
+import { useMemo, useState } from "react";
+import { chatModels } from "@/lib/ai/models";
+import { affordableImageModels } from "@/lib/ai/affordable-models";
+import { LANGUAGE_OPTIONS, type AppLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type AproposSectionProps = {
@@ -67,6 +72,51 @@ const aboutI18n = {
     telegramSoon: "在 Telegram 与 mAI 聊天",
     talkDiscord: "在 Discord 与 mAI 聊天",
   },
+  ar: {
+    defaultLanguage: "لغة الواجهة الافتراضية:",
+    discordSupport: "Discord والدعم",
+    joinDiscord: "الانضمام إلى خادم Discord",
+    language: "اللغة",
+    beta: "بيتا",
+    telegramSoon: "الدردشة مع mAI على Telegram",
+    talkDiscord: "الدردشة مع mAI على Discord",
+  },
+  ko: {
+    defaultLanguage: "기본 인터페이스 언어:",
+    discordSupport: "Discord 및 지원",
+    joinDiscord: "Discord 서버 참여",
+    language: "언어",
+    beta: "베타",
+    telegramSoon: "Telegram에서 mAI와 대화",
+    talkDiscord: "Discord에서 mAI와 대화",
+  },
+  pl: {
+    defaultLanguage: "Domyślny język interfejsu:",
+    discordSupport: "Discord i wsparcie",
+    joinDiscord: "Dołącz do serwera Discord",
+    language: "Język",
+    beta: "Beta",
+    telegramSoon: "Rozmawiaj z mAI na Telegramie",
+    talkDiscord: "Rozmawiaj z mAI na Discordzie",
+  },
+  hr: {
+    defaultLanguage: "Zadani jezik sučelja:",
+    discordSupport: "Discord i podrška",
+    joinDiscord: "Pridruži se Discord serveru",
+    language: "Jezik",
+    beta: "Beta",
+    telegramSoon: "Razgovaraj s mAI na Telegramu",
+    talkDiscord: "Razgovaraj s mAI na Discordu",
+  },
+  sv: {
+    defaultLanguage: "Standardgränssnittets språk:",
+    discordSupport: "Discord & support",
+    joinDiscord: "Gå med i Discord-servern",
+    language: "Språk",
+    beta: "Beta",
+    telegramSoon: "Chatta med mAI på Telegram",
+    talkDiscord: "Chatta med mAI på Discord",
+  },
   fr: {
     defaultLanguage: "Langue d'interface par défaut:",
     discordSupport: "Discord & Support",
@@ -85,6 +135,10 @@ export function AproposSection({
   onLanguageChange,
 }: AproposSectionProps) {
   const t = aboutI18n[language];
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [modelsCategory, setModelsCategory] = useState<"all" | "text" | "image" | "music">("all");
+  const musicModels = useMemo(() => ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"], []);
+
   return (
     <section
       className={cn(
@@ -113,13 +167,11 @@ export function AproposSection({
           onChange={(event) => onLanguageChange(event.target.value)}
           value={interfaceLanguage}
         >
-          <option value="fr">Français</option>
-          <option value="en">English</option>
-          <option value="es">Español</option>
-          <option value="de">Deutsch</option>
-          <option value="it">Italiano</option>
-          <option value="pt">Português</option>
-          <option value="zh">中文（普通话）</option>
+          {LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -168,7 +220,90 @@ export function AproposSection({
           />
           {t.telegramSoon}
         </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300" onClick={() => { setModelsCategory("text"); setModelsOpen(true); }} type="button">
+          Modèles Texte <span className="rounded border border-emerald-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-500/20 dark:text-sky-300" onClick={() => { setModelsCategory("image"); setModelsOpen(true); }} type="button">
+          Modèles Images <span className="rounded border border-sky-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-2 text-sm font-medium text-fuchsia-700 transition-colors hover:bg-fuchsia-500/20 dark:text-fuchsia-300" onClick={() => { setModelsCategory("music"); setModelsOpen(true); }} type="button">
+          Modèles Musiques <span className="rounded border border-fuchsia-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-slate-500/40 bg-slate-500/10 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-500/20 dark:text-slate-200" onClick={() => { setModelsCategory("all"); setModelsOpen(true); }} type="button">
+          Vue globale <span className="rounded border border-slate-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
       </div>
+
+      {modelsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModelsOpen(false)} role="presentation">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl min-h-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="flex items-center justify-between border-b border-border/50 p-4">
+              <h3 className="text-base font-semibold">Modèles référencés</h3>
+              <button className="rounded-lg border px-2 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
+            </div>
+            <div className="border-b border-border/50 p-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "all", label: "Tout" },
+                  { key: "text", label: "Texte" },
+                  { key: "image", label: "Images" },
+                  { key: "music", label: "Musiques" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    className={cn(
+                      "rounded-lg border px-3 py-1 text-xs font-medium",
+                      modelsCategory === tab.key
+                        ? "border-violet-500 bg-violet-500/10 text-violet-700"
+                        : "border-border/60 text-muted-foreground"
+                    )}
+                    onClick={() => setModelsCategory(tab.key as "all" | "text" | "image" | "music")}
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 md:grid-cols-3">
+              {(modelsCategory === "all" || modelsCategory === "text") && <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Texte ({chatModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {chatModels.map((model) => (
+                    <div key={`text-${model.id}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.name}
+                    </div>
+                  ))}
+                </div>
+              </div>}
+              {(modelsCategory === "all" || modelsCategory === "image") && <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Images ({affordableImageModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {affordableImageModels.map((model) => (
+                    <div key={`img-${model.id}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.label}
+                    </div>
+                  ))}
+                </div>
+              </div>}
+              {(modelsCategory === "all" || modelsCategory === "music") && <div>
+                <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Musiques ({musicModels.length})</p>
+                <div className="space-y-1 text-xs">
+                  {musicModels.map((model) => (
+                    <div key={`music-${model}`} className="rounded border border-border/40 px-2 py-1">
+                      {model.replaceAll("_", ".")}
+                    </div>
+                  ))}
+                </div>
+              </div>}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border/50 p-3">
+              <button className="rounded-lg border border-border/60 px-3 py-1 text-xs" onClick={() => setModelsCategory("all")} type="button">Voir tout</button>
+              <button className="rounded-lg border border-border/60 px-3 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

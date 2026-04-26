@@ -13,6 +13,10 @@ export default async function ProjectsPage() {
 
   const projects = await getProjects(session.user.id);
 
+  const projectsWithInstructions = projects.filter(
+    (project) => (project.instructions ?? "").trim().length > 0
+  ).length;
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 text-black md:px-6">
       <section className="liquid-panel rounded-3xl border border-white/30 bg-white/80 p-6 text-black backdrop-blur-3xl">
@@ -21,6 +25,9 @@ export default async function ProjectsPage() {
             <h1 className="text-2xl font-semibold">Projets</h1>
             <p className="text-sm text-black/70">
               Isolez conversations, sources, mémoire et tâches par contexte.
+            </p>
+            <p className="mt-1 text-xs text-black/60">
+              {projects.length} projets • {projectsWithInstructions} avec instructions
             </p>
           </div>
 
