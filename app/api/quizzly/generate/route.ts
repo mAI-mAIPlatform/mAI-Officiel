@@ -59,15 +59,38 @@ function sanitizeQuestion(raw: any): NormalizedQuestion | null {
   const answerIndexRaw = raw?.correctAnswerIndex ?? raw?.bonneReponseIndex;
   const answerText = String(raw?.bonne_reponse ?? raw?.bonneReponse ?? raw?.correctAnswer ?? "").trim();
 
-  if (!question || !Array.isArray(optionsRaw) || optionsRaw.length !== 4 || !explanation) {
+  const optionsFromObject =
+    optionsRaw && typeof optionsRaw === "object" && !Array.isArray(optionsRaw)
+      ? ["A", "B", "C", "D"]
+          .map((key) => optionsRaw[key])
+          .filter((value) => typeof value === "string" && value.trim().length > 0)
+      : [];
+
+  const normalizedOptionsRaw = Array.isArray(optionsRaw)
+    ? optionsRaw
+    : optionsFromObject;
+
+  if (
+    !question ||
+    !Array.isArray(normalizedOptionsRaw) ||
+    normalizedOptionsRaw.length !== 4 ||
+    !explanation
+  ) {
     return null;
   }
 
-  const options = optionsRaw.map((option: unknown) => String(option).trim());
+  const options = normalizedOptionsRaw.map((option: unknown) => String(option).trim());
+  const answerFromLetter =
+    answerText.length === 1 &&
+    ["A", "B", "C", "D"].includes(answerText.toUpperCase())
+      ? answerText.toUpperCase().charCodeAt(0) - "A".charCodeAt(0)
+      : -1;
 
   let correctAnswerIndex = Number.isInteger(answerIndexRaw)
     ? Number(answerIndexRaw)
-    : options.findIndex((option) => option === answerText);
+    : answerFromLetter >= 0
+      ? answerFromLetter
+      : options.findIndex((option) => option === answerText);
 
   if (correctAnswerIndex < 0 || correctAnswerIndex > 3) {
     correctAnswerIndex = 0;
