@@ -12,7 +12,10 @@ import { toast } from "sonner";
 
 const classOptions = ["CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"];
 const subjectOptions = ["Mathématiques", "Français", "Histoire", "Géographie", "Sciences", "Anglais", "Culture Générale", "Technologie"];
-const modelSuggestions = ["__random__", ...chatModels.map((model) => model.id)].slice(0, 40);
+const modelSuggestions = [
+  { id: "__random__", name: "Aléatoire" },
+  ...chatModels.map((model) => ({ id: model.id, name: model.name })),
+].slice(0, 40);
 
 export default function QuizzlySettingsPage() {
   const [settings, setSettings] = useState<QuizzlySettings>(defaultQuizzlySettings);
@@ -63,7 +66,7 @@ export default function QuizzlySettingsPage() {
         <div>
           <p className="font-semibold text-slate-700 mb-2">Modèle par défaut</p>
           <select className="w-full border rounded-xl px-3 py-2" value={settings.defaultModelId} onChange={(e) => setSettings({ ...settings, defaultModelId: e.target.value })}>
-            {modelSuggestions.map((model) => <option key={model} value={model}>{model}</option>)}
+            {modelSuggestions.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
           </select>
         </div>
 

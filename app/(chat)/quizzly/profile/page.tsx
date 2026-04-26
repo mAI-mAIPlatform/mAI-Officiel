@@ -169,8 +169,8 @@ export default function QuizzlyProfilePage() {
             <p className="font-bold text-slate-800 flex items-center gap-2"><Link2 className="w-4 h-4" /> Liens sociaux</p>
             {socialLinks.map((link, index) => (
               <div key={`${index}-${link.label}`} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-center">
-                <input value={link.label} onChange={(e) => updateSocialLink(index, { label: e.target.value })} className="px-3 py-2 rounded-lg border border-slate-200" />
-                <input value={link.url} onChange={(e) => updateSocialLink(index, { url: e.target.value })} className="px-3 py-2 rounded-lg border border-slate-200" />
+                <input value={link.label} onChange={(e) => updateSocialLink(index, { label: e.target.value })} onKeyDown={(e) => e.stopPropagation()} className="px-3 py-2 rounded-lg border border-slate-200" />
+                <input value={link.url} onChange={(e) => updateSocialLink(index, { url: e.target.value })} onKeyDown={(e) => e.stopPropagation()} className="px-3 py-2 rounded-lg border border-slate-200" />
                 <button type="button" onClick={() => moveSocialLink(index, -1)} className="text-xs px-2 py-1 rounded bg-slate-100">↑</button>
                 <button type="button" onClick={() => moveSocialLink(index, 1)} className="text-xs px-2 py-1 rounded bg-slate-100">↓</button>
                 <button type="button" onClick={() => removeSocialLink(index)} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">Suppr.</button>

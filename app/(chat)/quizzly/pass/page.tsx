@@ -112,62 +112,38 @@ export default function QuizzlyPassPage() {
       <div>
         <h1 className="text-3xl font-black text-slate-800">Quizzly Pass</h1>
         <p className="text-slate-500">Saison {monthKey} — 20 récompenses mensuelles débloquées via l'XP.</p>
-        <p className="text-xs text-violet-700 mt-1">Pass Pro: récompenses bonus pour les comptes Plus/Pro/Max.</p>
       </div>
-      <div className="bg-white p-5 rounded-2xl border border-slate-100">XP actuelle: <span className="font-black">{profile.xp}</span></div>
-      <div className="grid md:grid-cols-[1fr_1fr] gap-4 items-stretch">
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 md:order-1">
-          <h3 className="font-black text-slate-800">Pass Gratuit</h3>
-          <p className="text-xs text-slate-500 mt-1">Récompenses de base chaque mois.</p>
-          <ul className="text-sm mt-3 space-y-1 text-slate-700">
-            <li>• Diamants</li>
-            <li>• Étoiles</li>
-            <li>• Boucliers</li>
-            <li>• Boosters</li>
-          </ul>
-        </div>
-        <div className="bg-gradient-to-b from-yellow-50 to-amber-100 rounded-2xl border border-yellow-300 p-4 shadow-[0_0_40px_rgba(234,179,8,0.22)] md:order-2">
-          <h3 className="font-black text-amber-900 flex items-center gap-2"><Crown className="w-5 h-5" /> Pass Pro</h3>
-          <p className="text-xs text-amber-800 mt-1">Débloqué avec mAI Max ou 500 diamants.</p>
-          <ul className="text-sm mt-3 space-y-1 text-amber-900">
-            <li>• Récompenses premium supplémentaires</li>
-            <li>• Avatars et effets légendaires</li>
-            <li>• Plus de diamants par palier</li>
-          </ul>
-        </div>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {PASS_REWARDS.map((reward) => {
-          const unlocked = profile.xp >= reward.requirementXp;
-          const isClaimed = claimed.includes(reward.id);
-          return (
-            <div key={reward.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
-              <div>
-                <p className="font-black text-slate-800 flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base">{rewardTypeIcon[reward.type]}</span>
-                  Palier {reward.id}
-                </p>
-                <p className="text-sm text-slate-700">{reward.label}</p>
-                <p className="text-sm text-slate-500">Requis: {reward.requirementXp} XP</p>
+      <div className="grid gap-4 lg:grid-cols-2 items-start">
+        <div className="space-y-3">
+          <h2 className="text-xl font-black text-slate-800">Pass Gratuit</h2>
+          {PASS_REWARDS.map((reward) => {
+            const unlocked = profile.xp >= reward.requirementXp;
+            const isClaimed = claimed.includes(reward.id);
+            return (
+              <div key={reward.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-black text-slate-800 flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base">{rewardTypeIcon[reward.type]}</span>
+                    Palier {reward.id}
+                  </p>
+                  <p className="text-sm text-slate-700">{reward.label}</p>
+                  <p className="text-sm text-slate-500">Requis: {reward.requirementXp} XP</p>
+                </div>
+                <button
+                  onClick={() => claimReward(reward)}
+                  disabled={!unlocked || isClaimed}
+                  className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-1"
+                >
+                  {isClaimed ? <CheckCircle2 className="w-4 h-4" /> : unlocked ? <Gift className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  {isClaimed ? "Réclamé" : unlocked ? "Réclamer" : "Verrouillé"}
+                </button>
               </div>
-              <button
-                onClick={() => claimReward(reward)}
-                disabled={!unlocked || isClaimed}
-                className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-1"
-              >
-                {isClaimed ? <CheckCircle2 className="w-4 h-4" /> : unlocked ? <Gift className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                {isClaimed ? "Réclamé" : unlocked ? "Réclamer" : "Verrouillé"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="mt-6">
-        <h2 className="text-xl font-black text-slate-800">Quizzly Pass Pro</h2>
-        <p className="text-sm text-slate-500 mb-3">
-          Réservé aux plans Plus / Pro / Max.
-        </p>
+        <div className="space-y-3">
+          <h2 className="text-xl font-black text-amber-900 flex items-center gap-2"><Crown className="w-5 h-5" /> Quizzly Pass Pro</h2>
         {!(plan === "max" || hasProAccess) && (
           <button
             onClick={() => void unlockProWithDiamonds()}
@@ -177,14 +153,13 @@ export default function QuizzlyPassPage() {
             Débloquer avec 500 💎
           </button>
         )}
-        <div className="grid gap-4 lg:grid-cols-2">
           {PRO_PASS_REWARDS.map((reward) => {
             const unlockedByPlan = plan === "max" || hasProAccess;
             const unlockedByXp = profile.xp >= reward.requirementXp;
             const unlocked = unlockedByPlan && unlockedByXp;
             const isClaimed = claimed.includes(reward.id);
             return (
-              <div key={reward.id} className="bg-gradient-to-b from-yellow-50 to-amber-100 p-5 rounded-2xl border border-yellow-300 shadow-[0_0_24px_rgba(234,179,8,0.25)] flex items-center justify-between gap-4">
+              <div key={reward.id} className="bg-gradient-to-b from-yellow-50 to-amber-100 p-4 rounded-2xl border border-yellow-300 shadow-[0_0_24px_rgba(234,179,8,0.25)] flex items-center justify-between gap-4">
                 <div>
                   <p className="font-black text-amber-900 flex items-center gap-2">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-base">{rewardTypeIcon[reward.type]}</span>

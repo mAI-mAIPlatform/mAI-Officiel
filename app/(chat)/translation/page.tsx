@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { addStatsEvent } from "@/lib/user-stats";
+import { useLanguage } from "@/hooks/use-language";
 
 const languageOptions = [
   { code: "auto", label: "Détection auto" },
@@ -129,6 +130,7 @@ function normalizeWord(input: string) {
 }
 
 export default function TranslationPage() {
+  const { language } = useLanguage();
   const [sourceText, setSourceText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState("auto");
   const [targetLanguages, setTargetLanguages] = useState<string[]>(["en"]);
@@ -141,6 +143,10 @@ export default function TranslationPage() {
     Array<{ id: string; source: string; targets: Record<string, string>; pinned: boolean }>
   >([]);
   const translationCacheRef = useRef<Record<string, string>>({});
+  const distinctLanguageError =
+    language === "en"
+      ? "Please select two distinct languages."
+      : "Veuillez sélectionner deux langues différentes.";
 
   const detectedLanguage = useMemo(
     () => detectLanguage(sourceText),
@@ -169,6 +175,9 @@ export default function TranslationPage() {
             if (cachedTranslation) {
               return [target, cachedTranslation] as const;
             }
+            if (sourceLang === target) {
+              return [target, distinctLanguageError] as const;
+            }
 
             const response = await fetch(
               `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`,
@@ -191,7 +200,9 @@ export default function TranslationPage() {
         }
         setTranslatedByLanguage({
           [targetLanguages[0] ?? "en"]:
-            "La traduction a échoué. Vérifiez votre connexion.",
+            language === "en"
+              ? "Translation failed. Please check your connection."
+              : "La traduction a échoué. Vérifiez votre connexion.",
         });
       } finally {
         setIsTranslating(false);
@@ -202,7 +213,7 @@ export default function TranslationPage() {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguages]);
+  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguages, distinctLanguageError, language]);
 
   useEffect(() => {
     if (!sourceText.trim() || Object.keys(translatedByLanguage).length === 0) return;

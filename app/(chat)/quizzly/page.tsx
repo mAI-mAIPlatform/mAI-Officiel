@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/hooks/use-language";
 
 type Profile = {
   bio: string;
@@ -23,17 +24,14 @@ type Profile = {
   xp: number;
 };
 
-const WELCOME_OPENERS = [
-  "Salut",
-  "Bienvenue",
-  "Prêt(e) à tout casser",
-  "Hello champion",
-  "C'est parti",
-  "On relance la flamme",
-] as const;
+const WELCOME_OPENERS = {
+  fr: ["Salut", "Bienvenue", "Prêt(e) à tout casser", "Hello champion", "C'est parti", "On relance la flamme"],
+  en: ["Hi", "Welcome", "Ready to crush it", "Hey champion", "Let's go", "Keep the streak alive"],
+} as const;
 
 export default function QuizzlyDashboardPage() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [leaderboardView, setLeaderboardView] = useState<"global" | "friends">("global");
@@ -58,9 +56,10 @@ export default function QuizzlyDashboardPage() {
 
   const welcomeTitle = useMemo(() => {
     if (!profile) return "Bienvenue sur Quizzly";
-    const index = (new Date().getDate() + profile.pseudo.length) % WELCOME_OPENERS.length;
-    return `${WELCOME_OPENERS[index]}, ${profile.pseudo} ${profile.emoji}`;
-  }, [profile]);
+    const openers = language === "en" ? WELCOME_OPENERS.en : WELCOME_OPENERS.fr;
+    const index = (new Date().getDate() + profile.pseudo.length) % openers.length;
+    return `${openers[index]}, ${profile.pseudo} ${profile.emoji}`;
+  }, [language, profile]);
 
   const handleClaim = async () => {
     try {
