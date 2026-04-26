@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   deleteProjectFile,
   getProjectFiles,
   updateProjectFile,
@@ -71,6 +72,17 @@ export async function DELETE(
   for (const targetId of idsToDelete) {
     await deleteProjectFile(targetId);
   }
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "file_deleted",
+    targetType: "file",
+    targetId: fileId,
+    metadata: {
+      deletedCount: idsToDelete.size,
+    },
+  });
 
   return NextResponse.json({ success: true });
 }

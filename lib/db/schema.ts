@@ -422,6 +422,39 @@ export const projectWebSource = pgTable("ProjectWebSource", {
 
 export type ProjectWebSource = InferSelectModel<typeof projectWebSource>;
 
+export const projectActivity = pgTable("ProjectActivity", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  actionType: varchar("actionType", {
+    enum: [
+      "task_created",
+      "task_updated",
+      "task_completed",
+      "task_deleted",
+      "comment_added",
+      "file_uploaded",
+      "file_deleted",
+      "member_invited",
+      "member_removed",
+      "project_updated",
+      "source_added",
+    ],
+  }).notNull(),
+  targetType: varchar("targetType", {
+    enum: ["task", "file", "comment", "member", "project", "source"],
+  }).notNull(),
+  targetId: uuid("targetId"),
+  metadata: json("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectActivity = InferSelectModel<typeof projectActivity>;
+
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")

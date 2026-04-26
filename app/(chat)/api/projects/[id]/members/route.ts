@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createProjectInvitation,
   deleteProjectInvitation,
   listProjectInvitations,
@@ -85,6 +86,17 @@ export async function POST(
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "member_invited",
+    targetType: "member",
+    metadata: {
+      email: invitation.email,
+      role: invitation.role,
+    },
+  });
+
   return NextResponse.json(
     {
       invitation,
@@ -165,5 +177,15 @@ export async function DELETE(
   }
 
   await removeProjectMember(id, parsed.data.memberUserId);
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "member_removed",
+    targetType: "member",
+    targetId: parsed.data.memberUserId,
+    metadata: {
+      removedUserId: parsed.data.memberUserId,
+    },
+  });
   return NextResponse.json({ success: true });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createTask,
   deleteTask,
   getTaskById,
@@ -97,6 +98,19 @@ export async function PUT(
     }
   }
 
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: parsed.data.status === "done" ? "task_completed" : "task_updated",
+    targetType: "task",
+    targetId: taskId,
+    metadata: {
+      title: updated.title,
+      previousStatus: task.status,
+      newStatus: updated.status,
+    },
+  });
+
   return NextResponse.json(updated);
 }
 
@@ -122,5 +136,15 @@ export async function DELETE(
   }
 
   await deleteTask(taskId);
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "task_deleted",
+    targetType: "task",
+    targetId: taskId,
+    metadata: {
+      title: task.title,
+    },
+  });
   return NextResponse.json({ success: true });
 }

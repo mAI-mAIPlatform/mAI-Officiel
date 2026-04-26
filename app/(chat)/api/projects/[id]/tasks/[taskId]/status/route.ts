@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
-import { getProjectById, getTaskById, updateTask } from "@/lib/db/queries";
+import {
+  createProjectActivity,
+  getTaskById,
+  updateTask,
+} from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const updateStatusSchema = z.object({
   status: z.enum(["todo", "doing", "done"]),
@@ -18,10 +23,9 @@ export async function PATCH(
   }
 
   const { id, taskId } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -38,6 +42,20 @@ export async function PATCH(
     );
   }
 
+  const previousStatus = task.status;
   const [updated] = await updateTask(taskId, { status: parsed.data.status });
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType:
+      parsed.data.status === "done" ? "task_completed" : "task_updated",
+    targetType: "task",
+    targetId: taskId,
+    metadata: {
+      title: task.title,
+      previousStatus,
+      newStatus: parsed.data.status,
+    },
+  });
   return NextResponse.json(updated);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createTask,
   getSubtasksByTaskIds,
   getTasksByProject,
@@ -178,6 +179,18 @@ export async function POST(
     assigneeType: parsed.data.assigneeType,
     assigneeId: parsed.data.assigneeId,
     sortOrder: parsed.data.sortOrder,
+  });
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "task_created",
+    targetType: "task",
+    targetId: created.id,
+    metadata: {
+      title: created.title,
+      status: created.status,
+    },
   });
 
   return NextResponse.json(created, { status: 201 });

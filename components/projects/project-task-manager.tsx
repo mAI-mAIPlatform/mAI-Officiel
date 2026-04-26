@@ -32,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProjectMemberMentionInput } from "./project-member-mention-input";
 
 type TaskStatus = "todo" | "doing" | "done";
 type TaskPriority = "low" | "medium" | "high";
@@ -374,16 +375,33 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
                           {comment.isAiGenerated ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">IA</span> : null}
                           <span>{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}</span>
                         </div>
-                        <p className="mt-1 text-xs text-black/80">{comment.content}</p>
+                        <p className="mt-1 text-xs text-black/80">
+                          {comment.content.split(/(\[[^\]]+\]\([^)]+\))/g).map((part, index) => {
+                            const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+                            if (!match) {
+                              return <span key={`${comment.id}-${index}`}>{part}</span>;
+                            }
+                            return (
+                              <a
+                                className="underline"
+                                href={match[2]}
+                                key={`${comment.id}-${index}`}
+                              >
+                                {match[1]}
+                              </a>
+                            );
+                          })}
+                        </p>
                       </div>
                     ))
                   )}
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <input
+                  <ProjectMemberMentionInput
                     className="h-9 flex-1 rounded-lg border border-black/15 bg-white px-2 text-xs"
-                    onChange={(event) => setCommentInputs((prev) => ({ ...prev, [task.id]: event.target.value }))}
-                    placeholder="Ajouter un commentaire..."
+                    onChange={(next) => setCommentInputs((prev) => ({ ...prev, [task.id]: next }))}
+                    placeholder="Ajouter un commentaire... (mentionnez avec @)"
+                    projectId={projectId}
                     value={commentInputs[task.id] ?? ""}
                   />
                   <button className="rounded-lg border border-cyan-400/30 bg-cyan-200/70 px-3 text-xs" onClick={() => postComment(task.id)} type="button">Envoyer</button>

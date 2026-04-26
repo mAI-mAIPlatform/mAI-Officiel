@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   deleteProjectByUser,
   getProjectById,
   updateProjectByUser,
@@ -127,6 +128,18 @@ export async function PATCH(
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "project_updated",
+    targetType: "project",
+    targetId: id,
+    metadata: {
+      updatedFields: Object.keys(data),
+      projectName: updated.name,
+    },
+  });
 
   return NextResponse.json(updated);
 }

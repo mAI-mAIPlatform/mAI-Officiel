@@ -10,13 +10,19 @@ type InvitationPayload = {
 
 export default function AcceptProjectInvitationPage() {
   const params = useParams<{ token: string }>();
-  const token = params.token;
+  const token = params?.token;
   const router = useRouter();
   const [data, setData] = useState<InvitationPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!token) {
+      setError("Invitation invalide");
+      setIsLoading(false);
+      return;
+    }
+
     fetch(`/api/projects/invitations/${token}`)
       .then(async (response) => {
         if (!response.ok) {
@@ -31,6 +37,9 @@ export default function AcceptProjectInvitationPage() {
   }, [token]);
 
   const accept = async () => {
+    if (!token) {
+      return;
+    }
     const response = await fetch(`/api/projects/invitations/${token}`, {
       method: "POST",
     });
@@ -46,6 +55,10 @@ export default function AcceptProjectInvitationPage() {
   };
 
   const decline = async () => {
+    if (!token) {
+      router.push("/projects");
+      return;
+    }
     await fetch(`/api/projects/invitations/${token}`, { method: "DELETE" });
     router.push("/projects");
   };

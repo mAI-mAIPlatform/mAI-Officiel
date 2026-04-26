@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { ProjectDashboard } from "./project-dashboard";
+import { ProjectActivityTimeline } from "./project-activity-timeline";
 import { ProjectLibrary } from "./project-library";
 import { ProjectTaskViews } from "./project-task-views";
 import { ProjectHistoryView } from "./project-history-view";
@@ -47,7 +48,13 @@ export function ProjectWorkspace({
   stats,
 }: ProjectWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "discussions" | "tasks" | "library" | "history" | "settings"
+    | "dashboard"
+    | "discussions"
+    | "tasks"
+    | "library"
+    | "history"
+    | "activity"
+    | "settings"
   >("dashboard");
   const searchParams = useSearchParams();
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -62,6 +69,7 @@ export function ProjectWorkspace({
     tabFromUrl === "tasks" ||
     tabFromUrl === "library" ||
     tabFromUrl === "history" ||
+    tabFromUrl === "activity" ||
     tabFromUrl === "discussions" ||
     tabFromUrl === "dashboard" ||
     tabFromUrl === "settings"
@@ -123,6 +131,7 @@ export function ProjectWorkspace({
           { key: "discussions", label: "Discussions" },
           { key: "tasks", label: "Tâches" },
           { key: "library", label: "Bibliothèque" },
+          { key: "activity", label: "Activité" },
           { key: "history", label: "Historique" },
         ].map((tab) => (
           <button
@@ -139,6 +148,7 @@ export function ProjectWorkspace({
                   | "discussions"
                   | "tasks"
                   | "library"
+                  | "activity"
                   | "history"
               )
             }
@@ -278,6 +288,8 @@ export function ProjectWorkspace({
 
       {effectiveTab === "library" ? <ProjectLibrary projectId={projectId} /> : null}
 
+      {effectiveTab === "activity" ? <ProjectActivityTimeline projectId={projectId} /> : null}
+
       {effectiveTab === "history" ? <ProjectHistoryView projectId={projectId} /> : null}
 
       {effectiveTab === "settings" ? (
@@ -292,11 +304,12 @@ export function ProjectWorkspace({
       ) : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/30 bg-white/90 p-1 backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid grid-cols-7 gap-1">
           {[
             { key: "dashboard", label: "Dashboard", icon: BarChart3 },
             { key: "tasks", label: "Tâches", icon: SquareKanban },
             { key: "library", label: "Bibliothèque", icon: BookOpen },
+            { key: "activity", label: "Activité", icon: MessageSquare },
             { key: "history", label: "Historique", icon: MessageSquare },
             { key: "discussions", label: "Chat", icon: MessageSquare },
             { key: "settings", label: "Paramètres", icon: Settings },
@@ -313,6 +326,7 @@ export function ProjectWorkspace({
                     | "discussions"
                     | "tasks"
                     | "library"
+                    | "activity"
                     | "history"
                     | "settings"
                 )

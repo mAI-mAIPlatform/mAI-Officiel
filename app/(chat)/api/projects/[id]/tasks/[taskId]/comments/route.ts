@@ -2,21 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createTaskComment,
-  getProjectById,
   getTaskById,
   getTaskCommentsByTaskId,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const createCommentSchema = z.object({
   content: z.string().trim().min(1).max(4000),
   isAiGenerated: z.boolean().optional(),
 });
-
-async function assertOwnership(projectId: string, userId: string) {
-  const project = await getProjectById(projectId);
-  return project && project.userId === userId;
-}
 
 export async function GET(
   _request: Request,
@@ -29,10 +25,9 @@ export async function GET(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -55,10 +50,9 @@ export async function POST(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -80,6 +74,19 @@ export async function POST(
     authorId: session.user.id,
     content: parsed.data.content,
     isAiGenerated: parsed.data.isAiGenerated ?? false,
+  });
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "comment_added",
+    targetType: "comment",
+    targetId: created.id,
+    metadata: {
+      taskId,
+      taskTitle: task.title,
+      preview: created.content.slice(0, 180),
+    },
   });
 
   return NextResponse.json(created, { status: 201 });

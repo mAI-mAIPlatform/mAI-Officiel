@@ -721,6 +721,8 @@ import {
   type MemoryEntry,
   memoryEntry,
   type Project,
+  type ProjectActivity,
+  projectActivity,
   type ProjectFile,
   projectFile,
   type ProjectInvitation,
@@ -1686,6 +1688,76 @@ export async function createProjectWebSource(
     console.error("Failed to create project web source:", error);
     throw new Error("Failed to create project web source");
   }
+}
+
+export async function createProjectActivity(
+  data: Pick<
+    ProjectActivity,
+    "projectId" | "userId" | "actionType" | "targetType"
+  > &
+    Partial<Pick<ProjectActivity, "targetId" | "metadata">>
+) {
+  try {
+    return await db
+      .insert(projectActivity)
+      .values({
+        ...data,
+        metadata: data.metadata ?? {},
+      })
+      .returning();
+  } catch (error) {
+    console.error("Failed to create project activity:", error);
+    throw new Error("Failed to create project activity");
+  }
+}
+
+export async function getProjectActivities(
+  projectId: string,
+  options?: {
+    actionType?: ProjectActivity["actionType"];
+    userId?: string;
+    limit?: number;
+    cursor?: string;
+  }
+) {
+  const limit = Math.min(100, Math.max(1, options?.limit ?? 30));
+  const conditions = [eq(projectActivity.projectId, projectId)];
+
+  if (options?.actionType) {
+    conditions.push(eq(projectActivity.actionType, options.actionType));
+  }
+  if (options?.userId) {
+    conditions.push(eq(projectActivity.userId, options.userId));
+  }
+  if (options?.cursor) {
+    conditions.push(lt(projectActivity.createdAt, new Date(options.cursor)));
+  }
+
+  const rows = await db
+    .select({
+      id: projectActivity.id,
+      actionType: projectActivity.actionType,
+      targetType: projectActivity.targetType,
+      targetId: projectActivity.targetId,
+      metadata: projectActivity.metadata,
+      createdAt: projectActivity.createdAt,
+      userId: projectActivity.userId,
+      userName: user.name,
+      userImage: user.image,
+    })
+    .from(projectActivity)
+    .innerJoin(user, eq(user.id, projectActivity.userId))
+    .where(and(...conditions))
+    .orderBy(desc(projectActivity.createdAt))
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore
+    ? items.at(-1)?.createdAt?.toISOString() ?? null
+    : null;
+
+  return { items, nextCursor };
 }
 
 export async function createTask(

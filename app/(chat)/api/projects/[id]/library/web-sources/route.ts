@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createProjectWebSource,
   getProjectWebSources,
 } from "@/lib/db/queries";
@@ -67,6 +68,18 @@ export async function POST(
     title,
     description: null,
     faviconUrl: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+  });
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "source_added",
+    targetType: "source",
+    targetId: created.id,
+    metadata: {
+      title: created.title,
+      url: created.url,
+    },
   });
 
   return NextResponse.json(created, { status: 201 });

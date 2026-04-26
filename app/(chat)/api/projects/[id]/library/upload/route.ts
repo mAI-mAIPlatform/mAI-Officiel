@@ -1,7 +1,11 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { createProjectFile, getLatestProjectFileVersion } from "@/lib/db/queries";
+import {
+  createProjectActivity,
+  createProjectFile,
+  getLatestProjectFileVersion,
+} from "@/lib/db/queries";
 import { requireProjectRole } from "@/lib/projects/permissions";
 
 export async function POST(
@@ -63,6 +67,19 @@ export async function POST(
     version: (latestVersion?.version ?? 0) + 1,
     previousVersionId: latestVersion?.id ?? undefined,
     sharedWith: latestVersion?.sharedWith ?? [],
+  });
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "file_uploaded",
+    targetType: "file",
+    targetId: created.id,
+    metadata: {
+      name: created.name,
+      size: created.size,
+      version: created.version,
+    },
   });
 
   return NextResponse.json(created, { status: 201 });
