@@ -38,6 +38,7 @@ export default function QuizzlyShopPage() {
   const [dailyClaiming, setDailyClaiming] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [lastWheelResult, setLastWheelResult] = useState<number | null>(null);
+  const [wheelRotation, setWheelRotation] = useState(0);
 
   const loadData = async () => {
     const [p, inv] = await Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]);
@@ -94,6 +95,10 @@ export default function QuizzlyShopPage() {
     setSpinning(true);
     try {
       const res = await spinWheelOfFortune();
+      const segmentIndex = [0, 5, 10, 15, 25, 50, 75, 100].indexOf(res.result);
+      const baseRotation = 360 * 6;
+      const target = baseRotation + (360 - segmentIndex * 45);
+      setWheelRotation((prev) => prev + target);
       setLastWheelResult(res.result);
       if (res.isJackpot) {
         toast.success("🎉 JACKPOT 100 💎 ! La tribu va en entendre parler !");
@@ -148,6 +153,17 @@ export default function QuizzlyShopPage() {
             {lastWheelResult !== null && (
               <p className="mt-2 text-xs font-bold text-fuchsia-700">Dernier résultat: {lastWheelResult} 💎</p>
             )}
+          </div>
+          <div className="relative h-28 w-28">
+            <div className="absolute left-1/2 -top-2 h-0 w-0 -translate-x-1/2 border-x-8 border-b-[12px] border-x-transparent border-b-violet-700" />
+            <div
+              className="h-28 w-28 rounded-full border-4 border-white shadow transition-transform duration-[2800ms] ease-out"
+              style={{
+                background:
+                  "conic-gradient(#f43f5e 0 45deg,#fb7185 45deg 90deg,#f97316 90deg 135deg,#f59e0b 135deg 180deg,#84cc16 180deg 225deg,#22d3ee 225deg 270deg,#3b82f6 270deg 315deg,#8b5cf6 315deg 360deg)",
+                transform: `rotate(${wheelRotation}deg)`,
+              }}
+            />
           </div>
           <button
             className="rounded-xl bg-fuchsia-600 px-4 py-2.5 font-bold text-white disabled:opacity-50"

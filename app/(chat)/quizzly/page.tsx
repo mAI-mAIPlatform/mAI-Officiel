@@ -80,14 +80,16 @@ export default function QuizzlyDashboardPage() {
     }
   };
 
-  const handleComeback = async () => {
-    const res = await claimComebackReward();
-    if (res.success) {
-      toast.success(`Bon retour ! +${res.reward} 💎 après ${res.daysAway} jours d'absence.`);
-      const p = await getQuizzlyProfile();
-      setProfile(p as Profile);
-    }
-  };
+  useEffect(() => {
+    if (!profile) return;
+    claimComebackReward().then(async (res) => {
+      if (res.success) {
+        toast.success(`Bon retour ${profile.pseudo} ! +${res.reward} 💎`);
+        const p = await getQuizzlyProfile();
+        setProfile(p as Profile);
+      }
+    });
+  }, [profile]);
 
   if (loading || !profile)
     return (
@@ -113,13 +115,6 @@ export default function QuizzlyDashboardPage() {
           Récompense Quotidienne (+10 💎)
         </button>
       </div>
-      <button
-        onClick={handleComeback}
-        className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700"
-        type="button"
-      >
-        Vérifier bonus de retour 👋
-      </button>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">

@@ -12,9 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "fr",
     icons: [
       {
-        src: "/mai-logo.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/images/logo.png",
+        sizes: "1024x1024",
+        type: "image/png",
       },
     ],
   };

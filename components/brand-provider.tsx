@@ -30,8 +30,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     setClientPreferenceCookie("mai-app-favicon", id);
   };
 
-  const currentLogoSrc = appLogoOptions.find((l) => l.id === appLogoId)?.src ?? "/mai-logo.svg";
-  const currentFaviconSrc = appLogoOptions.find((l) => l.id === appFaviconId)?.src ?? "/mai-logo.svg";
+  const currentLogoSrc = appLogoOptions.find((l) => l.id === appLogoId)?.src ?? "/images/logo.png";
+  const currentFaviconSrc = appLogoOptions.find((l) => l.id === appFaviconId)?.src ?? "/images/logo.png";
 
   useEffect(() => {
     setClientPreferenceCookie("mai-app-logo", appLogoId);

@@ -15,7 +15,7 @@ import { BrandProvider } from "@/components/brand-provider";
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const faviconId = cookieStore.get("mai-app-favicon")?.value ?? "logo";
-  const faviconSrc = appLogoOptions.find((l) => l.id === faviconId)?.src ?? "/mai-logo.svg";
+  const faviconSrc = appLogoOptions.find((l) => l.id === faviconId)?.src ?? "/images/logo.png";
 
   return {
     metadataBase: new URL("https://mai-officiel.vercel.app"),

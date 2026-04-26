@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Gamepad2, ShoppingCart, Target, User, Users, Home, Ticket, Settings, BarChart3 } from "lucide-react";
+import { Gamepad2, ShoppingCart, Target, User, Users, Home, Ticket, Settings, BarChart3, Brain } from "lucide-react";
 import { getQuizzlyProfile } from "@/lib/quizzly/actions";
 import { redirect } from "next/navigation";
 
@@ -28,9 +27,11 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
   return (
     <div className="flex h-full w-full bg-slate-50 text-slate-900">
       {/* Sidebar */}
-      <div className="hidden w-64 border-r border-slate-200 bg-white md:flex md:flex-col">
+      <div className="sticky top-0 hidden h-screen w-64 border-r border-slate-200 bg-white md:flex md:flex-col">
         <div className="p-6 flex items-center gap-3 border-b border-slate-100">
-          <Image src="/mai-logo.svg" alt="Quizzly" width={40} height={40} className="rounded-xl" />
+          <div className="rounded-xl bg-violet-100 p-2 text-violet-700">
+            <Brain className="h-6 w-6" />
+          </div>
           <div>
             <h1 className="font-black text-xl text-violet-700 tracking-tight">Quizzly</h1>
             <p className="text-xs text-slate-500 font-medium">Niv {profile.level} • {profile.diamonds} 💎</p>

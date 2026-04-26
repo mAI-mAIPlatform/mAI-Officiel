@@ -137,6 +137,9 @@ export default function TranslationPage() {
   const [aiLexicalAnalysis, setAiLexicalAnalysis] = useState("");
   const [isGeneratingLexicalAnalysis, setIsGeneratingLexicalAnalysis] =
     useState(false);
+  const [history, setHistory] = useState<
+    Array<{ id: string; source: string; targets: Record<string, string>; pinned: boolean }>
+  >([]);
   const translationCacheRef = useRef<Record<string, string>>({});
 
   const detectedLanguage = useMemo(
@@ -200,6 +203,21 @@ export default function TranslationPage() {
       abortController.abort();
     };
   }, [detectedLanguage, sourceLanguage, sourceText, targetLanguages]);
+
+  useEffect(() => {
+    if (!sourceText.trim() || Object.keys(translatedByLanguage).length === 0) return;
+    setHistory((prev) =>
+      [
+        {
+          id: crypto.randomUUID(),
+          source: sourceText,
+          targets: translatedByLanguage,
+          pinned: false,
+        },
+        ...prev,
+      ].slice(0, 30)
+    );
+  }, [translatedByLanguage]);
 
   const lexicalAnalysis = useMemo(() => {
     const firstTranslation = translatedByLanguage[targetLanguages[0] ?? "en"] ?? "";
@@ -479,6 +497,55 @@ export default function TranslationPage() {
           </div>
         </div>
       </div>
+
+      {history.length > 0 && (
+        <section className="liquid-glass rounded-xl border border-border p-4">
+          <h3 className="mb-3 text-sm font-semibold">Historique des requêtes</h3>
+          <div className="space-y-2">
+            {history
+              .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+              .slice(0, 10)
+              .map((entry) => (
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3" key={entry.id}>
+                  <p className="text-xs text-muted-foreground">Source</p>
+                  <p className="text-sm">{entry.source}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      className="rounded-md border px-2 py-1 text-xs"
+                      onClick={() => {
+                        setSourceText(entry.source);
+                        setTranslatedByLanguage(entry.targets);
+                      }}
+                      type="button"
+                    >
+                      Revoir
+                    </button>
+                    <button
+                      className="rounded-md border px-2 py-1 text-xs"
+                      onClick={() =>
+                        setHistory((prev) =>
+                          prev.map((item) =>
+                            item.id === entry.id ? { ...item, pinned: !item.pinned } : item
+                          )
+                        )
+                      }
+                      type="button"
+                    >
+                      {entry.pinned ? "Désépingler" : "Épingler"}
+                    </button>
+                    <button
+                      className="rounded-md border border-red-300 px-2 py-1 text-xs text-red-600"
+                      onClick={() => setHistory((prev) => prev.filter((item) => item.id !== entry.id))}
+                      type="button"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

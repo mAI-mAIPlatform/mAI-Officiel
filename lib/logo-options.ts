@@ -6,7 +6,7 @@ export type AppLogoOption = {
 };
 
 export const appLogoOptions: AppLogoOption[] = [
-  { id: "logo", name: "Cerveau (Noir)", src: "/mai-logo.svg", maxOnly: false },
+  { id: "logo", name: "Défaut", src: "/images/logo.png", maxOnly: false },
   { id: "logo-noir", name: "Noir", src: "/images/logo-noir.png", maxOnly: false },
   { id: "logo-noir-blanc", name: "Noir & Blanc", src: "/images/logo-noir-blanc.png", maxOnly: false },
   { id: "logo-bleu-blanc", name: "Bleu & Blanc", src: "/images/logo-bleu-blanc.png", maxOnly: true },

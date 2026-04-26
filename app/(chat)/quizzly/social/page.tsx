@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MessageSquare, Handshake, Users, Trophy, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
 
 const SOCIAL_STORAGE_KEY = "mai.quizzly.social.v1";
+const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
+const CURRENT_USER_ID = "me";
 
 type SocialState = {
   blockedUsers: string[];
@@ -13,12 +15,19 @@ type SocialState = {
   friends: string[];
   reportedUsers: string[];
 };
-const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
+
+type ChatMessage = {
+  id: string;
+  text: string;
+  author: string;
+  parentId?: string;
+  reactionsByUser: Record<string, string>;
+};
 
 export default function QuizzlySocialPage() {
   const [activeTab, setActiveTab] = useState<"friends" | "chat">("friends");
   const { socket, isConnected } = useSocket();
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [friendInput, setFriendInput] = useState("");
   const [social, setSocial] = useState<SocialState>({
@@ -28,7 +37,7 @@ export default function QuizzlySocialPage() {
     reportedUsers: [],
   });
   const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
-  const [reactionsByMessage, setReactionsByMessage] = useState<Record<string, Record<string, number>>>({});
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   useEffect(() => {
     try {
@@ -48,27 +57,45 @@ export default function QuizzlySocialPage() {
   }, [social]);
 
   useEffect(() => {
-    if (!socket) {
-      return;
-    }
+    if (!socket) return;
 
     socket.emit("join-room", "quizzly-global");
     const listener = (msg: { text?: string }) => {
       if (!msg?.text) return;
-      setMessages((prev) => [...prev, `Ami: ${msg.text}`]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          text: msg.text ?? "",
+          author: "Ami",
+          reactionsByUser: {},
+        },
+      ]);
     };
     socket.on("receive-message", listener);
 
-    return () => {
-      socket.off("receive-message", listener);
-    };
+    return () => socket.off("receive-message", listener);
   }, [socket]);
 
+  const displayedMessages = useMemo(
+    () => messages.filter((msg) => !social.blockedUsers.includes(msg.author)),
+    [messages, social.blockedUsers]
+  );
+
   const handleSend = () => {
-    if (!input.trim() || !socket) return;
-    socket.emit("send-message", { roomId: "quizzly-global", text: input });
-    setMessages((prev) => [...prev, `Moi: ${input}`]);
+    if (!input.trim()) return;
+    const payload = {
+      id: crypto.randomUUID(),
+      text: input.trim(),
+      author: "Moi",
+      parentId: replyTo?.id,
+      reactionsByUser: {},
+    } satisfies ChatMessage;
+
+    socket?.emit("send-message", { roomId: "quizzly-global", text: payload.text });
+    setMessages((prev) => [...prev, payload]);
     setInput("");
+    setReplyTo(null);
   };
 
   const pinMessage = (message: string) => {
@@ -77,8 +104,27 @@ export default function QuizzlySocialPage() {
     toast.success("Message épinglé.");
   };
 
+  const reactToMessage = (messageId: string, emoji: string) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        const currentEmoji = msg.reactionsByUser[CURRENT_USER_ID];
+        return {
+          ...msg,
+          reactionsByUser: {
+            ...msg.reactionsByUser,
+            [CURRENT_USER_ID]: currentEmoji === emoji ? "" : emoji,
+          },
+        };
+      })
+    );
+  };
+
+  const reactionCount = (msg: ChatMessage, emoji: string) =>
+    Object.values(msg.reactionsByUser).filter((item) => item === emoji).length;
+
   const exportDiscussion = () => {
-    const content = messages.join("\n");
+    const content = displayedMessages.map((m) => `${m.author}: ${m.text}`).join("\n");
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -86,20 +132,6 @@ export default function QuizzlySocialPage() {
     a.download = `quizzly-chat-${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Discussion exportée.");
-  };
-
-  const reactToMessage = (message: string, emoji: string) => {
-    setReactionsByMessage((prev) => {
-      const current = prev[message] ?? {};
-      return {
-        ...prev,
-        [message]: {
-          ...current,
-          [emoji]: (current[emoji] ?? 0) + 1,
-        },
-      };
-    });
   };
 
   const blockFriend = (pseudo: string) => {
@@ -108,7 +140,6 @@ export default function QuizzlySocialPage() {
       blockedUsers: Array.from(new Set([pseudo, ...prev.blockedUsers])),
       friends: prev.friends.filter((friend) => friend !== pseudo),
     }));
-    toast.success(`${pseudo} a été bloqué.`);
   };
 
   const reportFriend = (pseudo: string) => {
@@ -116,28 +147,6 @@ export default function QuizzlySocialPage() {
       ...prev,
       reportedUsers: Array.from(new Set([pseudo, ...prev.reportedUsers])),
     }));
-    toast.success(`Signalement envoyé pour ${pseudo}.`);
-  };
-
-  const addFriend = () => {
-    const pseudo = friendInput.trim();
-    if (!pseudo) return;
-    if (social.friends.includes(pseudo)) {
-      toast.error("Cet ami est déjà ajouté.");
-      return;
-    }
-    setSocial((prev) => ({ ...prev, friends: [pseudo, ...prev.friends] }));
-    setFriendInput("");
-    toast.success("Ami ajouté !");
-  };
-
-  const acceptRequest = (pseudo: string) => {
-    setSocial((prev) => ({
-      ...prev,
-      friendRequests: prev.friendRequests.filter((item) => item !== pseudo),
-      friends: [pseudo, ...prev.friends],
-    }));
-    toast.success(`${pseudo} rejoint tes amis.`);
   };
 
   return (
@@ -158,17 +167,16 @@ export default function QuizzlySocialPage() {
                 <p className="font-black text-slate-800 flex items-center gap-2"><UserPlus className="w-4 h-4" /> Ajouter un ami</p>
                 <div className="mt-3 flex gap-2">
                   <input value={friendInput} onChange={(e) => setFriendInput(e.target.value)} placeholder="Pseudo du joueur..." className="flex-1 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl" />
-                  <button onClick={addFriend} className="bg-violet-600 text-white font-bold px-4 py-2 rounded-xl">Ajouter</button>
+                  <button onClick={() => setSocial((prev) => ({ ...prev, friends: [friendInput.trim(), ...prev.friends].filter(Boolean) }))} className="bg-violet-600 text-white font-bold px-4 py-2 rounded-xl">Ajouter</button>
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-100 p-4">
                 <p className="font-black text-slate-800 flex items-center gap-2"><Handshake className="w-4 h-4 text-amber-500" /> Demandes reçues</p>
                 <div className="mt-3 space-y-2">
-                  {social.friendRequests.length === 0 && <p className="text-sm text-slate-500">Aucune demande.</p>}
                   {social.friendRequests.map((pseudo) => (
                     <div key={pseudo} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg">
                       <span>{pseudo}</span>
-                      <button onClick={() => acceptRequest(pseudo)} className="text-xs font-bold bg-emerald-500 text-white px-2 py-1 rounded">Accepter</button>
+                      <button onClick={() => setSocial((prev) => ({ ...prev, friendRequests: prev.friendRequests.filter((r) => r !== pseudo), friends: [pseudo, ...prev.friends] }))} className="text-xs font-bold bg-emerald-500 text-white px-2 py-1 rounded">Accepter</button>
                     </div>
                   ))}
                 </div>
@@ -177,7 +185,6 @@ export default function QuizzlySocialPage() {
             <div className="rounded-2xl border border-slate-100 p-4">
               <p className="font-black text-slate-800 flex items-center gap-2"><Users className="w-4 h-4 text-violet-600" /> Mes amis ({social.friends.length})</p>
               <div className="mt-3 grid sm:grid-cols-2 gap-2">
-                {social.friends.length === 0 && <p className="text-sm text-slate-500">Tu n'as pas encore d'amis.</p>}
                 {social.friends.map((friend) => (
                   <div key={friend} className="bg-violet-50 text-violet-700 px-3 py-2 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
@@ -191,9 +198,6 @@ export default function QuizzlySocialPage() {
                   </div>
                 ))}
               </div>
-              {social.blockedUsers.length > 0 && (
-                <p className="text-xs text-slate-500 mt-3">Bloqués: {social.blockedUsers.join(", ")}</p>
-              )}
             </div>
           </div>
         ) : (
@@ -208,44 +212,33 @@ export default function QuizzlySocialPage() {
             </div>
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-3 border-b border-slate-100 bg-white flex items-center justify-between">
-                <div className="text-xs text-slate-600">
-                  {pinnedMessages.length > 0 ? `📌 ${pinnedMessages[0]}` : "Aucun message épinglé"}
-                </div>
-                <button onClick={exportDiscussion} className="text-xs font-bold bg-slate-100 px-2 py-1 rounded">
-                  Exporter
-                </button>
+                <div className="text-xs text-slate-600">{pinnedMessages.length > 0 ? `📌 ${pinnedMessages[0]}` : "Aucun message épinglé"}</div>
+                <button onClick={exportDiscussion} className="text-xs font-bold bg-slate-100 px-2 py-1 rounded">Exporter</button>
               </div>
               <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50">
-                {messages.length === 0 ? (
+                {displayedMessages.length === 0 ? (
                   <div className="text-center text-slate-400 mt-20 flex flex-col items-center"><MessageSquare className="w-12 h-12 mb-3 text-slate-300" />Commence la discussion.</div>
                 ) : (
-                  messages.map((m, i) => (
-                    <div key={`${m}-${i}`} className={`max-w-[75%] ${m.startsWith("Moi") ? "ml-auto" : ""}`}>
-                      <button
-                        onClick={() => pinMessage(m)}
-                        className={`block w-full p-3 rounded-xl text-left ${m.startsWith("Moi") ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700"}`}
-                      >
-                        {m}
-                      </button>
+                  displayedMessages.map((m) => (
+                    <div key={m.id} className={`max-w-[80%] ${m.author === "Moi" ? "ml-auto" : ""}`}>
+                      {m.parentId && <p className="mb-1 text-[11px] text-slate-500">↪ réponse</p>}
+                      <button onClick={() => pinMessage(m.text)} className={`block w-full p-3 rounded-xl text-left ${m.author === "Moi" ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700"}`}>{m.author}: {m.text}</button>
                       <div className="mt-1 flex flex-wrap gap-1">
+                        <button className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs" onClick={() => setReplyTo(m)} type="button"><Reply className="inline h-3 w-3" /> Répondre</button>
                         {REACTIONS.map((emoji) => (
-                          <button
-                            key={`${m}-${emoji}`}
-                            className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs"
-                            onClick={() => reactToMessage(m, emoji)}
-                            type="button"
-                          >
-                            {emoji} {reactionsByMessage[m]?.[emoji] ?? 0}
-                          </button>
+                          <button key={`${m.id}-${emoji}`} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs" onClick={() => reactToMessage(m.id, emoji)} type="button">{emoji} {reactionCount(m, emoji)}</button>
                         ))}
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
-                <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder="Écrire un message..." className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl" />
-                <button onClick={handleSend} className="bg-violet-600 text-white font-bold px-6 py-3 rounded-xl">Envoyer</button>
+              <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-2">
+                {replyTo && <p className="text-xs text-slate-500">Réponse à: {replyTo.text}</p>}
+                <div className="flex gap-2">
+                  <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder="Écrire un message..." className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl" />
+                  <button onClick={handleSend} className="bg-violet-600 text-white font-bold px-6 py-3 rounded-xl">Envoyer</button>
+                </div>
               </div>
             </div>
           </div>

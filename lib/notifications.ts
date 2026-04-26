@@ -62,7 +62,7 @@ async function deliverSystemNotification(notification: AppNotification) {
     await registration.showNotification(notification.title, {
       body,
       data: notification.metadata,
-      icon: "/mai-logo.svg",
+      icon: "/images/logo.png",
       tag: `mai-${notification.level}`,
     });
     return;
@@ -70,7 +70,7 @@ async function deliverSystemNotification(notification: AppNotification) {
 
   new Notification(notification.title, {
     body,
-    icon: "/mai-logo.svg",
+    icon: "/images/logo.png",
   });
 }
 

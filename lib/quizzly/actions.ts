@@ -426,7 +426,7 @@ export async function claimQuestReward(userQuestId: string) {
     throw new Error("Cette quête n'est pas encore terminée.");
   }
 
-  const xpGain = Math.max(10, Math.floor(meta.rewardDiamonds * 2));
+  const xpGain = Math.max(20, Math.floor(meta.rewardDiamonds * 4));
   const profile = await getQuizzlyProfile();
 
   await db
@@ -435,11 +435,10 @@ export async function claimQuestReward(userQuestId: string) {
     .where(eq(quizzlyUserQuest.id, quest.id));
 
   await updateQuizzlyProfile({
-    diamonds: profile.diamonds + meta.rewardDiamonds,
     xp: profile.xp + xpGain,
   });
 
-  return { diamonds: meta.rewardDiamonds, xp: xpGain, success: true };
+  return { diamonds: 0, xp: xpGain, success: true };
 }
 
 export async function finishQuiz(correctAnswers: number, activeBooster: string | null) {

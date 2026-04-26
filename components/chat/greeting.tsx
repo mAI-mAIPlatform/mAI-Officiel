@@ -139,7 +139,7 @@ export const Greeting = () => {
           alt="Logo mAI"
           className="size-14 object-contain"
           height={56}
-          src="/mai-logo.svg"
+          src="/images/logo.png"
           width={56}
         />
       </motion.div>

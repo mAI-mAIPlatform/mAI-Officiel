@@ -17,11 +17,11 @@ import {
   SearchIcon,
   Settings2Icon,
   AudioWaveformIcon,
+  BrainIcon,
   TerminalSquareIcon,
   TrashIcon,
   Volume2Icon,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
@@ -90,15 +90,7 @@ const APPLICATION_LINKS = [
 ] as const;
 
 function QuizzlyAppIcon({ className }: { className?: string }) {
-  return (
-    <Image
-      alt="Quizzly"
-      className={className}
-      height={14}
-      src="/mai-logo.svg"
-      width={14}
-    />
-  );
+  return <BrainIcon className={className} />;
 }
 
 const sidebarI18n = {
