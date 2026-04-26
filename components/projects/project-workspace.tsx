@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { ProjectDashboard } from "./project-dashboard";
+import { ProjectLibrary } from "./project-library";
 import { ProjectTaskViews } from "./project-task-views";
 
 type ProjectWorkspaceProps = {
@@ -42,6 +43,9 @@ export function ProjectWorkspace({
   projectTags,
   stats,
 }: ProjectWorkspaceProps) {
+  const [activeTab, setActiveTab] = useState<"discussions" | "tasks" | "library">(
+    "tasks"
+  );
   const [selectedChatId, setSelectedChatId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -98,8 +102,32 @@ export function ProjectWorkspace({
         totalSubtasks={stats.totalSubtasks}
         totalTasks={stats.totalTasks}
       />
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-      <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
+      <div className="inline-flex rounded-2xl border border-white/30 bg-white/75 p-1 backdrop-blur-xl">
+        {[
+          { key: "discussions", label: "Discussions" },
+          { key: "tasks", label: "Tâches" },
+          { key: "library", label: "Bibliothèque" },
+        ].map((tab) => (
+          <button
+            className={`rounded-xl px-3 py-1.5 text-sm transition ${
+              activeTab === tab.key
+                ? "bg-cyan-200/80 text-black"
+                : "text-black/70 hover:bg-white/80"
+            }`}
+            key={tab.key}
+            onClick={() =>
+              setActiveTab(tab.key as "discussions" | "tasks" | "library")
+            }
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "discussions" ? (
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+          <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
         <h2 className="text-lg font-semibold text-black">
           Discussions du projet
         </h2>
@@ -128,9 +156,9 @@ export function ProjectWorkspace({
             ))
           )}
         </div>
-      </article>
+          </article>
 
-      <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
+          <article className="liquid-panel rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
         <h2 className="text-lg font-semibold text-black">Importer un chat</h2>
         <p className="mt-1 text-sm text-black/70">
           Ajoutez une conversation existante à <strong>{projectName}</strong>.
@@ -191,12 +219,13 @@ export function ProjectWorkspace({
             value={quickNotes}
           />
         </div>
-      </article>
+          </article>
+        </div>
+      ) : null}
 
-      <div className="lg:col-span-2">
-        <ProjectTaskViews projectId={projectId} />
-      </div>
-      </div>
+      {activeTab === "tasks" ? <ProjectTaskViews projectId={projectId} /> : null}
+
+      {activeTab === "library" ? <ProjectLibrary projectId={projectId} /> : null}
     </section>
   );
 }

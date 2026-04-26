@@ -722,11 +722,15 @@ import {
   type MemoryEntry,
   memoryEntry,
   type Project,
+  type ProjectFile,
+  projectFile,
   type ProjectNotificationPreference,
   projectNotificationPreference,
   project,
   type ProjectTemplate,
   projectTemplate,
+  type ProjectWebSource,
+  projectWebSource,
   notification,
   type Notification,
   type Subtask,
@@ -1167,6 +1171,86 @@ export async function markAllNotificationsAsRead(userId: string) {
   } catch (error) {
     console.error("Failed to mark all notifications as read:", error);
     throw new Error("Failed to mark all notifications as read");
+  }
+}
+
+export async function getProjectFiles(projectId: string) {
+  try {
+    return await db
+      .select()
+      .from(projectFile)
+      .where(eq(projectFile.projectId, projectId))
+      .orderBy(desc(projectFile.isFolder), asc(projectFile.name));
+  } catch (error) {
+    console.error("Failed to get project files:", error);
+    throw new Error("Failed to get project files");
+  }
+}
+
+export async function createProjectFile(
+  data: Pick<ProjectFile, "projectId" | "userId" | "name" | "isFolder"> &
+    Partial<
+      Pick<
+        ProjectFile,
+        "blobUrl" | "mimeType" | "size" | "parentId" | "tags" | "taskId"
+      >
+    >
+) {
+  try {
+    return await db.insert(projectFile).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create project file:", error);
+    throw new Error("Failed to create project file");
+  }
+}
+
+export async function updateProjectFile(
+  id: string,
+  data: Partial<Pick<ProjectFile, "name" | "parentId" | "taskId" | "tags">>
+) {
+  try {
+    return await db
+      .update(projectFile)
+      .set(data)
+      .where(eq(projectFile.id, id))
+      .returning();
+  } catch (error) {
+    console.error("Failed to update project file:", error);
+    throw new Error("Failed to update project file");
+  }
+}
+
+export async function deleteProjectFile(id: string) {
+  try {
+    return await db.delete(projectFile).where(eq(projectFile.id, id)).returning();
+  } catch (error) {
+    console.error("Failed to delete project file:", error);
+    throw new Error("Failed to delete project file");
+  }
+}
+
+export async function getProjectWebSources(projectId: string) {
+  try {
+    return await db
+      .select()
+      .from(projectWebSource)
+      .where(eq(projectWebSource.projectId, projectId))
+      .orderBy(desc(projectWebSource.createdAt));
+  } catch (error) {
+    console.error("Failed to get project web sources:", error);
+    throw new Error("Failed to get project web sources");
+  }
+}
+
+export async function createProjectWebSource(
+  data: Pick<ProjectWebSource, "projectId" | "userId" | "url" | "title"> &
+    Partial<Pick<ProjectWebSource, "description" | "faviconUrl">>
+) {
+  try {
+    return await db.insert(projectWebSource).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create project web source:", error);
+    throw new Error("Failed to create project web source");
   }
 }
 

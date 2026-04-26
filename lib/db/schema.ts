@@ -324,6 +324,44 @@ export type ProjectNotificationPreference = InferSelectModel<
   typeof projectNotificationPreference
 >;
 
+export const projectFile = pgTable("ProjectFile", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  taskId: uuid("taskId").references(() => task.id),
+  name: text("name").notNull(),
+  blobUrl: text("blobUrl"),
+  mimeType: text("mimeType"),
+  size: integer("size"),
+  parentId: uuid("parentId"),
+  isFolder: boolean("isFolder").notNull().default(false),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectFile = InferSelectModel<typeof projectFile>;
+
+export const projectWebSource = pgTable("ProjectWebSource", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  faviconUrl: text("faviconUrl"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectWebSource = InferSelectModel<typeof projectWebSource>;
+
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")
