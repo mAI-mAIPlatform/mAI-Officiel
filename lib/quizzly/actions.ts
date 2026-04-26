@@ -84,6 +84,92 @@ async function upsertInventoryItem(userId: string, itemKey: string, amount: numb
   });
 }
 
+type QuizzlyPassRewardType =
+  | "diamonds"
+  | "stars"
+  | "booster_x1.5"
+  | "booster_x2"
+  | "shield_1d"
+  | "shield_3d"
+  | "theme"
+  | "effect";
+
+type QuizzlyPassRewardInput = {
+  tier: number;
+  monthKey: string;
+  rewardType: QuizzlyPassRewardType;
+  value: number;
+};
+
+export async function getClaimedPassRewards(monthKey: string) {
+  const userId = await getAuthenticatedUserId();
+  const items = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, `pass:${monthKey}`)));
+
+  const marker = items[0];
+  if (!marker || marker.quantity <= 0) {
+    return [];
+  }
+
+  const tiers = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, `pass-claims:${monthKey}`)));
+
+  const claimsRaw = tiers[0]?.quantity ?? 0;
+  if (claimsRaw <= 0) {
+    return [];
+  }
+
+  return Array.from({ length: claimsRaw }, (_, index) => index + 1);
+}
+
+export async function claimQuizzlyPassReward(input: QuizzlyPassRewardInput) {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const markerKey = `pass:${input.monthKey}`;
+  const claimsCounterKey = `pass-claims:${input.monthKey}`;
+  const claimTierKey = `pass:${input.monthKey}:tier:${input.tier}`;
+
+  const [alreadyClaimed] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, claimTierKey)));
+  if (alreadyClaimed) {
+    throw new Error("Récompense du Pass déjà réclamée.");
+  }
+
+  const requiredXp = input.tier * 120;
+  if (profile.xp < requiredXp) {
+    throw new Error("XP insuffisante pour ce palier.");
+  }
+
+  if (input.rewardType === "diamonds") {
+    await updateQuizzlyProfile({ diamonds: profile.diamonds + input.value });
+  } else if (input.rewardType === "stars") {
+    await updateQuizzlyProfile({ stars: profile.stars + input.value });
+  } else if (
+    input.rewardType === "booster_x1.5" ||
+    input.rewardType === "booster_x2" ||
+    input.rewardType === "shield_1d" ||
+    input.rewardType === "shield_3d"
+  ) {
+    await upsertInventoryItem(userId, input.rewardType, Math.max(1, input.value));
+  } else if (input.rewardType === "theme") {
+    await upsertInventoryItem(userId, `theme:premium:${input.tier}`, 1);
+  } else if (input.rewardType === "effect") {
+    await upsertInventoryItem(userId, `effect:premium:${input.tier}`, 1);
+  }
+
+  await upsertInventoryItem(userId, markerKey, 1);
+  await upsertInventoryItem(userId, claimsCounterKey, 1);
+  await upsertInventoryItem(userId, claimTierKey, 1);
+
+  return { success: true };
+}
+
 export async function claimDailyReward() {
   const userId = await getAuthenticatedUserId();
   const profile = await getQuizzlyProfile();

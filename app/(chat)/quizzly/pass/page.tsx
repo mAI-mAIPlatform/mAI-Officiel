@@ -1,25 +1,38 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getQuizzlyProfile, updateQuizzlyProfile } from "@/lib/quizzly/actions";
+import {
+  claimQuizzlyPassReward,
+  getClaimedPassRewards,
+  getQuizzlyProfile,
+} from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Gift, Lock, CheckCircle2 } from "lucide-react";
-
-const PASS_STORAGE_KEY_PREFIX = "mai.quizzly.pass.v1";
+import { addQuizzlyStatsEvent } from "@/lib/user-stats";
 
 type PassReward = {
   id: number;
   requirementXp: number;
   label: string;
-  type: "diamonds" | "theme" | "effect" | "stars" | "booster" | "shield";
+  type:
+    | "diamonds"
+    | "theme"
+    | "effect"
+    | "stars"
+    | "booster_x1.5"
+    | "booster_x2"
+    | "shield_1d"
+    | "shield_3d";
   value: number;
 };
 
 const PASS_REWARDS: PassReward[] = Array.from({ length: 20 }, (_, index) => {
   const id = index + 1;
+  if (id % 10 === 0) return { id, requirementXp: id * 120, label: "Effet premium", type: "effect", value: 1 };
   if (id % 5 === 0) return { id, requirementXp: id * 120, label: "Thème exclusif", type: "theme", value: 1 };
-  if (id % 4 === 0) return { id, requirementXp: id * 120, label: "Bouclier", type: "shield", value: 1 };
-  if (id % 3 === 0) return { id, requirementXp: id * 120, label: "Booster", type: "booster", value: 1 };
+  if (id % 4 === 0) return { id, requirementXp: id * 120, label: "Bouclier 1j", type: "shield_1d", value: 1 };
+  if (id % 7 === 0) return { id, requirementXp: id * 120, label: "Bouclier 3j", type: "shield_3d", value: 1 };
+  if (id % 3 === 0) return { id, requirementXp: id * 120, label: "Booster x2", type: "booster_x2", value: 1 };
   if (id % 2 === 0) return { id, requirementXp: id * 120, label: "Étoiles", type: "stars", value: 2 };
   return { id, requirementXp: id * 120, label: "Diamants", type: "diamonds", value: 8 };
 });
@@ -37,14 +50,9 @@ export default function QuizzlyPassPage() {
 
   useEffect(() => {
     getQuizzlyProfile().then((p) => setProfile(p as Profile));
-    const raw = window.localStorage.getItem(`${PASS_STORAGE_KEY_PREFIX}:${monthKey}`);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as number[];
-      setClaimed(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setClaimed([]);
-    }
+    getClaimedPassRewards(monthKey)
+      .then((tiers) => setClaimed(tiers))
+      .catch(() => setClaimed([]));
   }, [monthKey]);
 
   const claimReward = async (reward: PassReward) => {
@@ -52,18 +60,18 @@ export default function QuizzlyPassPage() {
     if (claimed.includes(reward.id)) return;
     if (profile.xp < reward.requirementXp) return;
 
-    const nextProfile = { ...profile };
-    if (reward.type === "diamonds") nextProfile.diamonds += reward.value;
-    if (reward.type === "stars") nextProfile.stars += reward.value;
-    if (reward.type === "booster") nextProfile.diamonds += 4;
-    if (reward.type === "shield") nextProfile.diamonds += 6;
-
-    await updateQuizzlyProfile(nextProfile);
-    setProfile(nextProfile);
+    await claimQuizzlyPassReward({
+      monthKey,
+      rewardType: reward.type,
+      tier: reward.id,
+      value: reward.value,
+    });
+    const refreshed = (await getQuizzlyProfile()) as Profile;
+    setProfile(refreshed);
+    addQuizzlyStatsEvent("pass_claim", 1);
 
     const nextClaimed = [...claimed, reward.id];
     setClaimed(nextClaimed);
-    window.localStorage.setItem(`${PASS_STORAGE_KEY_PREFIX}:${monthKey}`, JSON.stringify(nextClaimed));
     toast.success(`Récompense Quizzly Pass débloquée: ${reward.label}`);
   };
 

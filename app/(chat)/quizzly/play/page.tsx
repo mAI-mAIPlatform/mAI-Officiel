@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Play, CheckCircle, XCircle, Shuffle, History, Sparkles, Lightbulb } from "lucide-react";
 import { chatModels } from "@/lib/ai/models";
 import { getQuizzlySettingsFromStorage } from "@/lib/quizzly/settings";
+import { addQuizzlyStatsEvent } from "@/lib/user-stats";
 
 const GRADES = ["CE1","CE2","CM1","CM2","6ème","5ème","4ème","3ème","Seconde","Première","Terminale"];
 const SUBJECTS = ["Mathématiques","Français","Histoire","Géographie","Sciences","Anglais","Culture Générale","Technologie"];
@@ -166,6 +167,10 @@ export default function QuizzlyPlayPage() {
         score: correctAnswers,
         questions,
       });
+      addQuizzlyStatsEvent("quiz_played", 1);
+      if (correctAnswers === questions.length && questions.length > 0) {
+        addQuizzlyStatsEvent("quiz_perfect", 1);
+      }
     } catch {
       toast.error("Erreur d'enregistrement des résultats");
       setStep("setup");
