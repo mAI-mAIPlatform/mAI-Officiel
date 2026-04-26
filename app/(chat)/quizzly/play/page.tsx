@@ -4,19 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishQuiz } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Play, CheckCircle, XCircle, Shuffle, History, Sparkles } from "lucide-react";
+import { Play, CheckCircle, XCircle, Shuffle, History, Sparkles, Lightbulb } from "lucide-react";
 import { chatModels } from "@/lib/ai/models";
+import { getQuizzlySettingsFromStorage } from "@/lib/quizzly/settings";
 
 const GRADES = ["CE1","CE2","CM1","CM2","6ème","5ème","4ème","3ème","Seconde","Première","Terminale"];
 const SUBJECTS = ["Mathématiques","Français","Histoire","Géographie","Sciences","Anglais","Culture Générale","Technologie"];
 const DIFFICULTIES = ["Facile", "Moyen", "Difficile"];
 const RANDOM_MODEL_ID = "__random__";
 const QUIZ_HISTORY_KEY = "mai.quizzly.quiz-history.v1";
+const THEME_SUGGESTIONS = ["Harry Potter", "Football", "Espace", "Jeux vidéo", "Mythologie"];
+const CHAPTER_SUGGESTIONS = ["Fractions", "Équations", "Géométrie", "Révolution française", "Grammaire"];
 
 type QuizQuestion = { question: string; options: string[]; correctAnswerIndex: number; explanation: string; };
 type QuizResult = { xpGain: number; newLevel: number; bonusDiamonds?: number; levelUps?: number; streak?: number; shieldsUsed?: number; };
 type QuizHistoryEntry = {
-  id: string; createdAt: string; grade: string; subject: string; difficulty: string; count: number; modelId: string; score: number; questions: QuizQuestion[];
+  id: string; createdAt: string; grade: string; subject: string; difficulty: string; chapter: string; themePrompt: string; count: number; modelId: string; score: number; questions: QuizQuestion[];
 };
 
 function normalizeQuizCount(value: string): number {
@@ -31,6 +34,8 @@ export default function QuizzlyPlayPage() {
   const [grade, setGrade] = useState("3ème");
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
+  const [chapter, setChapter] = useState("");
+  const [themePrompt, setThemePrompt] = useState("");
   const [count, setCount] = useState(5);
   const [modelId, setModelId] = useState(RANDOM_MODEL_ID);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -61,6 +66,15 @@ export default function QuizzlyPlayPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const settings = getQuizzlySettingsFromStorage();
+    setGrade(settings.classDefault);
+    setSubject(settings.subjectDefault);
+    setChapter(settings.chapterDefault);
+    setThemePrompt(settings.themePromptDefault);
+    setModelId(settings.defaultModelId);
+  }, []);
+
   const saveHistory = (entry: QuizHistoryEntry) => {
     const next = [entry, ...history].slice(0, 20);
     setHistory(next);
@@ -76,7 +90,7 @@ export default function QuizzlyPlayPage() {
       const res = await fetch("/api/quizzly/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, subject, difficulty, count, modelId: chosenModelId }),
+        body: JSON.stringify({ grade, subject, chapter, themePrompt, difficulty, count, modelId: chosenModelId }),
       });
 
       if (!res.ok) {
@@ -106,6 +120,8 @@ export default function QuizzlyPlayPage() {
     setSubject(entry.subject);
     setDifficulty(entry.difficulty);
     setCount(entry.count);
+    setChapter(entry.chapter);
+    setThemePrompt(entry.themePrompt);
     setQuestions(entry.questions);
     setCurrentIndex(0);
     setCorrectAnswers(0);
@@ -143,6 +159,8 @@ export default function QuizzlyPlayPage() {
         grade,
         subject,
         difficulty,
+        chapter,
+        themePrompt,
         count,
         modelId,
         score: correctAnswers,
@@ -185,6 +203,8 @@ export default function QuizzlyPlayPage() {
   <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
     <div className="grid grid-cols-2 gap-6"><div><label className="block text-sm font-bold text-slate-700 mb-2">Classe</label><select value={grade} onChange={e=>setGrade(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{GRADES.map(g=><option key={g} value={g}>{g}</option>)}</select></div><div><label className="block text-sm font-bold text-slate-700 mb-2">Matière</label><select value={subject} onChange={e=>setSubject(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{SUBJECTS.map(s=><option key={s} value={s}>{s}</option>)}</select></div></div>
     <div className="grid grid-cols-2 gap-6"><div><label className="block text-sm font-bold text-slate-700 mb-2">Difficulté</label><select value={difficulty} onChange={e=>setDifficulty(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{DIFFICULTIES.map(d=><option key={d} value={d}>{d}</option>)}</select></div><div><label className="block text-sm font-bold text-slate-700 mb-2">Nombre de questions</label><input type="number" min={1} max={20} value={count} onChange={e=>setCount(normalizeQuizCount(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/></div></div>
+    <div className="space-y-3"><label className="block text-sm font-bold text-slate-700 mb-2">Chapitre</label><input value={chapter} onChange={e=>setChapter(e.target.value)} placeholder="Ex: Équations du 1er degré" className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/><div className="flex flex-wrap gap-2">{CHAPTER_SUGGESTIONS.map((item)=><button key={item} type="button" onClick={()=>setChapter(item)} className="text-xs px-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200">{item}</button>)}</div></div>
+    <div className="space-y-3"><label className="block text-sm font-bold text-slate-700 mb-2">Thème personnalisé (prompt)</label><textarea value={themePrompt} onChange={e=>setThemePrompt(e.target.value)} rows={3} placeholder="Décris l'univers du quiz: style, ambiance, exemples..." className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/><div className="flex flex-wrap gap-2">{THEME_SUGGESTIONS.map((item)=><button key={item} type="button" onClick={()=>setThemePrompt(`Crée un quiz inspiré de ${item}`)} className="text-xs px-2 py-1 rounded-full bg-violet-50 text-violet-700 hover:bg-violet-100 inline-flex items-center gap-1"><Lightbulb className="w-3 h-3"/>{item}</button>)}</div></div>
     <div><label className="block text-sm font-bold text-slate-700 mb-2">Modèle d'IA</label><select value={modelId} onChange={e=>setModelId(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"><option value={RANDOM_MODEL_ID}>🎲 Aléatoire (tous les modèles texte)</option>{textModels.map(m=><option key={m.id} value={m.id}>{m.name} · {m.provider}</option>)}</select><p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><Shuffle className="w-3 h-3"/>Inclut OpenAI, Azure, AI Horde, Ollama, OpenRouter et autres modèles texte disponibles.</p></div>
     <div className="pt-4"><button onClick={startQuiz} className="w-full bg-violet-600 text-white font-bold py-4 rounded-xl hover:bg-violet-700 transition flex items-center justify-center gap-2 text-lg shadow-lg"><Play className="w-5 h-5 fill-current"/>Lancer la génération</button></div>
   </div>
@@ -195,7 +215,7 @@ export default function QuizzlyPlayPage() {
       {history.length === 0 && <p className="text-sm text-slate-500">Aucun quiz sauvegardé pour l'instant.</p>}
       {history.map((entry) => (
         <button key={entry.id} onClick={() => replayFromHistory(entry)} className="w-full text-left p-3 rounded-xl border border-slate-200 hover:bg-slate-50">
-          <p className="font-semibold text-slate-800">{entry.subject} • {entry.difficulty} • {entry.score}/{entry.questions.length}</p>
+          <p className="font-semibold text-slate-800">{entry.subject} • {entry.difficulty} • {entry.chapter || "chapitre libre"} • {entry.score}/{entry.questions.length}</p>
           <p className="text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString("fr-FR")} — Refaire ce quiz</p>
         </button>
       ))}
