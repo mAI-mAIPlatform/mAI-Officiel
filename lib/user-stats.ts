@@ -1,3 +1,4 @@
+import type { PlanKey } from "@/lib/subscription";
 export type BadgeRarity = "common" | "uncommon" | "rare" | "legendary";
 
 export type BadgeDefinition = {
@@ -117,6 +118,9 @@ export const badgesCatalog: BadgeDefinition[] = [
   { id: "b58", category: "🏆 Challenges & Progression", name: "Sprint 24h", emoji: "⏱️", condition: "50 messages en 24h", rarity: "uncommon" },
   { id: "b59", category: "🏆 Challenges & Progression", name: "Grand Sage", emoji: "🧙", condition: "1 000 conversations", rarity: "legendary" },
   { id: "b60", category: "🏆 Challenges & Progression", name: "Constellation", emoji: "🌌", condition: "Débloquer 50 badges", rarity: "legendary" },
+  { id: "b61", category: "💳 Forfaits", name: "Un petit Plus", emoji: "➕", condition: "Activer le forfait mAI Plus", rarity: "uncommon" },
+  { id: "b62", category: "💳 Forfaits", name: "Professionnel en tout genre", emoji: "🧑‍💼", condition: "Activer le forfait Pro", rarity: "rare" },
+  { id: "b63", category: "💳 Forfaits", name: "Vitesse maxium !", emoji: "⚡", condition: "Activer le forfait mAIMax", rarity: "legendary" },
 ];
 
 const rarityOrder: BadgeRarity[] = ["common", "uncommon", "rare", "legendary"];
@@ -212,7 +216,7 @@ export function getLevelFromXp(xp: number): { level: number; currentLevelXp: num
   return { level, currentLevelXp: remaining, nextLevelXp: requirement };
 }
 
-function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot): string[] {
+function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot, subscriptionPlan: PlanKey = "free"): string[] {
   const unlocked = new Set(snapshot.badgesUnlocked);
 
   const unlockIf = (id: string, condition: boolean) => {
@@ -235,6 +239,9 @@ function evaluateUnlockedBadgeIds(snapshot: UserStatsSnapshot): string[] {
   unlockIf("b26", snapshot.webSearches >= 100);
   unlockIf("b34", snapshot.conversationsCreated >= 20);
   unlockIf("b44", snapshot.musicsGenerated >= 1);
+  unlockIf("b61", subscriptionPlan === "plus" || subscriptionPlan === "pro" || subscriptionPlan === "max");
+  unlockIf("b62", subscriptionPlan === "pro" || subscriptionPlan === "max");
+  unlockIf("b63", subscriptionPlan === "max");
 
   if (unlocked.size >= 50) {
     unlocked.add("b60");
@@ -266,8 +273,8 @@ export function syncDailyLoginBonus(snapshot: UserStatsSnapshot): UserStatsSnaps
   return applyBadgeRewards(next);
 }
 
-export function applyBadgeRewards(snapshot: UserStatsSnapshot): UserStatsSnapshot {
-  const evaluated = evaluateUnlockedBadgeIds(snapshot);
+export function applyBadgeRewards(snapshot: UserStatsSnapshot, subscriptionPlan: PlanKey = "free"): UserStatsSnapshot {
+  const evaluated = evaluateUnlockedBadgeIds(snapshot, subscriptionPlan);
   const previous = new Set(snapshot.badgesUnlocked);
   const newBadges = evaluated.filter((id) => !previous.has(id));
   const badgeXpGain = newBadges.reduce((total, badgeId) => {

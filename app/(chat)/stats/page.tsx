@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { StatsSection } from "@/app/(chat)/settings/sections/stats-section";
 import {
   getUserStatsSnapshot,
@@ -16,6 +17,7 @@ export default function StatsPage() {
   const [tokenUsage, setTokenUsage] = useState({ inputTokens: 0, outputTokens: 0 });
   const [userStats, setUserStats] = useState(() => getUserStatsSnapshot());
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
+  const { plan } = useSubscriptionPlan();
 
   useEffect(() => {
     const syncStats = () => {
@@ -75,6 +77,7 @@ export default function StatsPage() {
         isAuthenticated={isAuthenticated}
         stats={userStats}
         tokenUsage={tokenUsage}
+        subscriptionPlan={plan}
       />
     </main>
   );
