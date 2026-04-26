@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useActionState, useEffect, useState } from "react";
 
 import { AuthForm } from "@/components/chat/auth-form";
@@ -57,6 +58,13 @@ export default function Page() {
       </p>
       <AuthForm action={handleSubmit} defaultEmail={email}>
         <SubmitButton isSuccessful={isSuccessful}>Se connecter</SubmitButton>
+        <div className="space-y-2">
+          <button className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold" onClick={() => signIn("google", { callbackUrl: "/" })} type="button">Continuer avec Google</button>
+          <button className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold" onClick={() => signIn("apple", { callbackUrl: "/" })} type="button">Continuer avec Apple</button>
+        </div>
+        <p className="text-center text-[12px] text-muted-foreground">
+          <Link className="underline-offset-4 hover:underline" href="/forgot-password">Mot de passe oublié ?</Link>
+        </p>
         <p className="text-center text-[13px] text-muted-foreground">
           {"Pas de compte ? "}
           <Link

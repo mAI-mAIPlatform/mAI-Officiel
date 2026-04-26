@@ -58,6 +58,44 @@ export async function createUser(email: string, password: string) {
   }
 }
 
+export async function updateUserPasswordByEmail(email: string, password: string) {
+  const hashedPassword = generateHashedPassword(password);
+  try {
+    return await db
+      .update(user)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(user.email, email.toLowerCase().trim()));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to update user password");
+  }
+}
+
+export async function getUserById(id: string): Promise<User[]> {
+  try {
+    return await db.select().from(user).where(eq(user.id, id));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get user by id");
+  }
+}
+
+export async function anonymizeAndDisableUser(id: string) {
+  try {
+    const anonymizedEmail = `deleted-${id.slice(0, 8)}@deleted.local`;
+    return await db
+      .update(user)
+      .set({
+        email: anonymizedEmail,
+        name: "Compte supprimé",
+        password: null,
+        image: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, id));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to anonymize user");
+  }
+}
+
 export async function createGuestUser() {
   const email = `guest-${Date.now()}`;
   const password = generateHashedPassword(generateUUID());

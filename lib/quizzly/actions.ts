@@ -521,6 +521,30 @@ export async function spendHintDiamonds(cost: number, hintType: "fifty" | "first
   };
 }
 
+type LocalMigrationPayload = {
+  level?: number;
+  diamonds?: number;
+  quizzesPlayed?: number;
+  badgesCount?: number;
+};
+
+export async function migrateLocalQuizzlyProgress(payload: LocalMigrationPayload) {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+
+  const level = Math.max(profile.level, Number(payload.level ?? profile.level));
+  const diamonds = Math.max(profile.diamonds, Number(payload.diamonds ?? profile.diamonds));
+  await updateQuizzlyProfile({ level, diamonds });
+
+  const quizzesPlayed = Math.max(0, Number(payload.quizzesPlayed ?? 0));
+  const badgesCount = Math.max(0, Number(payload.badgesCount ?? 0));
+  if (quizzesPlayed > 0) await setInventoryMax(userId, "stats:quizzes-played", quizzesPlayed);
+  if (badgesCount > 0) await setInventoryMax(userId, "badges:count", badgesCount);
+  await upsertInventoryItem(userId, "migration:local-to-cloud:done", 1);
+
+  return { success: true };
+}
+
 export async function getOrAssignQuests() {
   const userId = await getAuthenticatedUserId();
 

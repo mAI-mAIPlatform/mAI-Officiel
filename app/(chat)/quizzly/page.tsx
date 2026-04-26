@@ -7,6 +7,7 @@ import {
   claimComebackReward,
   getWeeklyLeaderboard,
   getQuizzlyInventory,
+  migrateLocalQuizzlyProgress,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp, AlertTriangle, CalendarDays } from "lucide-react";
@@ -44,6 +45,7 @@ export default function QuizzlyDashboardPage() {
   const [highlights, setHighlights] = useState({ bestScore: 0, fastestQuiz: 0, longestStreak: 0 });
   const [monthlyWidget, setMonthlyWidget] = useState({ streak: 0, claimed: 0, monthKey: "" });
   const [inventoryKeys, setInventoryKeys] = useState<string[]>([]);
+  const [migrationSummary, setMigrationSummary] = useState<{ level: number; diamonds: number; quizzesPlayed: number; badgesCount: number } | null>(null);
 
   const refreshProfile = async () => {
     const p = await getQuizzlyProfile();
@@ -66,6 +68,26 @@ export default function QuizzlyDashboardPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (inventoryKeys.includes("migration:local-to-cloud:done")) return;
+    try {
+      const localProfile = JSON.parse(localStorage.getItem("mai.quizzly.profile.local.v1") ?? "{}") as { level?: number; diamonds?: number };
+      const localQuizzes = JSON.parse(localStorage.getItem("mai.quizzly.local-quizzes.v1") ?? "[]") as unknown[];
+      const localBadges = JSON.parse(localStorage.getItem("mai.quizzly.badges.pinned.v1") ?? "[]") as unknown[];
+      const summary = {
+        level: Number(localProfile.level ?? 0),
+        diamonds: Number(localProfile.diamonds ?? 0),
+        quizzesPlayed: localQuizzes.length,
+        badgesCount: localBadges.length,
+      };
+      if (summary.level > 0 || summary.diamonds > 0 || summary.quizzesPlayed > 0 || summary.badgesCount > 0) {
+        setMigrationSummary(summary);
+      }
+    } catch {
+      setMigrationSummary(null);
+    }
+  }, [inventoryKeys]);
 
   useEffect(() => {
     getWeeklyLeaderboard(leaderboardView).then((lb) => {
@@ -281,6 +303,34 @@ export default function QuizzlyDashboardPage() {
         </Link>
       </div>
       <QuizzlyOnboardingTour inventoryKeys={inventoryKeys} onProfileRefresh={refreshProfile} profile={{ pseudo: profile.pseudo, emoji: profile.emoji }} />
+      {migrationSummary && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-800">Migration locale vers le cloud</h3>
+            <p className="mt-1 text-sm text-slate-600">Des données locales ont été détectées. Confirmer le transfert vers votre compte :</p>
+            <ul className="mt-3 space-y-1 text-sm text-slate-700">
+              <li>Niveau actuel: <span className="font-bold">{migrationSummary.level}</span></li>
+              <li>Diamants: <span className="font-bold">{migrationSummary.diamonds}</span></li>
+              <li>Quiz joués: <span className="font-bold">{migrationSummary.quizzesPlayed}</span></li>
+              <li>Badges obtenus: <span className="font-bold">{migrationSummary.badgesCount}</span></li>
+            </ul>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700" onClick={() => setMigrationSummary(null)} type="button">Ignorer</button>
+              <button
+                className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white"
+                onClick={async () => {
+                  await migrateLocalQuizzlyProgress(migrationSummary);
+                  toast.success("Migration cloud terminée.");
+                  setMigrationSummary(null);
+                }}
+                type="button"
+              >
+                Migrer maintenant
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

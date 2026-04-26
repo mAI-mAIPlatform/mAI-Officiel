@@ -20,6 +20,8 @@ import {
 import { chatModels } from "@/lib/ai/models";
 import { toast } from "sonner";
 import { quizzlyOnboardingRestartEvent } from "@/components/quizzly/onboarding-tour";
+import { deleteMyAccount, getAccountSnapshot } from "@/app/(auth)/actions";
+import { signOut } from "next-auth/react";
 
 const classOptions = ["CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"];
 const subjectOptions = ["Mathématiques", "Français", "Histoire", "Géographie", "Sciences", "Anglais", "Culture Générale", "Technologie"];
@@ -34,6 +36,7 @@ export default function QuizzlySettingsPage() {
   const [unlockedThemes, setUnlockedThemes] = useState<QuizzlyThemeId[]>(getDefaultUnlockedThemeIds());
   const [diamonds, setDiamonds] = useState(0);
   const [themeLoading, setThemeLoading] = useState(false);
+  const [account, setAccount] = useState<{ email: string; provider: string; createdAt: string | Date } | null>(null);
 
   useEffect(() => {
     setSettings(getQuizzlySettingsFromStorage());
@@ -53,6 +56,9 @@ export default function QuizzlySettingsPage() {
       setUnlockedThemes(merged as QuizzlyThemeId[]);
       localStorage.setItem(QUIZZLY_UNLOCKED_THEMES_KEY, JSON.stringify(merged));
     });
+    getAccountSnapshot()
+      .then((snapshot) => setAccount(snapshot))
+      .catch(() => setAccount(null));
   }, []);
 
   const handleSave = () => {
@@ -87,6 +93,27 @@ export default function QuizzlySettingsPage() {
       <h1 className="text-3xl font-black text-slate-800">Paramètres Quizzly</h1>
 
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+          <p className="font-black text-slate-800">Mon compte</p>
+          <p className="text-xs text-slate-600">Email: {account?.email ?? "—"}</p>
+          <p className="text-xs text-slate-600">Méthode de connexion: {account?.provider ?? "credentials"}</p>
+          <p className="text-xs text-slate-600">Créé le: {account?.createdAt ? new Date(account.createdAt).toLocaleDateString("fr-FR") : "—"}</p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white" onClick={() => signOut({ callbackUrl: "/login" })} type="button">Se déconnecter</button>
+            <button
+              className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white"
+              onClick={async () => {
+                const confirmed = confirm("Supprimer définitivement ce compte (RGPD) ?");
+                if (!confirmed) return;
+                await deleteMyAccount();
+                await signOut({ callbackUrl: "/register" });
+              }}
+              type="button"
+            >
+              Supprimer mon compte (RGPD)
+            </button>
+          </div>
+        </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
           <p className="font-black text-slate-800">Apparence</p>
           <label className="flex items-center justify-between gap-3">
