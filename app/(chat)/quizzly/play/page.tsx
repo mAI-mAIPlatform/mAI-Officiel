@@ -71,6 +71,7 @@ const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20] as const;
 const QUESTION_TYPE_OPTIONS = ["qcm", "vrai_faux", "association", "completer", "inverse"] as const;
 const REVIEW_QUEUE_KEY = "mai.quizzly.review.v1";
 const ERROR_ANALYTICS_KEY = "mai.quizzly.error-analytics.v1";
+const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
 const REVIEW_INTERVALS_DAYS = [1, 3, 7, 30] as const;
 type ReviewCard = { question: QuizQuestion; stage: number; dueAt: string };
 type ErrorAnalyticsItem = {
@@ -80,6 +81,16 @@ type ErrorAnalyticsItem = {
   difficulty: string;
   isCorrect: boolean;
   createdAt: string;
+};
+type DuelHistoryEntry = {
+  id: string;
+  playedAt: string;
+  subject: string;
+  playerA: string;
+  playerB: string;
+  scoreA: number;
+  scoreB: number;
+  winner: string | "égalité";
 };
 const SUBJECT_COEFFICIENTS: Record<string, number> = {
   "Mathématiques": 2,
@@ -661,6 +672,24 @@ export default function QuizzlyPlayPage() {
     const winnerMultiplier = playerCorrect >= opponentCorrect ? 2 : 1;
     const participation = playerCorrect >= opponentCorrect ? playerCorrect * 2 : Math.max(1, Math.floor(playerCorrect * 0.75));
     await finishQuiz(participation * winnerMultiplier, null, duelStartedAt ? Math.floor((Date.now() - duelStartedAt) / 1000) : undefined);
+    try {
+      const me = profile?.pseudo ?? "Moi";
+      const rival = duelOpponent?.pseudo ?? "Adversaire";
+      const entry: DuelHistoryEntry = {
+        id: crypto.randomUUID(),
+        playedAt: new Date().toISOString(),
+        subject,
+        playerA: me,
+        playerB: rival,
+        scoreA: playerCorrect,
+        scoreB: opponentCorrect,
+        winner: playerCorrect === opponentCorrect ? "égalité" : playerCorrect > opponentCorrect ? me : rival,
+      };
+      const existing = JSON.parse(localStorage.getItem(DUEL_HISTORY_KEY) ?? "[]") as DuelHistoryEntry[];
+      localStorage.setItem(DUEL_HISTORY_KEY, JSON.stringify([entry, ...existing].slice(0, 3000)));
+    } catch {
+      // noop
+    }
     setStep("duelResult");
   };
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply } from "lucide-react";
+import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply, Flame, Swords, Medal } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
 import { getFriendStreaks } from "@/lib/quizzly/actions";
 
 const SOCIAL_STORAGE_KEY = "mai.quizzly.social.v1";
+const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
 const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
 const CURRENT_USER_ID = "me";
 
@@ -25,6 +26,16 @@ type ChatMessage = {
   parentId?: string;
   reactionsByUser: Record<string, string>;
 };
+type DuelHistoryEntry = {
+  id: string;
+  playedAt: string;
+  subject: string;
+  playerA: string;
+  playerB: string;
+  scoreA: number;
+  scoreB: number;
+  winner: string | "égalité";
+};
 
 export default function QuizzlySocialPage() {
   const [activeTab, setActiveTab] = useState<"friends" | "chat">("friends");
@@ -42,6 +53,9 @@ export default function QuizzlySocialPage() {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<Record<string, number>>({});
   const [activeChannel, setActiveChannel] = useState<string>("global");
+  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
+  const [friendProfileTab, setFriendProfileTab] = useState<"overview" | "history">("overview");
+  const [duelHistory, setDuelHistory] = useState<DuelHistoryEntry[]>([]);
 
   useEffect(() => {
     try {
@@ -101,6 +115,59 @@ export default function QuizzlySocialPage() {
         : `quizzly-friend-${activeChannel}`;
     socket.emit("join-room", roomId);
   }, [socket, activeChannel]);
+
+  useEffect(() => {
+    try {
+      setDuelHistory(JSON.parse(localStorage.getItem(DUEL_HISTORY_KEY) ?? "[]"));
+    } catch {
+      setDuelHistory([]);
+    }
+  }, []);
+
+  const pairHistory = useMemo(() => {
+    if (!selectedFriend) return [];
+    return duelHistory
+      .filter((entry) => [entry.playerA, entry.playerB].includes("Moi") && [entry.playerA, entry.playerB].includes(selectedFriend))
+      .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime());
+  }, [duelHistory, selectedFriend]);
+
+  const rivalsRanking = useMemo(() => {
+    const countByRival = new Map<string, number>();
+    duelHistory.forEach((entry) => {
+      const rival = entry.playerA === "Moi" ? entry.playerB : entry.playerB === "Moi" ? entry.playerA : null;
+      if (!rival) return;
+      countByRival.set(rival, (countByRival.get(rival) ?? 0) + 1);
+    });
+    return Array.from(countByRival.entries())
+      .map(([pseudo, duels]) => ({ pseudo, duels }))
+      .sort((a, b) => b.duels - a.duels);
+  }, [duelHistory]);
+
+  const pairSummary = useMemo(() => {
+    if (!selectedFriend) return null;
+    const wins = pairHistory.filter((entry) => entry.winner === "Moi").length;
+    const losses = pairHistory.filter((entry) => entry.winner === selectedFriend).length;
+    const draws = pairHistory.filter((entry) => entry.winner === "égalité").length;
+    const winRate = pairHistory.length > 0 ? Math.round((wins / pairHistory.length) * 100) : 0;
+    let streak = 0;
+    let bestStreak = 0;
+    [...pairHistory].reverse().forEach((entry) => {
+      if (entry.winner === "Moi") {
+        streak += 1;
+        bestStreak = Math.max(bestStreak, streak);
+      } else {
+        streak = 0;
+      }
+    });
+    const bySubject = new Map<string, number>();
+    pairHistory.forEach((entry) => {
+      const meWon = entry.winner === "Moi" ? 1 : entry.winner === selectedFriend ? -1 : 0;
+      bySubject.set(entry.subject, (bySubject.get(entry.subject) ?? 0) + meWon);
+    });
+    const bestSubject = Array.from(bySubject.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+    const rivalBestSubject = Array.from(bySubject.entries()).sort((a, b) => a[1] - b[1])[0]?.[0] ?? "—";
+    return { wins, losses, draws, winRate, bestStreak, bestSubject, rivalBestSubject };
+  }, [pairHistory, selectedFriend]);
 
   const displayedMessages = useMemo(
     () =>
@@ -229,11 +296,24 @@ export default function QuizzlySocialPage() {
                       <Trophy className="w-4 h-4 text-yellow-500" />
                     </div>
                     <div className="flex gap-2">
+                      <button onClick={() => { setSelectedFriend(friend); setFriendProfileTab("overview"); }} className="text-[10px] font-bold bg-violet-600 text-white px-2 py-1 rounded">Profil</button>
                       <button onClick={() => blockFriend(friend)} className="text-[10px] font-bold bg-slate-800 text-white px-2 py-1 rounded">Bloquer</button>
                       <button onClick={() => reportFriend(friend)} className="text-[10px] font-bold bg-red-500 text-white px-2 py-1 rounded">Signaler</button>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <p className="font-black text-slate-800 flex items-center gap-2"><Swords className="w-4 h-4 text-orange-500" /> Mes meilleurs rivaux</p>
+              <div className="mt-3 space-y-2">
+                {rivalsRanking.slice(0, 8).map((rival) => (
+                  <div key={`rival-${rival.pseudo}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <span>{rival.pseudo}</span>
+                    <span className="font-bold text-slate-700">{rival.duels} défis {rival.duels > 10 ? <Flame className="ml-1 inline h-4 w-4 text-orange-500" /> : null}</span>
+                  </div>
+                ))}
+                {rivalsRanking.length === 0 ? <p className="text-xs text-slate-500">Aucun duel enregistré pour le moment.</p> : null}
               </div>
             </div>
           </div>
@@ -292,6 +372,78 @@ export default function QuizzlySocialPage() {
           </div>
         )}
       </div>
+      {selectedFriend && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-4xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-800">Profil de {selectedFriend}</h3>
+              <button className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold" onClick={() => setSelectedFriend(null)} type="button">Fermer</button>
+            </div>
+            <div className="mb-4 flex gap-2">
+              <button className={`rounded-lg px-3 py-1 text-xs font-bold ${friendProfileTab === "overview" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"}`} onClick={() => setFriendProfileTab("overview")} type="button">Aperçu</button>
+              <button className={`rounded-lg px-3 py-1 text-xs font-bold ${friendProfileTab === "history" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"}`} onClick={() => setFriendProfileTab("history")} type="button">Notre historique</button>
+            </div>
+            {friendProfileTab === "overview" ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">Rivalité active: <span className="font-black text-slate-800">{pairHistory.length} duels</span></p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {["Première rivalité", "Rival acharné", "Domination", "Meilleur ennemi"].map((badge) => {
+                    const unlocked =
+                      (badge === "Première rivalité" && pairHistory.length >= 1) ||
+                      (badge === "Rival acharné" && pairHistory.length >= 10) ||
+                      (badge === "Meilleur ennemi" && pairHistory.length >= 50) ||
+                      (badge === "Domination" && (pairSummary?.bestStreak ?? 0) >= 5);
+                    return (
+                      <div key={badge} className={`rounded-xl border px-3 py-2 text-xs ${unlocked ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
+                        <Medal className="mr-1 inline h-4 w-4" /> {badge}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Victoires: <span className="font-black">{pairSummary?.wins ?? 0}</span></div>
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Défaites: <span className="font-black">{pairSummary?.losses ?? 0}</span></div>
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Égalités: <span className="font-black">{pairSummary?.draws ?? 0}</span></div>
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Winrate: <span className="font-black">{pairSummary?.winRate ?? 0}%</span></div>
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Série max: <span className="font-black">{pairSummary?.bestStreak ?? 0}</span></div>
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm">Matière dominée: <span className="font-black">{pairSummary?.bestSubject ?? "—"}</span></div>
+                </div>
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="mb-2 text-xs font-bold uppercase text-slate-500">Évolution du bilan</p>
+                  <div className="h-20 w-full rounded-lg bg-slate-50 p-2">
+                    <svg className="h-full w-full" viewBox="0 0 100 40" preserveAspectRatio="none">
+                      <polyline
+                        fill="none"
+                        stroke="#7c3aed"
+                        strokeWidth="1.5"
+                        points={pairHistory.slice().reverse().map((entry, idx) => {
+                          const delta = entry.winner === "Moi" ? 1 : entry.winner === selectedFriend ? -1 : 0;
+                          const cumulative = pairHistory.slice().reverse().slice(0, idx + 1).reduce((sum, row) => sum + (row.winner === "Moi" ? 1 : row.winner === selectedFriend ? -1 : 0), 0);
+                          const x = pairHistory.length <= 1 ? 50 : (idx / (pairHistory.length - 1)) * 100;
+                          const y = 20 - cumulative * 3;
+                          return `${x},${Math.max(2, Math.min(38, y + delta * 0))}`;
+                        }).join(" ")}
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-slate-100 p-3">
+                  {pairHistory.map((entry) => (
+                    <div key={entry.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <p className="font-bold">{new Date(entry.playedAt).toLocaleDateString("fr-FR")} · {entry.subject} · Moi {entry.scoreA} - {entry.scoreB} {selectedFriend}</p>
+                      <p>Vainqueur: {entry.winner === "Moi" ? "Moi 🏆" : entry.winner === selectedFriend ? `${selectedFriend} 🏆` : "Égalité"}</p>
+                    </div>
+                  ))}
+                  {pairHistory.length === 0 ? <p className="text-sm text-slate-500">Aucun duel entre vous pour le moment.</p> : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { getUserStatsSnapshot } from "@/lib/user-stats";
 const PROFILE_SOCIALS_KEY = "mai.quizzly.profile.socials.v1";
 const PROFILE_TITLE_KEY = "mai.quizzly.profile.title.v1";
 const UNIQUE_QUEST_KEY = "mai.quizzly.unique-quest.title.v1";
+const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
 
 type Profile = {
   bio: string;
@@ -24,6 +25,12 @@ type Profile = {
 };
 
 type SocialLink = { label: string; url: string };
+type RivalryBadge = { key: string; label: string; unlocked: boolean };
+type DuelHistoryEntry = {
+  playerA: string;
+  playerB: string;
+  winner: string | "égalité";
+};
 
 export default function QuizzlyProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -34,6 +41,7 @@ export default function QuizzlyProfilePage() {
   const [selectedTitle, setSelectedTitle] = useState("Joueur");
   const [unlockedTitles, setUnlockedTitles] = useState<string[]>(["Joueur"]);
   const [saving, setSaving] = useState(false);
+  const [rivalryBadges, setRivalryBadges] = useState<RivalryBadge[]>([]);
 
   useEffect(() => {
     getQuizzlyProfile().then((p) => {
@@ -66,6 +74,38 @@ export default function QuizzlyProfilePage() {
       dynamicTitles.push("Pionnier Quizzly");
     }
     setUnlockedTitles(Array.from(new Set(dynamicTitles)));
+
+    try {
+      const duels = JSON.parse(window.localStorage.getItem(DUEL_HISTORY_KEY) ?? "[]") as DuelHistoryEntry[];
+      const myDuels = duels.filter((duel) => duel.playerA === "Moi" || duel.playerB === "Moi");
+      const byRival = new Map<string, DuelHistoryEntry[]>();
+      myDuels.forEach((duel) => {
+        const rival = duel.playerA === "Moi" ? duel.playerB : duel.playerA;
+        byRival.set(rival, [...(byRival.get(rival) ?? []), duel]);
+      });
+      const has10SameRival = Array.from(byRival.values()).some((entries) => entries.length >= 10);
+      const has50SameRival = Array.from(byRival.values()).some((entries) => entries.length >= 50);
+      const hasDomination = Array.from(byRival.values()).some((entries) => {
+        let streak = 0;
+        for (const entry of entries) {
+          if (entry.winner === "Moi") {
+            streak += 1;
+            if (streak >= 5) return true;
+          } else {
+            streak = 0;
+          }
+        }
+        return false;
+      });
+      setRivalryBadges([
+        { key: "first", label: "Première rivalité", unlocked: myDuels.length >= 1 },
+        { key: "hardcore", label: "Rival acharné", unlocked: has10SameRival },
+        { key: "domination", label: "Domination", unlocked: hasDomination },
+        { key: "best-enemy", label: "Meilleur ennemi", unlocked: has50SameRival },
+      ]);
+    } catch {
+      setRivalryBadges([]);
+    }
   }, []);
 
   const handleSave = async () => {
@@ -184,6 +224,16 @@ export default function QuizzlyProfilePage() {
           <div className="rounded-xl bg-amber-50 p-4 border border-amber-100">
             <p className="font-bold text-amber-800 flex items-center gap-2"><Medal className="w-4 h-4" /> Astuce profil</p>
             <p className="text-sm text-amber-700 mt-1">Ajoute une bio claire + tes liens pour faciliter les interactions dans la section Social.</p>
+          </div>
+          <div className="rounded-xl bg-violet-50 p-4 border border-violet-100 space-y-2">
+            <p className="font-bold text-violet-800 flex items-center gap-2"><Medal className="w-4 h-4" /> Vitrine de badges rivalité</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {rivalryBadges.map((badge) => (
+                <div key={badge.key} className={`rounded-lg px-3 py-2 text-xs ${badge.unlocked ? "bg-amber-100 text-amber-800 font-bold" : "bg-white text-slate-500"}`}>
+                  {badge.label}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
