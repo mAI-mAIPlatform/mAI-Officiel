@@ -416,6 +416,31 @@ export async function claimComebackReward() {
   return { daysAway, reward, success: true };
 }
 
+export async function claimOnboardingWelcomePack() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const marker = "onboarding:welcome-pack:claimed";
+
+  const [alreadyClaimed] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, marker)));
+
+  if (alreadyClaimed && alreadyClaimed.quantity > 0) {
+    await upsertInventoryItem(userId, "onboarding:tutorial-completed", 1);
+    return { claimed: false, reward: { diamonds: 0, booster: 0, title: "Nouveau venu" } };
+  }
+
+  await updateQuizzlyProfile({ diamonds: profile.diamonds + 50 });
+  await upsertInventoryItem(userId, "booster_x1.5", 1);
+  await upsertInventoryItem(userId, "title:nouveau-venu", 1);
+  await upsertInventoryItem(userId, "stats:diamonds-earned", 50);
+  await upsertInventoryItem(userId, marker, 1);
+  await upsertInventoryItem(userId, "onboarding:tutorial-completed", 1);
+
+  return { claimed: true, reward: { diamonds: 50, booster: 1, title: "Nouveau venu" } };
+}
+
 type LeaderboardEntry = {
   userId: string;
   pseudo: string;

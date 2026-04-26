@@ -268,6 +268,20 @@
   color: var(--q-button-soft-text, #5b21b6) !important;
 }
 
+@keyframes mai-confetti {
+  0% {
+    transform: translateY(-8px) scale(0.9) rotate(0deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120px) scale(1.15) rotate(20deg);
+    opacity: 0;
+  }
+}
+
 @layer base {
   *,
   ::after,

@@ -19,6 +19,7 @@ import {
 } from "@/lib/quizzly/themes";
 import { chatModels } from "@/lib/ai/models";
 import { toast } from "sonner";
+import { quizzlyOnboardingRestartEvent } from "@/components/quizzly/onboarding-tour";
 
 const classOptions = ["CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"];
 const subjectOptions = ["Mathématiques", "Français", "Histoire", "Géographie", "Sciences", "Anglais", "Culture Générale", "Technologie"];
@@ -136,6 +137,16 @@ export default function QuizzlySettingsPage() {
         </div>
 
         <button onClick={handleSave} className="bg-violet-600 text-white px-5 py-2.5 rounded-xl font-bold">Sauvegarder</button>
+        <button
+          className="ml-2 rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700"
+          onClick={() => {
+            window.dispatchEvent(new Event(quizzlyOnboardingRestartEvent));
+            toast.success("Tutoriel relancé.");
+          }}
+          type="button"
+        >
+          Revoir le tutoriel
+        </button>
       </div>
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
         <p className="font-black text-slate-800">Thèmes</p>

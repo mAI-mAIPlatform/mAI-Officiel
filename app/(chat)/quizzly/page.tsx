@@ -13,6 +13,7 @@ import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingU
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
+import { QuizzlyOnboardingTour } from "@/components/quizzly/onboarding-tour";
 
 type Profile = {
   bio: string;
@@ -42,13 +43,21 @@ export default function QuizzlyDashboardPage() {
   const [weekKey, setWeekKey] = useState("");
   const [highlights, setHighlights] = useState({ bestScore: 0, fastestQuiz: 0, longestStreak: 0 });
   const [monthlyWidget, setMonthlyWidget] = useState({ streak: 0, claimed: 0, monthKey: "" });
+  const [inventoryKeys, setInventoryKeys] = useState<string[]>([]);
+
+  const refreshProfile = async () => {
+    const p = await getQuizzlyProfile();
+    setProfile(p as Profile);
+  };
 
   useEffect(() => {
     Promise.all([getQuizzlyProfile(), getWeeklyLeaderboard("global"), getQuizzlyInventory()]).then(([p, lb, inventory]) => {
       setProfile(p as Profile);
       setLeaderboard(lb.entries);
       setWeekKey(lb.weekKey);
-      const getQty = (key: string) => (inventory as Array<{ itemKey: string; quantity: number }>).find((item) => item.itemKey === key)?.quantity ?? 0;
+      const inventoryList = inventory as Array<{ itemKey: string; quantity: number }>;
+      setInventoryKeys(inventoryList.filter((item) => item.quantity > 0).map((item) => item.itemKey));
+      const getQty = (key: string) => inventoryList.find((item) => item.itemKey === key)?.quantity ?? 0;
       setHighlights({
         bestScore: getQty("stats:best-score"),
         fastestQuiz: getQty("stats:fastest-quiz-sec"),
@@ -153,17 +162,17 @@ export default function QuizzlyDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-level className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Trophy className="w-8 h-8 text-yellow-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Niveau</span>
           <span className="text-3xl font-black text-slate-800">{profile.level}</span>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-streak className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Flame className="w-8 h-8 text-orange-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Streak</span>
           <span className="text-3xl font-black text-slate-800">{profile.streak} <span className="text-lg">J</span></span>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-diamonds className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Diamond className="w-8 h-8 text-cyan-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Diamants</span>
           <span className="text-3xl font-black text-slate-800">{profile.diamonds}</span>
@@ -271,6 +280,7 @@ export default function QuizzlyDashboardPage() {
           Lancer une partie
         </Link>
       </div>
+      <QuizzlyOnboardingTour inventoryKeys={inventoryKeys} onProfileRefresh={refreshProfile} profile={{ pseudo: profile.pseudo, emoji: profile.emoji }} />
     </div>
   );
 }

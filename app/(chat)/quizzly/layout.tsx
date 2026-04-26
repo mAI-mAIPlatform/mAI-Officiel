@@ -33,7 +33,7 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
     <QuizzlyThemeShell>
     <div className="flex h-full w-full bg-[var(--q-bg)] text-[var(--q-text)] transition-colors duration-300">
       {/* Sidebar */}
-      <div className="sticky top-0 hidden h-screen w-64 border-r border-slate-200/40 bg-[var(--q-nav)] md:flex md:flex-col transition-colors duration-300">
+      <div data-onboarding-nav className="sticky top-0 hidden h-screen w-64 border-r border-slate-200/40 bg-[var(--q-nav)] md:flex md:flex-col transition-colors duration-300">
         <div className="p-6 flex items-center gap-3 border-b border-slate-100/40">
           <div className="rounded-xl bg-violet-100 p-2 text-violet-700">
             <Brain className="h-6 w-6" />
