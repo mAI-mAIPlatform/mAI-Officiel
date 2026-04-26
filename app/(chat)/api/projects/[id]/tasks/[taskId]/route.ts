@@ -20,6 +20,9 @@ const updateTaskSchema = z.object({
     .enum(["none", "daily", "weekly", "monthly", "custom"])
     .optional(),
   repeatInterval: z.number().int().positive().optional().nullable(),
+  assigneeType: z.enum(["user", "ai"]).optional(),
+  assigneeId: z.string().uuid().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
 
 async function assertOwnership(projectId: string, userId: string) {
@@ -67,6 +70,9 @@ export async function PUT(
     priority: parsed.data.priority,
     repeatType: parsed.data.repeatType,
     repeatInterval: parsed.data.repeatInterval ?? undefined,
+    assigneeType: parsed.data.assigneeType,
+    assigneeId: parsed.data.assigneeId,
+    sortOrder: parsed.data.sortOrder,
   });
 
   if (!updated) {

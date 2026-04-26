@@ -728,6 +728,8 @@ import {
   type Subtask,
   subscription,
   subtask,
+  type TaskComment,
+  taskComment,
   type Task,
   task,
 } from "./schema";
@@ -1063,7 +1065,7 @@ export async function getTasksByProject(projectId: string): Promise<Task[]> {
       .select()
       .from(task)
       .where(eq(task.projectId, projectId))
-      .orderBy(asc(task.dueDate), desc(task.createdAt));
+      .orderBy(asc(task.sortOrder), asc(task.dueDate), desc(task.createdAt));
   } catch (error) {
     console.error("Failed to get tasks by project:", error);
     throw new Error("Failed to get tasks");
@@ -1108,7 +1110,7 @@ export async function getSubtasksByTask(taskId: string): Promise<Subtask[]> {
       .select()
       .from(subtask)
       .where(eq(subtask.taskId, taskId))
-      .orderBy(asc(subtask.createdAt));
+      .orderBy(asc(subtask.sortOrder), asc(subtask.createdAt));
   } catch (error) {
     console.error("Failed to get subtasks by task:", error);
     throw new Error("Failed to get subtasks");
@@ -1127,7 +1129,7 @@ export async function getSubtasksByTaskIds(
       .select()
       .from(subtask)
       .where(inArray(subtask.taskId, taskIds))
-      .orderBy(asc(subtask.createdAt));
+      .orderBy(asc(subtask.sortOrder), asc(subtask.createdAt));
   } catch (error) {
     console.error("Failed to get subtasks by task IDs:", error);
     throw new Error("Failed to get subtasks");
@@ -1165,6 +1167,42 @@ export async function deleteSubtask(id: string) {
   } catch (error) {
     console.error("Failed to delete subtask:", error);
     throw new Error("Failed to delete subtask");
+  }
+}
+
+export async function getTaskCommentsByTaskId(taskId: string) {
+  try {
+    return await db
+      .select({
+        id: taskComment.id,
+        taskId: taskComment.taskId,
+        authorId: taskComment.authorId,
+        content: taskComment.content,
+        isAiGenerated: taskComment.isAiGenerated,
+        createdAt: taskComment.createdAt,
+        updatedAt: taskComment.updatedAt,
+        authorName: user.name,
+        authorImage: user.image,
+      })
+      .from(taskComment)
+      .innerJoin(user, eq(taskComment.authorId, user.id))
+      .where(eq(taskComment.taskId, taskId))
+      .orderBy(asc(taskComment.createdAt));
+  } catch (error) {
+    console.error("Failed to get task comments:", error);
+    throw new Error("Failed to get task comments");
+  }
+}
+
+export async function createTaskComment(
+  data: Pick<TaskComment, "taskId" | "authorId" | "content"> &
+    Partial<Pick<TaskComment, "isAiGenerated">>
+) {
+  try {
+    return await db.insert(taskComment).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create task comment:", error);
+    throw new Error("Failed to create task comment");
   }
 }
 

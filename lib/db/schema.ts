@@ -232,6 +232,11 @@ export const task = pgTable("Task", {
     .notNull()
     .default("none"),
   repeatInterval: integer("repeatInterval"),
+  assigneeType: varchar("assigneeType", { enum: ["user", "ai"] })
+    .notNull()
+    .default("user"),
+  assigneeId: uuid("assigneeId").references(() => user.id),
+  sortOrder: integer("sortOrder").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -244,13 +249,31 @@ export const subtask = pgTable("Subtask", {
     .notNull()
     .references(() => task.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  description: text("description"),
   status: varchar("status", { enum: ["todo", "done"] })
     .notNull()
     .default("todo"),
+  sortOrder: integer("sortOrder").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
 export type Subtask = InferSelectModel<typeof subtask>;
+
+export const taskComment = pgTable("TaskComment", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  taskId: uuid("taskId")
+    .notNull()
+    .references(() => task.id, { onDelete: "cascade" }),
+  authorId: uuid("authorId")
+    .notNull()
+    .references(() => user.id),
+  content: text("content").notNull(),
+  isAiGenerated: boolean("isAiGenerated").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type TaskComment = InferSelectModel<typeof taskComment>;
 
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),

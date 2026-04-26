@@ -6,7 +6,10 @@ import {
   getProjectById,
   getSubtasksByTaskIds,
   getTasksByProject,
+  db,
 } from "@/lib/db/queries";
+import { inArray } from "drizzle-orm";
+import { user } from "@/lib/db/schema";
 
 const taskSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -18,6 +21,9 @@ const taskSchema = z.object({
     .enum(["none", "daily", "weekly", "monthly", "custom"])
     .optional(),
   repeatInterval: z.number().int().positive().optional().nullable(),
+  assigneeType: z.enum(["user", "ai"]).optional(),
+  assigneeId: z.string().uuid().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
 
 const querySchema = z.object({
@@ -56,6 +62,19 @@ export async function GET(
   }
 
   const tasks = await getTasksByProject(id);
+  const assigneeIds = tasks
+    .map((task) => task.assigneeId)
+    .filter((assigneeId): assigneeId is string => Boolean(assigneeId));
+  const assignees =
+    assigneeIds.length > 0
+      ? await db
+          .select({ id: user.id, name: user.name, image: user.image })
+          .from(user)
+          .where(inArray(user.id, assigneeIds))
+      : [];
+  const assigneesById = Object.fromEntries(
+    assignees.map((assignee) => [assignee.id, assignee])
+  );
   const taskIds = tasks.map((task) => task.id);
   const allSubtasks = await getSubtasksByTaskIds(taskIds);
 
@@ -89,6 +108,10 @@ export async function GET(
             ? 1
             : 0,
       subtasks,
+      assignee:
+        task.assigneeType === "user" && task.assigneeId
+          ? assigneesById[task.assigneeId] ?? null
+          : null,
     };
   });
 
@@ -154,6 +177,9 @@ export async function POST(
     priority: parsed.data.priority,
     repeatType: parsed.data.repeatType,
     repeatInterval: parsed.data.repeatInterval,
+    assigneeType: parsed.data.assigneeType,
+    assigneeId: parsed.data.assigneeId,
+    sortOrder: parsed.data.sortOrder,
   });
 
   return NextResponse.json(created, { status: 201 });
