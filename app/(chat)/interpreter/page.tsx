@@ -2,10 +2,12 @@
 
 import {
   BarChart3,
+  Brain,
   Bookmark,
   EllipsisVertical,
   FileSpreadsheet,
   History,
+  Info,
   Play,
   SquareTerminal,
   Table,
@@ -14,6 +16,7 @@ import {
   FolderPlus,
   FileDown,
   FileUp,
+  Palette,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
@@ -73,6 +76,7 @@ type SavedSnippet = {
 type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
 type VirtualCodeFile = { id: string; name: string; content: string };
 type VirtualFolder = { id: string; path: string };
+type ProjectMeta = { logo: string; memory: string; info: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -184,6 +188,10 @@ export default function InterpreterPage() {
   const [versionSnapshots, setVersionSnapshots] = useLocalStorage<ExecutionEntry[]>(
     "mai.interpreter.snapshots.v1",
     []
+  );
+  const [projectMeta, setProjectMeta] = useLocalStorage<ProjectMeta>(
+    "mai.interpreter.project-meta.v1",
+    { info: "Projet local", logo: "🧪", memory: "" }
   );
 
   const features = useMemo(
@@ -349,6 +357,7 @@ export default function InterpreterPage() {
       code,
       virtualFiles,
       virtualFolders,
+      projectMeta,
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -369,11 +378,19 @@ export default function InterpreterPage() {
         code?: string;
         virtualFiles?: VirtualCodeFile[];
         virtualFolders?: VirtualFolder[];
+        projectMeta?: ProjectMeta;
       };
       if (data.runtime && runtimeOrder.includes(data.runtime)) setRuntime(data.runtime);
       if (typeof data.code === "string") setCode(data.code);
       if (Array.isArray(data.virtualFiles)) setVirtualFiles(data.virtualFiles.slice(0, 30));
       if (Array.isArray(data.virtualFolders)) setVirtualFolders(data.virtualFolders.slice(0, 20));
+      if (data.projectMeta) {
+        setProjectMeta({
+          logo: data.projectMeta.logo || "🧪",
+          info: data.projectMeta.info || "Projet local",
+          memory: data.projectMeta.memory || "",
+        });
+      }
     } catch {
       setTerminalOutput("Import impossible: archive projet invalide.");
     }
@@ -440,6 +457,36 @@ export default function InterpreterPage() {
           </button>
         ))}
       </div>
+
+      <section className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-3">
+        <label className="text-xs text-muted-foreground">
+          <span className="mb-1 inline-flex items-center gap-1 font-semibold"><Palette className="size-3.5" /> Logo projet</span>
+          <input
+            className="w-full rounded-lg border border-border/60 bg-background px-2 py-1.5 text-sm"
+            maxLength={4}
+            onChange={(event) => setProjectMeta((current) => ({ ...current, logo: event.target.value || "🧪" }))}
+            value={projectMeta.logo}
+          />
+        </label>
+        <label className="text-xs text-muted-foreground">
+          <span className="mb-1 inline-flex items-center gap-1 font-semibold"><Info className="size-3.5" /> Informations</span>
+          <input
+            className="w-full rounded-lg border border-border/60 bg-background px-2 py-1.5 text-sm"
+            onChange={(event) => setProjectMeta((current) => ({ ...current, info: event.target.value }))}
+            placeholder="Nom / objectif du projet"
+            value={projectMeta.info}
+          />
+        </label>
+        <label className="text-xs text-muted-foreground">
+          <span className="mb-1 inline-flex items-center gap-1 font-semibold"><Brain className="size-3.5" /> Mémoire</span>
+          <input
+            className="w-full rounded-lg border border-border/60 bg-background px-2 py-1.5 text-sm"
+            onChange={(event) => setProjectMeta((current) => ({ ...current, memory: event.target.value }))}
+            placeholder="Rappels projet, décisions, TODO..."
+            value={projectMeta.memory}
+          />
+        </label>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <section className="liquid-panel rounded-2xl p-4 lg:order-2">

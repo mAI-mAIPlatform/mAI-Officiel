@@ -235,11 +235,35 @@ export function AproposSection({
       </div>
 
       {modelsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModelsOpen(false)} role="presentation">
+          <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
             <div className="flex items-center justify-between border-b border-border/50 p-4">
               <h3 className="text-base font-semibold">Modèles référencés</h3>
               <button className="rounded-lg border px-2 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
+            </div>
+            <div className="border-b border-border/50 p-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "all", label: "Tout" },
+                  { key: "text", label: "Texte" },
+                  { key: "image", label: "Images" },
+                  { key: "music", label: "Musiques" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    className={cn(
+                      "rounded-lg border px-3 py-1 text-xs font-medium",
+                      modelsCategory === tab.key
+                        ? "border-violet-500 bg-violet-500/10 text-violet-700"
+                        : "border-border/60 text-muted-foreground"
+                    )}
+                    onClick={() => setModelsCategory(tab.key as "all" | "text" | "image" | "music")}
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="grid gap-4 overflow-auto p-4 md:grid-cols-3">
               {(modelsCategory === "all" || modelsCategory === "text") && <div>
@@ -272,6 +296,10 @@ export function AproposSection({
                   ))}
                 </div>
               </div>}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border/50 p-3">
+              <button className="rounded-lg border border-border/60 px-3 py-1 text-xs" onClick={() => setModelsCategory("all")} type="button">Voir tout</button>
+              <button className="rounded-lg border border-border/60 px-3 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
             </div>
           </div>
         </div>
