@@ -7,9 +7,12 @@ import {
   saveQuizzlySettingsToStorage,
   type QuizzlySettings,
 } from "@/lib/quizzly/settings";
+import { chatModels } from "@/lib/ai/models";
 import { toast } from "sonner";
 
-const modelSuggestions = ["__random__", "gpt-5.4", "gpt-5.4-mini", "horde/Cydonia-24B-v4.3"];
+const classOptions = ["CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"];
+const subjectOptions = ["Mathématiques", "Français", "Histoire", "Géographie", "Sciences", "Anglais", "Culture Générale", "Technologie"];
+const modelSuggestions = ["__random__", ...chatModels.map((model) => model.id)].slice(0, 40);
 
 export default function QuizzlySettingsPage() {
   const [settings, setSettings] = useState<QuizzlySettings>(defaultQuizzlySettings);
@@ -40,12 +43,16 @@ export default function QuizzlySettingsPage() {
 
         <div>
           <p className="font-semibold text-slate-700 mb-2">Classe par défaut</p>
-          <input className="w-full border rounded-xl px-3 py-2" value={settings.classDefault} onChange={(e) => setSettings({ ...settings, classDefault: e.target.value })} />
+          <select className="w-full border rounded-xl px-3 py-2" value={settings.classDefault} onChange={(e) => setSettings({ ...settings, classDefault: e.target.value })}>
+            {classOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
         </div>
 
         <div>
           <p className="font-semibold text-slate-700 mb-2">Matière par défaut</p>
-          <input className="w-full border rounded-xl px-3 py-2" value={settings.subjectDefault} onChange={(e) => setSettings({ ...settings, subjectDefault: e.target.value })} />
+          <select className="w-full border rounded-xl px-3 py-2" value={settings.subjectDefault} onChange={(e) => setSettings({ ...settings, subjectDefault: e.target.value })}>
+            {subjectOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
         </div>
 
         <div>
@@ -55,10 +62,9 @@ export default function QuizzlySettingsPage() {
 
         <div>
           <p className="font-semibold text-slate-700 mb-2">Modèle par défaut</p>
-          <input list="quizzly-models" className="w-full border rounded-xl px-3 py-2" value={settings.defaultModelId} onChange={(e) => setSettings({ ...settings, defaultModelId: e.target.value })} />
-          <datalist id="quizzly-models">
-            {modelSuggestions.map((model) => <option key={model} value={model} />)}
-          </datalist>
+          <select className="w-full border rounded-xl px-3 py-2" value={settings.defaultModelId} onChange={(e) => setSettings({ ...settings, defaultModelId: e.target.value })}>
+            {modelSuggestions.map((model) => <option key={model} value={model}>{model}</option>)}
+          </select>
         </div>
 
         <div>

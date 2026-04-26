@@ -69,6 +69,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "20 musiques / semaine",
     "Capacité maximale mAI",
     "50 recherches web / jour",
+    "Quizzly Pass Pro inclus (déblocage premium)",
   ],
 };
 

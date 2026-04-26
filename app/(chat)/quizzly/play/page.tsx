@@ -47,6 +47,7 @@ export default function QuizzlyPlayPage() {
   const [resultData, setResultData] = useState<QuizResult | null>(null);
   const [celebrate, setCelebrate] = useState(false);
   const [history, setHistory] = useState<QuizHistoryEntry[]>([]);
+  const [answerFx, setAnswerFx] = useState<"correct" | "wrong" | null>(null);
 
   const textModels = useMemo(() => {
     const unique = new Map<string, { id: string; name: string; provider: string }>();
@@ -65,6 +66,14 @@ export default function QuizzlyPlayPage() {
     } catch {
       setHistory([]);
     }
+  }, []);
+
+  useEffect(() => {
+    setStep("setup");
+    setResultData(null);
+    setQuestions([]);
+    setCurrentIndex(0);
+    setCorrectAnswers(0);
   }, []);
 
   useEffect(() => {
@@ -138,7 +147,12 @@ export default function QuizzlyPlayPage() {
     if (isAnswered) return;
     setSelectedOption(index);
     setIsAnswered(true);
-    if (index === questions[currentIndex].correctAnswerIndex) setCorrectAnswers((prev) => prev + 1);
+    if (index === questions[currentIndex].correctAnswerIndex) {
+      setCorrectAnswers((prev) => prev + 1);
+      setAnswerFx("correct");
+    } else {
+      setAnswerFx("wrong");
+    }
   };
 
   const handleNext = async () => {
@@ -146,6 +160,7 @@ export default function QuizzlyPlayPage() {
       setCurrentIndex((prev) => prev + 1);
       setIsAnswered(false);
       setSelectedOption(null);
+      setAnswerFx(null);
       return;
     }
     try {
@@ -183,7 +198,9 @@ export default function QuizzlyPlayPage() {
     return <div className="max-w-xl mx-auto mt-10 bg-white p-10 rounded-3xl border border-slate-100 shadow-xl text-center space-y-8 relative overflow-hidden">
       {celebrate && <div className="absolute inset-0 pointer-events-none animate-pulse bg-gradient-to-br from-yellow-100/30 via-fuchsia-100/20 to-cyan-100/30" />}
       <h1 className="text-4xl font-black text-slate-800 relative">Quiz Terminé !</h1>
-      <div className="text-6xl font-black text-violet-600 relative">{correctAnswers} / {questions.length}</div>
+      <div className="relative mx-auto w-44 h-44 rounded-full border-[10px] border-violet-200 flex items-center justify-center bg-white shadow-inner">
+        <div className="text-4xl font-black text-violet-600">{correctAnswers} / {questions.length}</div>
+      </div>
       <div className="bg-orange-50 text-orange-600 font-bold p-4 rounded-xl text-lg relative">+{resultData.xpGain} XP Gagnée !</div>
       <p className="text-slate-500 relative">Niveau actuel : {resultData.newLevel}</p>
       {Boolean(resultData.bonusDiamonds) && <p className="text-cyan-700 font-bold relative">+{resultData.bonusDiamonds} 💎 (montée de niveau)</p>}
@@ -198,7 +215,9 @@ export default function QuizzlyPlayPage() {
   if (step === "playing") {
     const q = questions[currentIndex];
     return <div className="max-w-3xl mx-auto space-y-8"><div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><span className="font-bold text-slate-500">Question {currentIndex + 1} sur {questions.length}</span><span className="font-bold text-violet-600">{subject} • {difficulty}</span></div>
-    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100"><h2 className="text-2xl font-bold text-slate-800 mb-8">{q.question}</h2><div className="space-y-3">{q.options.map((opt, i)=>{let btnClass="border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-700";let icon=null;if(isAnswered){if(i===q.correctAnswerIndex){btnClass="border-green-500 bg-green-50 text-green-800";icon=<CheckCircle className="text-green-500 w-6 h-6"/>;}else if(i===selectedOption){btnClass="border-red-500 bg-red-50 text-red-800";icon=<XCircle className="text-red-500 w-6 h-6"/>;}else{btnClass="border-slate-200 opacity-50";}}return <button key={i} onClick={()=>handleAnswer(i)} disabled={isAnswered} className={`w-full text-left p-4 rounded-xl border-2 font-medium text-lg transition flex justify-between items-center ${btnClass}`}>{opt}{icon}</button>;})}</div>
+    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100"><h2 className="text-2xl font-bold text-slate-800 mb-8">{q.question}</h2>
+    {answerFx && <div className={`mb-4 text-sm font-bold px-3 py-2 rounded-lg ${answerFx === "correct" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{answerFx === "correct" ? "✅ Bonne réponse !" : "❌ Mauvaise réponse"}</div>}
+    <div className="space-y-3">{q.options.map((opt, i)=>{const label = typeof opt === "string" ? opt : String((opt as any)?.text ?? (opt as any)?.label ?? opt);let btnClass="border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-700";let icon=null;if(isAnswered){if(i===q.correctAnswerIndex){btnClass="border-green-500 bg-green-50 text-green-800";icon=<CheckCircle className="text-green-500 w-6 h-6"/>;}else if(i===selectedOption){btnClass="border-red-500 bg-red-50 text-red-800";icon=<XCircle className="text-red-500 w-6 h-6"/>;}else{btnClass="border-slate-200 opacity-50";}}return <button key={i} onClick={()=>handleAnswer(i)} disabled={isAnswered} className={`w-full text-left p-4 rounded-xl border-2 font-medium text-lg transition flex justify-between items-center ${btnClass}`}>{label}{icon}</button>;})}</div>
     {isAnswered && <div className="mt-8 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100"><span className="font-bold block mb-1">Explication :</span>{q.explanation}</div>}
     {isAnswered && <div className="mt-8 flex justify-end"><button onClick={handleNext} className="bg-violet-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-violet-700">{currentIndex < questions.length - 1 ? "Question Suivante" : "Terminer"}</button></div>}
     </div></div>;

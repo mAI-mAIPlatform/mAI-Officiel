@@ -162,6 +162,32 @@ export async function claimQuizzlyPassReward(input: QuizzlyPassRewardInput) {
   return { success: true };
 }
 
+export async function hasQuizzlyPassProAccess() {
+  const userId = await getAuthenticatedUserId();
+  const [unlockItem] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, "pass-pro-unlock")));
+  return Boolean(unlockItem && unlockItem.quantity > 0);
+}
+
+export async function unlockQuizzlyPassProWithDiamonds() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const hasAccess = await hasQuizzlyPassProAccess();
+  if (hasAccess) {
+    return { success: true };
+  }
+
+  if (profile.diamonds < 500) {
+    throw new Error("Diamants insuffisants pour débloquer le Pass Pro.");
+  }
+
+  await updateQuizzlyProfile({ diamonds: profile.diamonds - 500 });
+  await upsertInventoryItem(userId, "pass-pro-unlock", 1);
+  return { success: true };
+}
+
 export async function claimDailyReward() {
   const userId = await getAuthenticatedUserId();
   const profile = await getQuizzlyProfile();

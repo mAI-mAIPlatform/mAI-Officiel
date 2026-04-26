@@ -59,11 +59,24 @@ function sanitizeQuestion(raw: any): NormalizedQuestion | null {
   const answerIndexRaw = raw?.correctAnswerIndex ?? raw?.bonneReponseIndex;
   const answerText = String(raw?.bonne_reponse ?? raw?.bonneReponse ?? raw?.correctAnswer ?? "").trim();
 
+  const extractOptionLabel = (value: unknown): string => {
+    if (typeof value === "string") return value.trim();
+    if (value && typeof value === "object") {
+      const textCandidate =
+        (value as { text?: unknown }).text ??
+        (value as { label?: unknown }).label ??
+        (value as { option?: unknown }).option;
+      if (typeof textCandidate === "string") return textCandidate.trim();
+    }
+    return String(value ?? "").trim();
+  };
+
   const optionsFromObject =
     optionsRaw && typeof optionsRaw === "object" && !Array.isArray(optionsRaw)
       ? ["A", "B", "C", "D"]
           .map((key) => optionsRaw[key])
-          .filter((value) => typeof value === "string" && value.trim().length > 0)
+          .map((value) => extractOptionLabel(value))
+          .filter((value) => value.length > 0)
       : [];
 
   const normalizedOptionsRaw = Array.isArray(optionsRaw)
@@ -79,7 +92,13 @@ function sanitizeQuestion(raw: any): NormalizedQuestion | null {
     return null;
   }
 
-  const options = normalizedOptionsRaw.map((option: unknown) => String(option).trim());
+  const options = normalizedOptionsRaw
+    .map((option: unknown) => extractOptionLabel(option))
+    .filter((option) => option.length > 0);
+
+  if (options.length !== 4) {
+    return null;
+  }
   const answerFromLetter =
     answerText.length === 1 &&
     ["A", "B", "C", "D"].includes(answerText.toUpperCase())

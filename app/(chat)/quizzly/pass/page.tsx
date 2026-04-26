@@ -5,9 +5,11 @@ import {
   claimQuizzlyPassReward,
   getClaimedPassRewards,
   getQuizzlyProfile,
+  hasQuizzlyPassProAccess,
+  unlockQuizzlyPassProWithDiamonds,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Gift, Lock, CheckCircle2 } from "lucide-react";
+import { Gift, Lock, CheckCircle2, Crown, Sparkles } from "lucide-react";
 import { addQuizzlyStatsEvent } from "@/lib/user-stats";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 
@@ -49,6 +51,7 @@ const PRO_PASS_REWARDS: PassReward[] = Array.from({ length: 10 }, (_, index) => 
 export default function QuizzlyPassPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [claimed, setClaimed] = useState<number[]>([]);
+  const [hasProAccess, setHasProAccess] = useState(false);
   const { plan } = useSubscriptionPlan();
 
   const monthKey = useMemo(() => {
@@ -61,7 +64,16 @@ export default function QuizzlyPassPage() {
     getClaimedPassRewards(monthKey)
       .then((tiers) => setClaimed(tiers))
       .catch(() => setClaimed([]));
+    hasQuizzlyPassProAccess().then((value) => setHasProAccess(value)).catch(() => setHasProAccess(false));
   }, [monthKey]);
+
+  const unlockProWithDiamonds = async () => {
+    await unlockQuizzlyPassProWithDiamonds();
+    const refreshed = (await getQuizzlyProfile()) as Profile;
+    setProfile(refreshed);
+    setHasProAccess(true);
+    toast.success("Quizzly Pass Pro débloqué !");
+  };
 
   const claimReward = async (reward: PassReward) => {
     if (!profile) return;
@@ -94,6 +106,27 @@ export default function QuizzlyPassPage() {
       </div>
       <div className="bg-white p-5 rounded-2xl border border-slate-100">XP actuelle: <span className="font-black">{profile.xp}</span></div>
       <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4">
+          <h3 className="font-black text-slate-800">Pass Gratuit</h3>
+          <p className="text-xs text-slate-500 mt-1">Récompenses de base chaque mois.</p>
+          <ul className="text-sm mt-3 space-y-1 text-slate-700">
+            <li>• Diamants</li>
+            <li>• Étoiles</li>
+            <li>• Boucliers</li>
+            <li>• Boosters</li>
+          </ul>
+        </div>
+        <div className="bg-gradient-to-b from-yellow-50 to-amber-100 rounded-2xl border border-yellow-300 p-4 shadow-[0_0_40px_rgba(234,179,8,0.22)]">
+          <h3 className="font-black text-amber-900 flex items-center gap-2"><Crown className="w-5 h-5" /> Pass Pro</h3>
+          <p className="text-xs text-amber-800 mt-1">Débloqué avec mAI Max ou 500 diamants.</p>
+          <ul className="text-sm mt-3 space-y-1 text-amber-900">
+            <li>• Récompenses premium supplémentaires</li>
+            <li>• Avatars et effets légendaires</li>
+            <li>• Plus de diamants par palier</li>
+          </ul>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
         {PASS_REWARDS.map((reward) => {
           const unlocked = profile.xp >= reward.requirementXp;
           const isClaimed = claimed.includes(reward.id);
@@ -121,17 +154,26 @@ export default function QuizzlyPassPage() {
         <p className="text-sm text-slate-500 mb-3">
           Réservé aux plans Plus / Pro / Max.
         </p>
+        {!(plan === "max" || hasProAccess) && (
+          <button
+            onClick={() => void unlockProWithDiamonds()}
+            disabled={profile.diamonds < 500}
+            className="mb-4 px-4 py-2 rounded-xl bg-amber-500 text-white font-bold disabled:opacity-50"
+          >
+            Débloquer avec 500 💎
+          </button>
+        )}
         <div className="grid md:grid-cols-2 gap-4">
           {PRO_PASS_REWARDS.map((reward) => {
-            const unlockedByPlan = plan === "plus" || plan === "pro" || plan === "max";
+            const unlockedByPlan = plan === "max" || hasProAccess;
             const unlockedByXp = profile.xp >= reward.requirementXp;
             const unlocked = unlockedByPlan && unlockedByXp;
             const isClaimed = claimed.includes(reward.id);
             return (
-              <div key={reward.id} className="bg-white p-5 rounded-2xl border border-violet-100 shadow-sm flex items-center justify-between gap-4">
+              <div key={reward.id} className="bg-gradient-to-b from-yellow-50 to-amber-100 p-5 rounded-2xl border border-yellow-300 shadow-[0_0_24px_rgba(234,179,8,0.25)] flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-black text-slate-800">Pro {reward.id - 100} · {reward.label}</p>
-                  <p className="text-sm text-slate-500">Requis: {reward.requirementXp} XP</p>
+                  <p className="font-black text-amber-900 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Pro {reward.id - 100} · {reward.label}</p>
+                  <p className="text-sm text-amber-800">Requis: {reward.requirementXp} XP</p>
                 </div>
                 <button
                   onClick={() => claimReward(reward)}
