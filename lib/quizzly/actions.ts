@@ -4,6 +4,7 @@ import { db } from "@/lib/db/queries";
 import { auth } from "@/app/(auth)/auth";
 import {
   quizzlyProfile,
+  quizzlyFriendship,
   quizzlyInventory,
   quizzlyUserQuest,
 } from "@/lib/db/schema";
@@ -33,6 +34,15 @@ function getDiffInDays(from: string, to: string) {
   const toDate = new Date(`${to}T00:00:00.000Z`);
   const diffMs = toDate.getTime() - fromDate.getTime();
   return Math.max(0, Math.floor(diffMs / 86400000));
+}
+
+function getWeekKey(date = new Date()) {
+  const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
 export async function getQuizzlyProfile() {
@@ -226,6 +236,102 @@ export async function getQuizzlyInventory() {
   const userId = await getAuthenticatedUserId();
 
   return await db.select().from(quizzlyInventory).where(eq(quizzlyInventory.userId, userId));
+}
+
+export async function spinWheelOfFortune() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const cost = 10;
+  if (profile.diamonds < cost) {
+    throw new Error("Pas assez de diamants pour tourner la roue.");
+  }
+
+  const rewards = [0, 5, 10, 15, 25, 50, 75, 100] as const;
+  const result = rewards[Math.floor(Math.random() * rewards.length)] ?? 0;
+
+  await updateQuizzlyProfile({
+    diamonds: profile.diamonds - cost + result,
+  });
+  await upsertInventoryItem(userId, "stats:diamonds-spent", cost);
+  await upsertInventoryItem(userId, "stats:diamonds-earned", result);
+
+  return { cost, isJackpot: result === 100, result, success: true };
+}
+
+export async function claimComebackReward() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const today = getDateKey();
+  const daysAway = profile.lastClaimDay ? getDiffInDays(profile.lastClaimDay, today) : 0;
+
+  let reward = 0;
+  if (daysAway >= 50) reward = 50;
+  else if (daysAway >= 25) reward = 30;
+  else if (daysAway >= 15) reward = 25;
+  else if (daysAway >= 10) reward = 15;
+
+  if (reward <= 0) {
+    return { daysAway, reward: 0, success: false };
+  }
+
+  const rewardKey = `comeback:${today}`;
+  const [alreadyClaimed] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, rewardKey)));
+
+  if (alreadyClaimed) {
+    return { daysAway, reward: 0, success: false };
+  }
+
+  await updateQuizzlyProfile({ diamonds: profile.diamonds + reward });
+  await upsertInventoryItem(userId, rewardKey, 1);
+  await upsertInventoryItem(userId, "stats:diamonds-earned", reward);
+  return { daysAway, reward, success: true };
+}
+
+type LeaderboardEntry = {
+  userId: string;
+  pseudo: string;
+  emoji: string;
+  weeklyXp: number;
+};
+
+export async function getWeeklyLeaderboard(view: "global" | "friends" = "global") {
+  const userId = await getAuthenticatedUserId();
+  const weekKey = getWeekKey();
+  const marker = `weekly-xp:${weekKey}`;
+
+  const profiles = await db.select().from(quizzlyProfile);
+  const xpRows = await db.select().from(quizzlyInventory).where(like(quizzlyInventory.itemKey, `weekly-xp:%`));
+
+  const weeklyXpByUser = new Map<string, number>();
+  for (const row of xpRows) {
+    if (row.itemKey !== marker) continue;
+    weeklyXpByUser.set(row.userId, row.quantity);
+  }
+
+  let allowed = new Set<string>(profiles.map((p) => p.userId));
+  if (view === "friends") {
+    const friendships = await db
+      .select()
+      .from(quizzlyFriendship)
+      .where(and(eq(quizzlyFriendship.status, "accepted"), eq(quizzlyFriendship.userId, userId)));
+    allowed = new Set<string>([userId, ...friendships.map((f) => f.friendId)]);
+  }
+
+  const entries: LeaderboardEntry[] = profiles
+    .filter((profile) => allowed.has(profile.userId))
+    .map((profile) => ({
+      userId: profile.userId,
+      pseudo: profile.pseudo,
+      emoji: profile.emoji,
+      weeklyXp: weeklyXpByUser.get(profile.userId) ?? 0,
+    }))
+    .sort((a, b) => b.weeklyXp - a.weeklyXp)
+    .slice(0, 50);
+
+  return { entries, weekKey };
 }
 
 export async function buyItem(itemKey: string, price: number, amount = 1) {
@@ -432,6 +538,14 @@ export async function finishQuiz(correctAnswers: number, activeBooster: string |
 
   if (activeBooster) {
     await upsertInventoryItem(userId, activeBooster, -1);
+  }
+
+  const weekKey = getWeekKey();
+  await upsertInventoryItem(userId, `weekly-xp:${weekKey}`, xpGain);
+  await upsertInventoryItem(userId, "stats:quiz-played", 1);
+  await upsertInventoryItem(userId, "stats:total-correct", correctAnswers);
+  if (bonusDiamonds > 0) {
+    await upsertInventoryItem(userId, "stats:diamonds-earned", bonusDiamonds);
   }
 
   return { xpGain, newLevel, levelUps, bonusDiamonds, shieldsUsed, streak };

@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getQuizzlyProfile, claimDailyReward } from "@/lib/quizzly/actions";
+import {
+  getQuizzlyProfile,
+  claimDailyReward,
+  claimComebackReward,
+  getWeeklyLeaderboard,
+} from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Flame, Star, Diamond, Trophy, Sparkles, Shield } from "lucide-react";
+import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -31,13 +36,25 @@ export default function QuizzlyDashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [leaderboardView, setLeaderboardView] = useState<"global" | "friends">("global");
+  const [leaderboard, setLeaderboard] = useState<Array<{ userId: string; pseudo: string; emoji: string; weeklyXp: number }>>([]);
+  const [weekKey, setWeekKey] = useState("");
 
   useEffect(() => {
-    getQuizzlyProfile().then((p) => {
+    Promise.all([getQuizzlyProfile(), getWeeklyLeaderboard("global")]).then(([p, lb]) => {
       setProfile(p as Profile);
+      setLeaderboard(lb.entries);
+      setWeekKey(lb.weekKey);
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    getWeeklyLeaderboard(leaderboardView).then((lb) => {
+      setLeaderboard(lb.entries);
+      setWeekKey(lb.weekKey);
+    });
+  }, [leaderboardView]);
 
   const welcomeTitle = useMemo(() => {
     if (!profile) return "Bienvenue sur Quizzly";
@@ -60,6 +77,15 @@ export default function QuizzlyDashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
       toast.error(message);
+    }
+  };
+
+  const handleComeback = async () => {
+    const res = await claimComebackReward();
+    if (res.success) {
+      toast.success(`Bon retour ! +${res.reward} 💎 après ${res.daysAway} jours d'absence.`);
+      const p = await getQuizzlyProfile();
+      setProfile(p as Profile);
     }
   };
 
@@ -87,6 +113,13 @@ export default function QuizzlyDashboardPage() {
           Récompense Quotidienne (+10 💎)
         </button>
       </div>
+      <button
+        onClick={handleComeback}
+        className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700"
+        type="button"
+      >
+        Vérifier bonus de retour 👋
+      </button>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
@@ -136,6 +169,41 @@ export default function QuizzlyDashboardPage() {
           <p className="font-black text-slate-800">Quizzly Pass mensuel</p>
           <p className="text-slate-500 text-sm mt-1">20 récompenses à débloquer avec ton XP.</p>
         </Link>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-black text-slate-800">🏆 Classement hebdomadaire ({weekKey})</h3>
+          <div className="rounded-xl bg-slate-100 p-1">
+            <button
+              className={`rounded-lg px-3 py-1 text-xs font-bold ${leaderboardView === "global" ? "bg-white text-violet-700" : "text-slate-500"}`}
+              onClick={() => setLeaderboardView("global")}
+              type="button"
+            >
+              Global
+            </button>
+            <button
+              className={`rounded-lg px-3 py-1 text-xs font-bold ${leaderboardView === "friends" ? "bg-white text-violet-700" : "text-slate-500"}`}
+              onClick={() => setLeaderboardView("friends")}
+              type="button"
+            >
+              Amis
+            </button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {leaderboard.slice(0, 10).map((entry, index) => (
+            <div key={entry.userId} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
+              <div className="font-bold text-slate-700">
+                #{index + 1} {entry.emoji} {entry.pseudo}
+              </div>
+              <div className="flex items-center gap-2 font-semibold text-violet-700">
+                {index < 3 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4 text-slate-400" />}
+                {entry.weeklyXp} XP
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-violet-600 rounded-3xl p-8 text-white text-center shadow-xl shadow-violet-200">

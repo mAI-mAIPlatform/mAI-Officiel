@@ -4,246 +4,376 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishQuiz } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Play, CheckCircle, XCircle, Shuffle, History, Sparkles, Lightbulb } from "lucide-react";
-import { chatModels } from "@/lib/ai/models";
-import { getQuizzlySettingsFromStorage } from "@/lib/quizzly/settings";
-import { addQuizzlyStatsEvent } from "@/lib/user-stats";
+import { CheckCircle, Clock3, Download, Share2, XCircle } from "lucide-react";
 
-const GRADES = ["CE1","CE2","CM1","CM2","6ème","5ème","4ème","3ème","Seconde","Première","Terminale"];
-const SUBJECTS = ["Mathématiques","Français","Histoire","Géographie","Sciences","Anglais","Culture Générale","Technologie"];
-const DIFFICULTIES = ["Facile", "Moyen", "Difficile"];
-const RANDOM_MODEL_ID = "__random__";
-const QUIZ_HISTORY_KEY = "mai.quizzly.quiz-history.v1";
-const THEME_SUGGESTIONS = ["Harry Potter", "Football", "Espace", "Jeux vidéo", "Mythologie"];
-const CHAPTER_SUGGESTIONS = ["Fractions", "Équations", "Géométrie", "Révolution française", "Grammaire"];
-
-type QuizQuestion = { question: string; options: string[]; correctAnswerIndex: number; explanation: string; };
-type QuizResult = { xpGain: number; newLevel: number; bonusDiamonds?: number; levelUps?: number; streak?: number; shieldsUsed?: number; };
-type QuizHistoryEntry = {
-  id: string; createdAt: string; grade: string; subject: string; difficulty: string; chapter: string; themePrompt: string; count: number; modelId: string; score: number; questions: QuizQuestion[];
+type QuizQuestion = {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
 };
 
-function normalizeQuizCount(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) return 5;
-  return Math.min(20, Math.max(1, parsed));
-}
+type SavedFavorite = {
+  id: string;
+  emoji: string;
+  name: string;
+  grade: string;
+  subject: string;
+  difficulty: string;
+  count: number;
+  chapter: string;
+  themePrompt: string;
+};
+
+type LocalQuiz = {
+  id: string;
+  createdAt: string;
+  grade: string;
+  subject: string;
+  difficulty: string;
+  questions: QuizQuestion[];
+  score: number;
+};
+
+const FAVORITES_KEY = "mai.quizzly.favorites.v1";
+const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
+const CHRONO_OPTIONS = [15, 30, 60] as const;
 
 export default function QuizzlyPlayPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"setup"|"loading"|"playing"|"result">("setup");
+  const [step, setStep] = useState<"setup" | "playing" | "loading" | "result">("setup");
   const [grade, setGrade] = useState("3ème");
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
+  const [count, setCount] = useState(5);
   const [chapter, setChapter] = useState("");
   const [themePrompt, setThemePrompt] = useState("");
-  const [count, setCount] = useState(5);
-  const [modelId, setModelId] = useState(RANDOM_MODEL_ID);
+  const [chronoEnabled, setChronoEnabled] = useState(false);
+  const [chronoSeconds, setChronoSeconds] = useState<number>(30);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(30);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [resultData, setResultData] = useState<QuizResult | null>(null);
-  const [celebrate, setCelebrate] = useState(false);
-  const [history, setHistory] = useState<QuizHistoryEntry[]>([]);
-  const [answerFx, setAnswerFx] = useState<"correct" | "wrong" | null>(null);
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [correct, setCorrect] = useState(0);
+  const [favorites, setFavorites] = useState<SavedFavorite[]>([]);
+  const [localQuizzes, setLocalQuizzes] = useState<LocalQuiz[]>([]);
 
-  const textModels = useMemo(() => {
-    const unique = new Map<string, { id: string; name: string; provider: string }>();
-    for (const model of chatModels) {
-      if (!unique.has(model.id)) unique.set(model.id, { id: model.id, name: model.name, provider: model.provider });
-    }
-    return Array.from(unique.values()).sort((a,b)=>a.name.localeCompare(b.name,"fr",{sensitivity:"base"}));
-  }, []);
+  const current = questions[index];
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(QUIZ_HISTORY_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as QuizHistoryEntry[];
-      setHistory(Array.isArray(parsed) ? parsed : []);
+      setFavorites(JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]"));
+      setLocalQuizzes(JSON.parse(localStorage.getItem(LOCAL_QUIZ_KEY) ?? "[]"));
     } catch {
-      setHistory([]);
+      setFavorites([]);
+      setLocalQuizzes([]);
     }
   }, []);
 
   useEffect(() => {
-    setStep("setup");
-    setResultData(null);
-    setQuestions([]);
-    setCurrentIndex(0);
-    setCorrectAnswers(0);
-  }, []);
+    if (step !== "playing" || !chronoEnabled || selected !== null) return;
+    setRemainingSeconds(chronoSeconds);
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setSelected(-1);
+          toast.error("Temps écoulé: réponse comptée fausse.");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  useEffect(() => {
-    const settings = getQuizzlySettingsFromStorage();
-    setGrade(settings.classDefault);
-    setSubject(settings.subjectDefault);
-    setChapter(settings.chapterDefault);
-    setThemePrompt(settings.themePromptDefault);
-    setModelId(settings.defaultModelId);
-  }, []);
+    return () => clearInterval(timer);
+  }, [chronoEnabled, chronoSeconds, index, selected, step]);
 
-  const saveHistory = (entry: QuizHistoryEntry) => {
-    const next = [entry, ...history].slice(0, 20);
-    setHistory(next);
-    window.localStorage.setItem(QUIZ_HISTORY_KEY, JSON.stringify(next));
+  const progressColor = useMemo(() => {
+    const ratio = remainingSeconds / chronoSeconds;
+    if (ratio > 0.6) return "bg-emerald-500";
+    if (ratio > 0.3) return "bg-orange-500";
+    return "bg-red-500 animate-pulse";
+  }, [remainingSeconds, chronoSeconds]);
+
+  const persistFavorites = (next: SavedFavorite[]) => {
+    setFavorites(next);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+  };
+
+  const persistLocalQuizzes = (next: LocalQuiz[]) => {
+    setLocalQuizzes(next);
+    localStorage.setItem(LOCAL_QUIZ_KEY, JSON.stringify(next));
   };
 
   const startQuiz = async () => {
     setStep("loading");
     try {
-      const chosenModelId = modelId === RANDOM_MODEL_ID ? textModels[Math.floor(Math.random()*textModels.length)]?.id : modelId;
-      if (!chosenModelId) throw new Error("Aucun modèle de génération disponible pour Quizzly.");
-
       const res = await fetch("/api/quizzly/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, subject, chapter, themePrompt, difficulty, count, modelId: chosenModelId }),
+        body: JSON.stringify({ grade, subject, difficulty, count, chapter, themePrompt }),
       });
-
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Erreur de génération du quiz");
+      const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
+      if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error(data.error ?? "Génération impossible");
       }
-
-      const data = (await res.json()) as { questions: QuizQuestion[] };
-      if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("Le quiz généré est vide.");
-
       setQuestions(data.questions);
+      setIndex(0);
+      setSelected(null);
+      setCorrect(0);
       setStep("playing");
-      setCurrentIndex(0);
-      setCorrectAnswers(0);
-      setIsAnswered(false);
-      setSelectedOption(null);
-      setCelebrate(false);
-      toast.success(`Quiz généré avec ${chosenModelId}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur inconnue");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur inattendue");
       setStep("setup");
     }
   };
 
-  const replayFromHistory = (entry: QuizHistoryEntry) => {
-    setGrade(entry.grade);
-    setSubject(entry.subject);
-    setDifficulty(entry.difficulty);
-    setCount(entry.count);
-    setChapter(entry.chapter);
-    setThemePrompt(entry.themePrompt);
-    setQuestions(entry.questions);
-    setCurrentIndex(0);
-    setCorrectAnswers(0);
-    setSelectedOption(null);
-    setIsAnswered(false);
-    setResultData(null);
-    setCelebrate(false);
-    setStep("playing");
-    toast.success("Quiz relancé depuis l'historique");
-  };
-
-  const handleAnswer = (index: number) => {
-    if (isAnswered) return;
-    setSelectedOption(index);
-    setIsAnswered(true);
-    if (index === questions[currentIndex].correctAnswerIndex) {
-      setCorrectAnswers((prev) => prev + 1);
-      setAnswerFx("correct");
-    } else {
-      setAnswerFx("wrong");
-    }
-  };
-
-  const handleNext = async () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setIsAnswered(false);
-      setSelectedOption(null);
-      setAnswerFx(null);
+  const saveFavorite = () => {
+    if (favorites.length >= 20) {
+      toast.error("Limite de 20 favoris atteinte.");
       return;
     }
-    try {
-      setStep("loading");
-      const result = (await finishQuiz(correctAnswers, null)) as QuizResult;
-      setResultData(result);
-      setCelebrate(true);
-      setStep("result");
-      saveHistory({
+    const name = prompt("Nom du favori ?")?.trim();
+    if (!name) return;
+    const emoji = prompt("Emoji du favori ?", "⭐")?.trim() || "⭐";
+    const next: SavedFavorite[] = [
+      {
+        id: crypto.randomUUID(),
+        emoji,
+        name,
+        grade,
+        subject,
+        difficulty,
+        count,
+        chapter,
+        themePrompt,
+      },
+      ...favorites,
+    ].slice(0, 20);
+    persistFavorites(next);
+    toast.success("Favori enregistré.");
+  };
+
+  const finish = async () => {
+    setStep("loading");
+    await finishQuiz(correct, null);
+    const nextLocal: LocalQuiz[] = [
+      {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         grade,
         subject,
         difficulty,
-        chapter,
-        themePrompt,
-        count,
-        modelId,
-        score: correctAnswers,
         questions,
-      });
-      addQuizzlyStatsEvent("quiz_played", 1);
-      if (correctAnswers === questions.length && questions.length > 0) {
-        addQuizzlyStatsEvent("quiz_perfect", 1);
-      }
-    } catch {
-      toast.error("Erreur d'enregistrement des résultats");
-      setStep("setup");
-    }
+        score: correct,
+      },
+      ...localQuizzes,
+    ].slice(0, 50);
+    persistLocalQuizzes(nextLocal);
+    setStep("result");
   };
 
-  if (step === "loading") return <div className="flex flex-col items-center justify-center h-[60vh] space-y-6"><div className="w-16 h-16 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div><h2 className="text-2xl font-bold text-slate-700 animate-pulse">Génération de ton Quiz par l'IA...</h2></div>;
+  const nextQuestion = async () => {
+    if (index >= questions.length - 1) {
+      await finish();
+      return;
+    }
+    setIndex((prev) => prev + 1);
+    setSelected(null);
+  };
 
-  if (step === "result" && resultData) {
-    return <div className="max-w-xl mx-auto mt-10 bg-white p-10 rounded-3xl border border-slate-100 shadow-xl text-center space-y-8 relative overflow-hidden">
-      {celebrate && <div className="absolute inset-0 pointer-events-none animate-pulse bg-gradient-to-br from-yellow-100/30 via-fuchsia-100/20 to-cyan-100/30" />}
-      <h1 className="text-4xl font-black text-slate-800 relative">Quiz Terminé !</h1>
-      <div className="relative mx-auto w-44 h-44 rounded-full border-[10px] border-violet-200 flex items-center justify-center bg-white shadow-inner">
-        <div className="text-4xl font-black text-violet-600">{correctAnswers} / {questions.length}</div>
-      </div>
-      <div className="bg-orange-50 text-orange-600 font-bold p-4 rounded-xl text-lg relative">+{resultData.xpGain} XP Gagnée !</div>
-      <p className="text-slate-500 relative">Niveau actuel : {resultData.newLevel}</p>
-      {Boolean(resultData.bonusDiamonds) && <p className="text-cyan-700 font-bold relative">+{resultData.bonusDiamonds} 💎 (montée de niveau)</p>}
-      <div className="flex flex-wrap justify-center gap-2 relative">
-        <button onClick={() => setStep("setup")} className="bg-violet-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-violet-700">Rejouer</button>
-        <button onClick={() => router.push("/quizzly")} className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-900">Retour</button>
-      </div>
-      {celebrate && <div className="text-2xl flex justify-center gap-2 relative"><Sparkles className="text-yellow-500" />🔥✨🎉💎</div>}
-    </div>;
+  const downloadQuiz = () => {
+    const content = questions
+      .map(
+        (q, qIndex) =>
+          `Q${qIndex + 1}. ${q.question}\n` +
+          q.options.map((opt, i) => `  ${i + 1}) ${opt}`).join("\n") +
+          `\nRéponse: ${q.options[q.correctAnswerIndex]}\nExplication: ${q.explanation}`
+      )
+      .join("\n\n");
+
+    const blob = new Blob([content], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quizzly-${subject}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const shareResult = () => {
+    const text = `🏆 Quizzly\n${subject} • ${difficulty}\nScore: ${correct}/${questions.length}\n#Quizzly`;
+    navigator.clipboard.writeText(text);
+    toast.success("Résultat copié (partage rapide)");
+  };
+
+  if (step === "loading") {
+    return <div className="py-24 text-center font-bold text-slate-600">Chargement du quiz…</div>;
   }
 
-  if (step === "playing") {
-    const q = questions[currentIndex];
-    return <div className="max-w-3xl mx-auto space-y-8"><div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><span className="font-bold text-slate-500">Question {currentIndex + 1} sur {questions.length}</span><span className="font-bold text-violet-600">{subject} • {difficulty}</span></div>
-    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100"><h2 className="text-2xl font-bold text-slate-800 mb-8">{q.question}</h2>
-    {answerFx && <div className={`mb-4 text-sm font-bold px-3 py-2 rounded-lg ${answerFx === "correct" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{answerFx === "correct" ? "✅ Bonne réponse !" : "❌ Mauvaise réponse"}</div>}
-    <div className="space-y-3">{q.options.map((opt, i)=>{const label = typeof opt === "string" ? opt : String((opt as any)?.text ?? (opt as any)?.label ?? opt);let btnClass="border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-700";let icon=null;if(isAnswered){if(i===q.correctAnswerIndex){btnClass="border-green-500 bg-green-50 text-green-800";icon=<CheckCircle className="text-green-500 w-6 h-6"/>;}else if(i===selectedOption){btnClass="border-red-500 bg-red-50 text-red-800";icon=<XCircle className="text-red-500 w-6 h-6"/>;}else{btnClass="border-slate-200 opacity-50";}}return <button key={i} onClick={()=>handleAnswer(i)} disabled={isAnswered} className={`w-full text-left p-4 rounded-xl border-2 font-medium text-lg transition flex justify-between items-center ${btnClass}`}>{label}{icon}</button>;})}</div>
-    {isAnswered && <div className="mt-8 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100"><span className="font-bold block mb-1">Explication :</span>{q.explanation}</div>}
-    {isAnswered && <div className="mt-8 flex justify-end"><button onClick={handleNext} className="bg-violet-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-violet-700">{currentIndex < questions.length - 1 ? "Question Suivante" : "Terminer"}</button></div>}
-    </div></div>;
+  if (step === "result") {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-3xl font-black text-slate-800">Quiz terminé !</h1>
+        <p className="text-lg font-semibold text-violet-700">{correct} / {questions.length}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={downloadQuiz} type="button"><Download className="mr-1 inline h-4 w-4" /> Télécharger PDF</button>
+          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
+          <button className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Rejouer</button>
+        </div>
+      </div>
+    );
   }
 
-  return <div className="max-w-2xl mx-auto space-y-8"><div><h1 className="text-3xl font-black text-slate-800">Configurer un Quiz</h1><p className="text-slate-500 mt-1">Personnalise ta partie générée par l'IA.</p></div>
-  <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-    <div className="grid grid-cols-2 gap-6"><div><label className="block text-sm font-bold text-slate-700 mb-2">Classe</label><select value={grade} onChange={e=>setGrade(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{GRADES.map(g=><option key={g} value={g}>{g}</option>)}</select></div><div><label className="block text-sm font-bold text-slate-700 mb-2">Matière</label><select value={subject} onChange={e=>setSubject(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{SUBJECTS.map(s=><option key={s} value={s}>{s}</option>)}</select></div></div>
-    <div className="grid grid-cols-2 gap-6"><div><label className="block text-sm font-bold text-slate-700 mb-2">Difficulté</label><select value={difficulty} onChange={e=>setDifficulty(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50">{DIFFICULTIES.map(d=><option key={d} value={d}>{d}</option>)}</select></div><div><label className="block text-sm font-bold text-slate-700 mb-2">Nombre de questions</label><input type="number" min={1} max={20} value={count} onChange={e=>setCount(normalizeQuizCount(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/></div></div>
-    <div className="space-y-3"><label className="block text-sm font-bold text-slate-700 mb-2">Chapitre</label><input value={chapter} onChange={e=>setChapter(e.target.value)} placeholder="Ex: Équations du 1er degré" className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/><div className="flex flex-wrap gap-2">{CHAPTER_SUGGESTIONS.map((item)=><button key={item} type="button" onClick={()=>setChapter(item)} className="text-xs px-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200">{item}</button>)}</div></div>
-    <div className="space-y-3"><label className="block text-sm font-bold text-slate-700 mb-2">Thème personnalisé (prompt)</label><textarea value={themePrompt} onChange={e=>setThemePrompt(e.target.value)} rows={3} placeholder="Décris l'univers du quiz: style, ambiance, exemples..." className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"/><div className="flex flex-wrap gap-2">{THEME_SUGGESTIONS.map((item)=><button key={item} type="button" onClick={()=>setThemePrompt(`Crée un quiz inspiré de ${item}`)} className="text-xs px-2 py-1 rounded-full bg-violet-50 text-violet-700 hover:bg-violet-100 inline-flex items-center gap-1"><Lightbulb className="w-3 h-3"/>{item}</button>)}</div></div>
-    <div><label className="block text-sm font-bold text-slate-700 mb-2">Modèle d'IA</label><select value={modelId} onChange={e=>setModelId(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"><option value={RANDOM_MODEL_ID}>🎲 Aléatoire (tous les modèles texte)</option>{textModels.map(m=><option key={m.id} value={m.id}>{m.name} · {m.provider}</option>)}</select><p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><Shuffle className="w-3 h-3"/>Inclut OpenAI, Azure, AI Horde, Ollama, OpenRouter et autres modèles texte disponibles.</p></div>
-    <div className="pt-4"><button onClick={startQuiz} className="w-full bg-violet-600 text-white font-bold py-4 rounded-xl hover:bg-violet-700 transition flex items-center justify-center gap-2 text-lg shadow-lg"><Play className="w-5 h-5 fill-current"/>Lancer la génération</button></div>
-  </div>
+  if (step === "playing" && current) {
+    const ratio = chronoEnabled ? (remainingSeconds / chronoSeconds) * 100 : 100;
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="font-bold text-slate-700">Question {index + 1}/{questions.length}</p>
+            {chronoEnabled && (
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                <Clock3 className="h-4 w-4" /> {remainingSeconds}s
+              </div>
+            )}
+          </div>
+          {chronoEnabled && (
+            <div className="mt-2 h-2 rounded-full bg-slate-100">
+              <div className={`h-2 rounded-full ${progressColor}`} style={{ width: `${Math.max(0, ratio)}%` }} />
+            </div>
+          )}
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-2xl font-black text-slate-800">{current.question}</h2>
+          <div className="space-y-2">
+            {current.options.map((opt, i) => {
+              const isCorrect = i === current.correctAnswerIndex;
+              const isSelected = selected === i;
+              const showState = selected !== null;
+              return (
+                <button
+                  key={opt}
+                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${showState ? isCorrect ? "border-green-500 bg-green-50" : isSelected ? "border-red-500 bg-red-50" : "opacity-60" : "border-slate-200 hover:border-violet-300"}`}
+                  disabled={selected !== null}
+                  onClick={() => {
+                    setSelected(i);
+                    if (isCorrect) {
+                      const bonus = chronoEnabled ? Math.max(0, Math.floor(remainingSeconds / 5)) : 0;
+                      setCorrect((prev) => prev + 1 + bonus);
+                    }
+                  }}
+                  type="button"
+                >
+                  <span>{opt}</span>
+                  {showState && isCorrect ? <CheckCircle className="h-4 w-4 text-green-600" /> : null}
+                  {showState && !isCorrect && isSelected ? <XCircle className="h-4 w-4 text-red-600" /> : null}
+                </button>
+              );
+            })}
+          </div>
+          {selected !== null && (
+            <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
+              <strong>Explication:</strong> {current.explanation}
+            </div>
+          )}
+          {selected !== null && (
+            <div className="mt-4 flex justify-end">
+              <button className="rounded-xl bg-violet-600 px-4 py-2 font-bold text-white" onClick={nextQuestion} type="button">
+                {index < questions.length - 1 ? "Suivant" : "Terminer"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-    <h2 className="font-black text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-violet-600"/>Historique des quiz</h2>
-    <div className="mt-4 space-y-3">
-      {history.length === 0 && <p className="text-sm text-slate-500">Aucun quiz sauvegardé pour l'instant.</p>}
-      {history.map((entry) => (
-        <button key={entry.id} onClick={() => replayFromHistory(entry)} className="w-full text-left p-3 rounded-xl border border-slate-200 hover:bg-slate-50">
-          <p className="font-semibold text-slate-800">{entry.subject} • {entry.difficulty} • {entry.chapter || "chapitre libre"} • {entry.score}/{entry.questions.length}</p>
-          <p className="text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString("fr-FR")} — Refaire ce quiz</p>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-black text-slate-800">Configurer un quiz</h1>
+        <button className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold" onClick={saveFavorite} type="button">
+          ⭐ Sauvegarder en favori
         </button>
-      ))}
+      </div>
+
+      {favorites.length > 0 && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-500">Favoris</p>
+          <div className="flex flex-wrap gap-2">
+            {favorites.map((favorite) => (
+              <button
+                key={favorite.id}
+                className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-700"
+                onClick={() => {
+                  setGrade(favorite.grade);
+                  setSubject(favorite.subject);
+                  setDifficulty(favorite.difficulty);
+                  setCount(favorite.count);
+                  setChapter(favorite.chapter);
+                  setThemePrompt(favorite.themePrompt);
+                }}
+                type="button"
+              >
+                {favorite.emoji} {favorite.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Classe" value={grade} onChange={(e) => setGrade(e.target.value)} />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Matière" value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Difficulté" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value) || 5)} />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Chapitre" value={chapter} onChange={(e) => setChapter(e.target.value)} />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" placeholder="Thème" value={themePrompt} onChange={(e) => setThemePrompt(e.target.value)} />
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <p className="mb-2 font-bold text-slate-700">⏱️ Mode chrono</p>
+        <label className="mr-4 text-sm">
+          <input checked={chronoEnabled} onChange={(e) => setChronoEnabled(e.target.checked)} type="checkbox" /> Activer
+        </label>
+        {chronoEnabled && (
+          <select className="rounded-lg border border-slate-200 px-2 py-1 text-sm" value={chronoSeconds} onChange={(e) => setChronoSeconds(Number(e.target.value))}>
+            {CHRONO_OPTIONS.map((seconds) => (
+              <option key={seconds} value={seconds}>{seconds}s</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {localQuizzes.length > 0 && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-500">Quiz locaux sauvegardés ({localQuizzes.length}/50)</p>
+          <div className="space-y-2">
+            {localQuizzes.slice(0, 5).map((quiz) => (
+              <button
+                key={quiz.id}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-left text-sm"
+                onClick={() => {
+                  setQuestions(quiz.questions);
+                  setIndex(0);
+                  setSelected(null);
+                  setCorrect(0);
+                  setStep("playing");
+                }}
+                type="button"
+              >
+                {quiz.subject} • {quiz.difficulty} • score précédent: {quiz.score}/{quiz.questions.length}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button className="rounded-xl bg-violet-600 px-5 py-3 font-bold text-white" onClick={startQuiz} type="button">Lancer</button>
+        <button className="rounded-xl bg-slate-800 px-5 py-3 font-bold text-white" onClick={() => router.push("/quizzly")} type="button">Retour</button>
+      </div>
     </div>
-  </div>
-  </div>;
+  );
 }

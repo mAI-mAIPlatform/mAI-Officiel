@@ -6,6 +6,7 @@ import {
   getQuizzlyInventory,
   buyItem,
   claimDailyReward,
+  spinWheelOfFortune,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Star, Zap, Shield, Diamond, Gift } from "lucide-react";
@@ -35,6 +36,8 @@ export default function QuizzlyShopPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dailyClaiming, setDailyClaiming] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+  const [lastWheelResult, setLastWheelResult] = useState<number | null>(null);
 
   const loadData = async () => {
     const [p, inv] = await Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]);
@@ -86,6 +89,25 @@ export default function QuizzlyShopPage() {
     }
   };
 
+  const handleSpin = async () => {
+    if (!confirm("Tourner la roue coûte 10 diamants. Continuer ?")) return;
+    setSpinning(true);
+    try {
+      const res = await spinWheelOfFortune();
+      setLastWheelResult(res.result);
+      if (res.isJackpot) {
+        toast.success("🎉 JACKPOT 100 💎 ! La tribu va en entendre parler !");
+      } else {
+        toast.success(`Roue terminée : ${res.result} 💎`);
+      }
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur de roue");
+    } finally {
+      setSpinning(false);
+    }
+  };
+
   if (loading || !profile) return <div className="p-10 text-center animate-pulse">Chargement...</div>;
 
   return (
@@ -112,6 +134,28 @@ export default function QuizzlyShopPage() {
             className="px-4 py-2.5 rounded-xl bg-orange-500 text-white font-bold disabled:opacity-50"
           >
             {canClaimDaily ? "Récupérer +10💎" : "Déjà récupéré"}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-fuchsia-100 bg-gradient-to-r from-fuchsia-50 to-violet-50 p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-black text-slate-800">🎰 Roue de la Fortune</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Mise fixe: <strong>10 💎</strong>. Gains possibles: 0, 5, 10, 15, 25, 50, 75, 100.
+            </p>
+            {lastWheelResult !== null && (
+              <p className="mt-2 text-xs font-bold text-fuchsia-700">Dernier résultat: {lastWheelResult} 💎</p>
+            )}
+          </div>
+          <button
+            className="rounded-xl bg-fuchsia-600 px-4 py-2.5 font-bold text-white disabled:opacity-50"
+            disabled={spinning || profile.diamonds < 10}
+            onClick={handleSpin}
+            type="button"
+          >
+            {spinning ? "Rotation..." : "Parier 10💎"}
           </button>
         </div>
       </div>

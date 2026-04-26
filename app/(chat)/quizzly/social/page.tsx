@@ -13,6 +13,7 @@ type SocialState = {
   friends: string[];
   reportedUsers: string[];
 };
+const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
 
 export default function QuizzlySocialPage() {
   const [activeTab, setActiveTab] = useState<"friends" | "chat">("friends");
@@ -27,6 +28,7 @@ export default function QuizzlySocialPage() {
     reportedUsers: [],
   });
   const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
+  const [reactionsByMessage, setReactionsByMessage] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     try {
@@ -85,6 +87,19 @@ export default function QuizzlySocialPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Discussion exportée.");
+  };
+
+  const reactToMessage = (message: string, emoji: string) => {
+    setReactionsByMessage((prev) => {
+      const current = prev[message] ?? {};
+      return {
+        ...prev,
+        [message]: {
+          ...current,
+          [emoji]: (current[emoji] ?? 0) + 1,
+        },
+      };
+    });
   };
 
   const blockFriend = (pseudo: string) => {
@@ -205,13 +220,26 @@ export default function QuizzlySocialPage() {
                   <div className="text-center text-slate-400 mt-20 flex flex-col items-center"><MessageSquare className="w-12 h-12 mb-3 text-slate-300" />Commence la discussion.</div>
                 ) : (
                   messages.map((m, i) => (
-                    <button
-                      key={`${m}-${i}`}
-                      onClick={() => pinMessage(m)}
-                      className={`block p-3 rounded-xl max-w-[70%] text-left ${m.startsWith("Moi") ? "bg-violet-600 text-white ml-auto" : "bg-white border border-slate-200 text-slate-700"}`}
-                    >
-                      {m}
-                    </button>
+                    <div key={`${m}-${i}`} className={`max-w-[75%] ${m.startsWith("Moi") ? "ml-auto" : ""}`}>
+                      <button
+                        onClick={() => pinMessage(m)}
+                        className={`block w-full p-3 rounded-xl text-left ${m.startsWith("Moi") ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700"}`}
+                      >
+                        {m}
+                      </button>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {REACTIONS.map((emoji) => (
+                          <button
+                            key={`${m}-${emoji}`}
+                            className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs"
+                            onClick={() => reactToMessage(m, emoji)}
+                            type="button"
+                          >
+                            {emoji} {reactionsByMessage[m]?.[emoji] ?? 0}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
