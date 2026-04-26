@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
 import { ProjectTaskManager } from "./project-task-manager";
 
@@ -23,6 +24,10 @@ export function ProjectWorkspace({
   const [selectedChatId, setSelectedChatId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [quickNotes, setQuickNotes] = useLocalStorage<string>(
+    `mai.projects.quick-notes.${projectId}`,
+    ""
+  );
 
   const canImport = selectedChatId.trim().length > 0 && !isImporting;
 
@@ -135,6 +140,18 @@ export function ProjectWorkspace({
         >
           Démarrer une discussion projet
         </Link>
+
+        <div className="mt-4 rounded-xl border border-black/15 bg-white/75 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-black/65">
+            Notes rapides du projet
+          </p>
+          <textarea
+            className="mt-2 min-h-24 w-full rounded-lg border border-black/15 bg-white p-2 text-sm text-black"
+            onChange={(event) => setQuickNotes(event.target.value)}
+            placeholder="Décisions, idées, rappels..."
+            value={quickNotes}
+          />
+        </div>
       </article>
 
       <div className="lg:col-span-2">

@@ -79,7 +79,7 @@ import {
   getTierLabel,
   getTierRemaining,
 } from "@/lib/ai/credits";
-import { getModelIconGlyph, resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import { toHordeDisplayName } from "@/lib/ai/horde-models";
 import {
   type ChatModel,
@@ -2621,10 +2621,7 @@ function PureModelSelectorCompact({
                             value={model.id}
                           >
                             <ModelSelectorLogo provider={logoProvider} />
-                            <ModelSelectorName>
-                              <span className="mr-1">{getModelIconGlyph(model.id)}</span>
-                              {model.name}
-                            </ModelSelectorName>
+                            <ModelSelectorName>{model.name}</ModelSelectorName>
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />

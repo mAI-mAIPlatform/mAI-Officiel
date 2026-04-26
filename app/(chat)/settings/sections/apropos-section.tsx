@@ -236,7 +236,7 @@ export function AproposSection({
 
       {modelsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModelsOpen(false)} role="presentation">
-          <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl min-h-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
             <div className="flex items-center justify-between border-b border-border/50 p-4">
               <h3 className="text-base font-semibold">Modèles référencés</h3>
               <button className="rounded-lg border px-2 py-1 text-xs" onClick={() => setModelsOpen(false)} type="button">Fermer</button>
@@ -265,7 +265,7 @@ export function AproposSection({
                 ))}
               </div>
             </div>
-            <div className="grid gap-4 overflow-auto p-4 md:grid-cols-3">
+            <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 md:grid-cols-3">
               {(modelsCategory === "all" || modelsCategory === "text") && <div>
                 <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">Texte ({chatModels.length})</p>
                 <div className="space-y-1 text-xs">

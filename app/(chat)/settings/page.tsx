@@ -40,7 +40,6 @@ import {
   type ModelTier,
 } from "@/lib/ai/credits";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
-import { getModelIconGlyph } from "@/lib/ai/model-brand";
 import { chatModels } from "@/lib/ai/models";
 import { APP_VERSION } from "@/lib/app-version";
 import {
@@ -2431,7 +2430,7 @@ export default function SettingsPage() {
               >
                 {chatModels.map((modelOption) => (
                   <option key={modelOption.id} value={modelOption.id}>
-                    {getModelIconGlyph(modelOption.id)} {modelOption.name}
+                    {modelOption.name}
                   </option>
                 ))}
               </select>
@@ -2445,7 +2444,7 @@ export default function SettingsPage() {
               >
                 {affordableImageModels.map((modelOption) => (
                   <option key={modelOption.id} value={modelOption.id}>
-                    {getModelIconGlyph(modelOption.id)} {modelOption.label}
+                    {modelOption.label}
                   </option>
                 ))}
               </select>
@@ -2459,7 +2458,7 @@ export default function SettingsPage() {
               >
                 {defaultWaveModelOptions.map((waveModelId) => (
                   <option key={waveModelId} value={waveModelId}>
-                    🎵 {waveModelId.replaceAll("_", ".")}
+                    {waveModelId.replaceAll("_", ".")}
                   </option>
                 ))}
               </select>
@@ -2473,7 +2472,7 @@ export default function SettingsPage() {
               >
                 {chatModels.map((modelOption) => (
                   <option key={`cooker-${modelOption.id}`} value={modelOption.id}>
-                    {getModelIconGlyph(modelOption.id)} {modelOption.name}
+                    {modelOption.name}
                   </option>
                 ))}
               </select>
@@ -2487,7 +2486,7 @@ export default function SettingsPage() {
               >
                 {chatModels.map((modelOption) => (
                   <option key={`health-${modelOption.id}`} value={modelOption.id}>
-                    {getModelIconGlyph(modelOption.id)} {modelOption.name}
+                    {modelOption.name}
                   </option>
                 ))}
               </select>
@@ -2501,7 +2500,7 @@ export default function SettingsPage() {
               >
                 {chatModels.map((modelOption) => (
                   <option key={`quizzly-${modelOption.id}`} value={modelOption.id}>
-                    {getModelIconGlyph(modelOption.id)} {modelOption.name}
+                    {modelOption.name}
                   </option>
                 ))}
               </select>
