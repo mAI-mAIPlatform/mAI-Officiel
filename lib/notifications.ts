@@ -1,7 +1,3 @@
-import { and, eq, gte, lte } from "drizzle-orm";
-import { createNotification as createDbNotification, db } from "@/lib/db/queries";
-import { notification, project, task } from "@/lib/db/schema";
-
 export type NotificationType =
   | "task_due"
   | "task_assigned"
@@ -162,97 +158,22 @@ export function createAiResponseNotification(input: {
   });
 }
 
-export async function createUserNotification(input: {
-  userId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  projectId?: string | null;
-  taskId?: string | null;
-}) {
-  return createDbNotification(input);
-}
-
-export async function markNotificationRead(
+export function markNotificationRead(
   id: string,
   secondArg?: string | boolean
 ) {
-  if (typeof secondArg === "boolean" || secondArg === undefined) {
-    const next = getNotificationHistory().map((item) =>
-      item.id === id ? { ...item, read: true } : item
-    );
-    saveNotificationHistory(next);
-    return undefined;
-  }
-
-  return db
-    .update(notification)
-    .set({ isRead: true })
-    .where(and(eq(notification.id, id), eq(notification.userId, secondArg)))
-    .returning();
+  void secondArg;
+  const next = getNotificationHistory().map((item) =>
+    item.id === id ? { ...item, read: true } : item
+  );
+  saveNotificationHistory(next);
 }
 
-export async function markAllNotificationsRead(arg?: string | boolean) {
-  if (typeof arg === "boolean" || arg === undefined) {
-    const next = getNotificationHistory().map((item) => ({
-      ...item,
-      read: true,
-    }));
-    saveNotificationHistory(next);
-    return undefined;
-  }
-
-  return db
-    .update(notification)
-    .set({ isRead: true })
-    .where(eq(notification.userId, arg))
-    .returning();
-}
-
-export async function runDueTaskReminderCheck() {
-  const now = new Date();
-  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-  const tasks = await db
-    .select({
-      id: task.id,
-      title: task.title,
-      dueDate: task.dueDate,
-      projectId: task.projectId,
-      ownerId: project.userId,
-    })
-    .from(task)
-    .innerJoin(project, eq(task.projectId, project.id))
-    .where(
-      and(
-        gte(task.dueDate, now),
-        lte(task.dueDate, next24h),
-        eq(task.status, "todo")
-      )
-    );
-
-  for (const item of tasks) {
-    const [existing] = await db
-      .select({ id: notification.id })
-      .from(notification)
-      .where(
-        and(
-          eq(notification.userId, item.ownerId),
-          eq(notification.taskId, item.id),
-          eq(notification.type, "task_due")
-        )
-      )
-      .limit(1);
-
-    if (existing) continue;
-
-    await createDbNotification({
-      userId: item.ownerId,
-      projectId: item.projectId,
-      taskId: item.id,
-      type: "task_due",
-      title: "Tâche en échéance",
-      message: `La tâche « ${item.title} » arrive à échéance sous 24h.`,
-    });
-  }
+export function markAllNotificationsRead(arg?: string | boolean) {
+  void arg;
+  const next = getNotificationHistory().map((item) => ({
+    ...item,
+    read: true,
+  }));
+  saveNotificationHistory(next);
 }
