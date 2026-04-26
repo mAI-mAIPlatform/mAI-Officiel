@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { finishQuiz, getQuizzlyInventory, getQuizzlyProfile, spendHintDiamonds } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { CheckCircle, Clock3, Download, Heart, Lightbulb, Shield, Share2, Snowflake, Sword, Trophy, XCircle } from "lucide-react";
+import { BookOpen, CheckCircle, Clock3, Download, Heart, Lightbulb, Shield, Share2, Snowflake, Star, Sword, Trophy, XCircle } from "lucide-react";
 import { chatModels, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 type QuizQuestion = {
@@ -50,6 +50,16 @@ type DuelOpponent = {
   streak: number;
 };
 type HintType = "fifty" | "first_letter" | "contextual";
+type ExplanationCard = {
+  title: string;
+  explanationCard: string;
+  whyOthersWrong: string;
+  deepDive: string;
+  question: string;
+  questionIndex: number;
+  subject: string;
+  createdAt: string;
+};
 
 const FAVORITES_KEY = "mai.quizzly.favorites.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
@@ -123,6 +133,10 @@ export default function QuizzlyPlayPage() {
   const [hintBusy, setHintBusy] = useState<HintType | null>(null);
   const [answerInput, setAnswerInput] = useState("");
   const [hintedQuestions, setHintedQuestions] = useState<number[]>([]);
+  const [explanationsByQuestion, setExplanationsByQuestion] = useState<Record<number, ExplanationCard>>({});
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [favoriteSheets, setFavoriteSheets] = useState<ExplanationCard[]>([]);
 
   const current = questions[index];
   const duelCurrent = questions[duelIndex];
@@ -156,10 +170,12 @@ export default function QuizzlyPlayPage() {
           )
         : [];
       setReviewCards(sanitized);
+      setFavoriteSheets(JSON.parse(localStorage.getItem("mai.quizzly.fiches.v1") ?? "[]"));
     } catch {
       setFavorites([]);
       setLocalQuizzes([]);
       setReviewCards([]);
+      setFavoriteSheets([]);
     }
   }, []);
 
@@ -310,6 +326,8 @@ export default function QuizzlyPlayPage() {
         setDisabledOptionsByQuestion({});
         setContextHintByQuestion({});
         setHintedQuestions([]);
+        setExplanationsByQuestion({});
+        setDeepDiveOpen(false);
         setAnswerInput("");
         setQuizStartedAt(Date.now());
         setStep("playing");
@@ -336,6 +354,8 @@ export default function QuizzlyPlayPage() {
       setDisabledOptionsByQuestion({});
       setContextHintByQuestion({});
       setHintedQuestions([]);
+      setExplanationsByQuestion({});
+      setDeepDiveOpen(false);
       setAnswerInput("");
       setQuizStartedAt(Date.now());
       setStep("playing");
@@ -467,6 +487,7 @@ export default function QuizzlyPlayPage() {
     setIndex((prev) => prev + 1);
     setSelected(null);
     setHintPanelOpen(false);
+    setDeepDiveOpen(false);
     setAnswerInput("");
   };
 
@@ -540,6 +561,70 @@ export default function QuizzlyPlayPage() {
     } finally {
       setHintBusy(null);
     }
+  };
+
+  const generateExplanationCard = async (selectedAnswerIndex: number) => {
+    if (!current) return;
+    setExplanationLoading(true);
+    try {
+      const response = await fetch("/api/quizzly/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: current.question,
+          options: current.options,
+          correctAnswerIndex: current.correctAnswerIndex,
+          selectedAnswerIndex,
+          explanation: current.explanation,
+          subject,
+          difficulty,
+          modelId,
+        }),
+      });
+      const payload = (await response.json()) as {
+        title?: string;
+        explanationCard?: string;
+        whyOthersWrong?: string;
+        deepDive?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.title || !payload.explanationCard || !payload.deepDive || !payload.whyOthersWrong) {
+        throw new Error(payload.error ?? "Impossible de générer l'explication détaillée.");
+      }
+      const card: ExplanationCard = {
+        title: payload.title,
+        explanationCard: payload.explanationCard,
+        whyOthersWrong: payload.whyOthersWrong,
+        deepDive: payload.deepDive,
+        question: current.question,
+        questionIndex: index,
+        subject,
+        createdAt: new Date().toISOString(),
+      };
+      setExplanationsByQuestion((prev) => ({ ...prev, [index]: card }));
+    } catch (error) {
+      const fallback: ExplanationCard = {
+        title: `Comprendre: ${subject}`,
+        explanationCard: current.explanation,
+        whyOthersWrong: "Analyse des distracteurs indisponible pour le moment. Relis les mots-clés de chaque option pour détecter les pièges classiques.",
+        deepDive: "Mini-cours indisponible en ligne. Rejoue ce chapitre et compare plusieurs variantes de questions pour consolider le raisonnement, la méthode et le vocabulaire attendu.",
+        question: current.question,
+        questionIndex: index,
+        subject,
+        createdAt: new Date().toISOString(),
+      };
+      setExplanationsByQuestion((prev) => ({ ...prev, [index]: fallback }));
+      toast.error(error instanceof Error ? error.message : "Explication indisponible");
+    } finally {
+      setExplanationLoading(false);
+    }
+  };
+
+  const saveExplanationAsFavorite = (card: ExplanationCard) => {
+    const next = [card, ...favoriteSheets.filter((item) => !(item.questionIndex === card.questionIndex && item.question === card.question))].slice(0, 100);
+    setFavoriteSheets(next);
+    localStorage.setItem("mai.quizzly.fiches.v1", JSON.stringify(next));
+    toast.success("Fiche ajoutée à Mes fiches sauvegardées.");
   };
 
   const finalizeDuel = async () => {
@@ -642,6 +727,8 @@ export default function QuizzlyPlayPage() {
     setDisabledOptionsByQuestion({});
     setContextHintByQuestion({});
     setHintedQuestions([]);
+    setExplanationsByQuestion({});
+    setDeepDiveOpen(false);
     setAnswerInput("");
     setStep("playing");
     setExamMode(false);
@@ -912,6 +999,7 @@ export default function QuizzlyPlayPage() {
                         return [next, ...prev.filter((item) => item.question.question !== current.question)].slice(0, 200);
                       });
                     }
+                    generateExplanationCard(i);
                   }}
                   type="button"
                 >
@@ -928,8 +1016,33 @@ export default function QuizzlyPlayPage() {
             {contextualHint ? <p className="mt-2 whitespace-pre-wrap">{contextualHint}</p> : null}
           </div>
           {selected !== null && (
-            <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
-              <strong>Explication:</strong> {current.explanation}
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+              {explanationLoading ? (
+                <p className="animate-pulse font-semibold">Génération de l'explication détaillée par l'IA…</p>
+              ) : (
+                <>
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-blue-500">Carte d'explication IA</p>
+                      <h3 className="text-base font-black">{explanationsByQuestion[index]?.title ?? `Comprendre la question #${index + 1}`}</h3>
+                    </div>
+                    {explanationsByQuestion[index] ? (
+                      <button className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-amber-700" onClick={() => saveExplanationAsFavorite(explanationsByQuestion[index] as ExplanationCard)} type="button">
+                        <Star className="mr-1 inline h-4 w-4" /> Favori
+                      </button>
+                    ) : null}
+                  </div>
+                  <p>{explanationsByQuestion[index]?.explanationCard ?? current.explanation}</p>
+                  {selected !== current.correctAnswerIndex ? (
+                    <p className="mt-2 rounded-xl bg-white/70 p-2 text-xs"><strong>Pourquoi les autres réponses étaient incorrectes:</strong> {explanationsByQuestion[index]?.whyOthersWrong}</p>
+                  ) : (
+                    <p className="mt-2 rounded-xl bg-white/70 p-2 text-xs"><strong>Pièges fréquents:</strong> {explanationsByQuestion[index]?.whyOthersWrong}</p>
+                  )}
+                  <button className="mt-3 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white" onClick={() => setDeepDiveOpen(true)} type="button">
+                    <BookOpen className="mr-1 inline h-4 w-4" /> En savoir plus
+                  </button>
+                </>
+              )}
             </div>
           )}
           {selected !== null && (
@@ -959,6 +1072,18 @@ export default function QuizzlyPlayPage() {
             </div>
           )}
         </div>
+        {deepDiveOpen && explanationsByQuestion[index] ? (
+          <div className="fixed inset-0 z-30 flex justify-end bg-slate-900/30">
+            <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-800">Mini-cours approfondi</h3>
+                <button className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold" onClick={() => setDeepDiveOpen(false)} type="button">Fermer</button>
+              </div>
+              <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{explanationsByQuestion[index]?.subject}</p>
+              <p className="whitespace-pre-wrap text-sm text-slate-700">{explanationsByQuestion[index]?.deepDive}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -989,6 +1114,19 @@ export default function QuizzlyPlayPage() {
         Répétition espacée (1/3/7/30j) — cartes dues: {reviewCards.filter((item) => new Date(item.dueAt).getTime() <= Date.now()).length}
         <button className="ml-3 rounded-lg bg-sky-600 px-3 py-1 text-xs font-bold text-white" onClick={startReviewSession} type="button">Mode Révision</button>
       </div>
+      {favoriteSheets.length > 0 && (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
+          <p className="mb-2 text-xs font-bold uppercase text-amber-700">Mes fiches sauvegardées</p>
+          <div className="space-y-2">
+            {favoriteSheets.slice(0, 6).map((sheet, sheetIndex) => (
+              <div key={`${sheet.question}-${sheetIndex}`} className="rounded-xl bg-white px-3 py-2 text-xs text-slate-700">
+                <p className="font-bold text-slate-800">{sheet.title}</p>
+                <p className="mt-1">{sheet.explanationCard.slice(0, 180)}{sheet.explanationCard.length > 180 ? "…" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {favorites.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
