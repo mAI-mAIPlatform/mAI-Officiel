@@ -218,11 +218,23 @@
 .quizzly-theme {
   background-color: var(--q-bg, #f8fafc);
   color: var(--q-text, #0f172a);
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 .quizzly-theme .bg-white {
   background-color: var(--q-card, #ffffff) !important;
   transition: background-color 300ms ease, color 300ms ease;
+}
+
+.quizzly-theme .bg-slate-50,
+.quizzly-theme .bg-slate-100 {
+  background-color: var(--q-card-alt, #f1f5f9) !important;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.quizzly-theme .border-slate-100,
+.quizzly-theme .border-slate-200 {
+  border-color: var(--q-border, #e2e8f0) !important;
 }
 
 .quizzly-theme .text-slate-800,
@@ -232,9 +244,28 @@
   color: var(--q-text, #0f172a) !important;
 }
 
-.quizzly-theme [class*="bg-violet-6"],
-.quizzly-theme [class*="text-violet-7"] {
+.quizzly-theme .text-slate-500,
+.quizzly-theme .text-slate-400 {
+  color: var(--q-text-muted, #64748b) !important;
+}
+
+.quizzly-theme [class*="text-violet-"],
+.quizzly-theme [class*="text-fuchsia-"] {
   color: var(--q-accent, #7c3aed);
+}
+
+.quizzly-theme [class*="bg-violet-"],
+.quizzly-theme [class*="bg-fuchsia-"],
+.quizzly-theme .bg-slate-900 {
+  background-color: var(--q-button, #6d28d9) !important;
+  color: var(--q-button-text, #f8fafc) !important;
+}
+
+.quizzly-theme [class*="bg-violet-50"],
+.quizzly-theme [class*="bg-violet-100"],
+.quizzly-theme [class*="bg-fuchsia-50"] {
+  background-color: var(--q-button-soft, #ede9fe) !important;
+  color: var(--q-button-soft-text, #5b21b6) !important;
 }
 
 @layer base {

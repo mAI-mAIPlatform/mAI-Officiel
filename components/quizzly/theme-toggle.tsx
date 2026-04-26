@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { QUIZZLY_THEME_KEY } from "@/lib/quizzly/themes";
+import { QUIZZLY_THEME_EVENT, QUIZZLY_THEME_KEY } from "@/lib/quizzly/themes";
 import { useEffect, useState } from "react";
 
 export function QuizzlyThemeToggle() {
@@ -19,7 +19,7 @@ export function QuizzlyThemeToggle() {
         const next = dark ? "classic-light" : "classic-dark";
         localStorage.setItem(QUIZZLY_THEME_KEY, next);
         setDark(!dark);
-        window.dispatchEvent(new Event("mai:quizzly-theme"));
+        window.dispatchEvent(new Event(QUIZZLY_THEME_EVENT));
       }}
       type="button"
     >

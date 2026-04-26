@@ -66,7 +66,7 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/40 bg-[var(--q-nav)] px-2 py-2 backdrop-blur md:hidden transition-colors duration-300">
         <div className="grid grid-cols-4 gap-1">
           {navItems.slice(0, 8).map((item) => (
             <Link

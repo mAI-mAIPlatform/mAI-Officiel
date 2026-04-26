@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { QUIZZLY_THEME_KEY, getThemeById, type QuizzlyTheme } from "@/lib/quizzly/themes";
+import { QUIZZLY_THEME_EVENT, QUIZZLY_THEME_KEY, getThemeById, type QuizzlyTheme } from "@/lib/quizzly/themes";
 import type { ReactNode } from "react";
 
 export function QuizzlyThemeShell({ children }: { children: ReactNode }) {
@@ -13,8 +13,8 @@ export function QuizzlyThemeShell({ children }: { children: ReactNode }) {
       setTheme(getThemeById(stored));
     };
     apply();
-    window.addEventListener("mai:quizzly-theme", apply);
-    return () => window.removeEventListener("mai:quizzly-theme", apply);
+    window.addEventListener(QUIZZLY_THEME_EVENT, apply);
+    return () => window.removeEventListener(QUIZZLY_THEME_EVENT, apply);
   }, []);
 
   const style = useMemo(
@@ -22,8 +22,15 @@ export function QuizzlyThemeShell({ children }: { children: ReactNode }) {
       ({
         "--q-bg": theme.vars.bg,
         "--q-card": theme.vars.card,
+        "--q-card-alt": theme.vars.cardAlt,
         "--q-text": theme.vars.text,
+        "--q-text-muted": theme.vars.textMuted,
         "--q-accent": theme.vars.accent,
+        "--q-border": theme.vars.border,
+        "--q-button": theme.vars.button,
+        "--q-button-text": theme.vars.buttonText,
+        "--q-button-soft": theme.vars.buttonSoft,
+        "--q-button-soft-text": theme.vars.buttonSoftText,
         "--q-nav": theme.vars.nav,
         transition: "background-color 300ms ease, color 300ms ease",
       }) as React.CSSProperties,

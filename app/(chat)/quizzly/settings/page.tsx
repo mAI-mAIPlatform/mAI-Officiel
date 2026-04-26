@@ -7,8 +7,16 @@ import {
   saveQuizzlySettingsToStorage,
   type QuizzlySettings,
 } from "@/lib/quizzly/settings";
-import { getQuizzlyProfile, updateQuizzlyProfile } from "@/lib/quizzly/actions";
-import { QUIZZLY_THEME_KEY, QUIZZLY_UNLOCKED_THEMES_KEY, quizzlyThemes, type QuizzlyThemeId } from "@/lib/quizzly/themes";
+import { buyItem, getQuizzlyInventory, getQuizzlyProfile } from "@/lib/quizzly/actions";
+import {
+  QUIZZLY_THEME_EVENT,
+  QUIZZLY_THEME_KEY,
+  QUIZZLY_UNLOCKED_THEMES_KEY,
+  getActiveThemes,
+  getDefaultUnlockedThemeIds,
+  getUnlockedThemeIdsFromInventory,
+  type QuizzlyThemeId,
+} from "@/lib/quizzly/themes";
 import { chatModels } from "@/lib/ai/models";
 import { toast } from "sonner";
 
@@ -22,20 +30,28 @@ const modelSuggestions = [
 export default function QuizzlySettingsPage() {
   const [settings, setSettings] = useState<QuizzlySettings>(defaultQuizzlySettings);
   const [currentTheme, setCurrentTheme] = useState<QuizzlyThemeId>("classic-light");
-  const [unlockedThemes, setUnlockedThemes] = useState<string[]>(["classic-light", "classic-dark"]);
+  const [unlockedThemes, setUnlockedThemes] = useState<QuizzlyThemeId[]>(getDefaultUnlockedThemeIds());
   const [diamonds, setDiamonds] = useState(0);
+  const [themeLoading, setThemeLoading] = useState(false);
 
   useEffect(() => {
     setSettings(getQuizzlySettingsFromStorage());
     const savedTheme = (localStorage.getItem(QUIZZLY_THEME_KEY) as QuizzlyThemeId | null) ?? "classic-light";
     setCurrentTheme(savedTheme);
-    try {
-      const parsed = JSON.parse(localStorage.getItem(QUIZZLY_UNLOCKED_THEMES_KEY) ?? "[]") as string[];
-      if (parsed.length > 0) setUnlockedThemes(parsed);
-    } catch {
-      // noop
-    }
-    getQuizzlyProfile().then((profile) => setDiamonds(profile.diamonds));
+    Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]).then(([profile, inventory]) => {
+      setDiamonds(profile.diamonds);
+      const fromInventory = getUnlockedThemeIdsFromInventory(inventory.filter((item) => item.quantity > 0).map((item) => item.itemKey));
+      const localParsed = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(QUIZZLY_UNLOCKED_THEMES_KEY) ?? "[]") as QuizzlyThemeId[];
+        } catch {
+          return [];
+        }
+      })();
+      const merged = Array.from(new Set([...fromInventory, ...localParsed]));
+      setUnlockedThemes(merged as QuizzlyThemeId[]);
+      localStorage.setItem(QUIZZLY_UNLOCKED_THEMES_KEY, JSON.stringify(merged));
+    });
   }, []);
 
   const handleSave = () => {
@@ -46,20 +62,23 @@ export default function QuizzlySettingsPage() {
   const applyTheme = (themeId: QuizzlyThemeId) => {
     localStorage.setItem(QUIZZLY_THEME_KEY, themeId);
     setCurrentTheme(themeId);
-    window.dispatchEvent(new Event("mai:quizzly-theme"));
+    window.dispatchEvent(new Event(QUIZZLY_THEME_EVENT));
   };
 
   const buyTheme = async (themeId: QuizzlyThemeId, price: number) => {
+    setThemeLoading(true);
     if (diamonds < price) {
       toast.error("Diamants insuffisants.");
+      setThemeLoading(false);
       return;
     }
-    await updateQuizzlyProfile({ diamonds: diamonds - price });
-    setDiamonds((prev) => prev - price);
-    const next = Array.from(new Set([...unlockedThemes, themeId]));
-    setUnlockedThemes(next);
+    await buyItem(`theme:${themeId}`, price, 1);
+    setDiamonds((prev) => Math.max(0, prev - price));
+    const next = Array.from(new Set([...unlockedThemes, themeId])) as QuizzlyThemeId[];
+    setUnlockedThemes(next as QuizzlyThemeId[]);
     localStorage.setItem(QUIZZLY_UNLOCKED_THEMES_KEY, JSON.stringify(next));
     toast.success("Thème débloqué !");
+    setThemeLoading(false);
   };
 
   return (
@@ -69,7 +88,7 @@ export default function QuizzlySettingsPage() {
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
         <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
           <p className="font-black text-slate-800">Apparence</p>
-          <label className="flex items-center justify-between">
+          <label className="flex items-center justify-between gap-3">
             <span className="font-semibold text-slate-700">Mode sombre / clair</span>
             <input type="checkbox" checked={currentTheme !== "classic-light"} onChange={(e) => applyTheme(e.target.checked ? "classic-dark" : "classic-light")} />
           </label>
@@ -120,9 +139,9 @@ export default function QuizzlySettingsPage() {
       </div>
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
         <p className="font-black text-slate-800">Thèmes</p>
-        <p className="text-xs text-slate-500">Diamants disponibles: {diamonds}</p>
+        <p className="text-xs text-slate-500">Sous-section « Thèmes » — Diamants disponibles: {diamonds}</p>
         <div className="grid gap-3 md:grid-cols-2">
-          {quizzlyThemes.map((theme) => {
+          {getActiveThemes().map((theme) => {
             const unlocked = unlockedThemes.includes(theme.id) || !theme.premium;
             return (
               <div key={theme.id} className="rounded-xl border border-slate-100 p-3">
@@ -134,7 +153,7 @@ export default function QuizzlySettingsPage() {
                     {currentTheme === theme.id ? "Actif" : "Appliquer"}
                   </button>
                 ) : (
-                  <button className="mt-2 rounded-lg bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800" onClick={() => buyTheme(theme.id, theme.priceDiamonds ?? 0)} type="button">
+                  <button className="mt-2 rounded-lg bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 disabled:opacity-50" disabled={themeLoading} onClick={() => buyTheme(theme.id, theme.priceDiamonds ?? 0)} type="button">
                     Acheter
                   </button>
                 )}
