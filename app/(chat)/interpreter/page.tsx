@@ -10,6 +10,10 @@ import {
   SquareTerminal,
   Table,
   Upload,
+  FolderTree,
+  FolderPlus,
+  FileDown,
+  FileUp,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
@@ -68,6 +72,7 @@ type SavedSnippet = {
 };
 type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
 type VirtualCodeFile = { id: string; name: string; content: string };
+type VirtualFolder = { id: string; path: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -165,6 +170,8 @@ export default function InterpreterPage() {
     []
   );
   const [virtualFiles, setVirtualFiles] = useState<VirtualCodeFile[]>([]);
+  const [virtualFolders, setVirtualFolders] = useState<VirtualFolder[]>([]);
+  const [newFolderPath, setNewFolderPath] = useState("");
   const [terminalCommand, setTerminalCommand] = useState("echo 'hello from terminal'");
   const [terminalOutput, setTerminalOutput] = useState("");
   const [assistantMessages, setAssistantMessages] = useLocalStorage<AssistantMessage[]>(
@@ -174,6 +181,10 @@ export default function InterpreterPage() {
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [compareWithEntry, setCompareWithEntry] = useState<ExecutionEntry | null>(null);
+  const [versionSnapshots, setVersionSnapshots] = useLocalStorage<ExecutionEntry[]>(
+    "mai.interpreter.snapshots.v1",
+    []
+  );
 
   const features = useMemo(
     () => [
@@ -216,17 +227,17 @@ export default function InterpreterPage() {
       addStatsEvent("api_call", 1);
       addInterpreterRun(1);
       setResult(payload);
-      setHistory((current) =>
-        [
-          {
-            createdAt: new Date().toISOString(),
-            output: payload,
-            runtime,
-            sourceCode: code,
-          },
-          ...current,
-        ].slice(0, 20)
-      );
+      const nextEntry: ExecutionEntry = {
+        createdAt: new Date().toISOString(),
+        output: payload,
+        runtime,
+        sourceCode: code,
+      };
+      setHistory((current) => [nextEntry, ...current].slice(0, 20));
+      setVersionSnapshots((current) => [
+        nextEntry,
+        ...current,
+      ].slice(0, 50));
     } catch (error) {
       const errorPayload = {
         error:
@@ -332,6 +343,42 @@ export default function InterpreterPage() {
     return lines.join("\n");
   };
 
+  const exportProject = () => {
+    const payload = {
+      runtime,
+      code,
+      virtualFiles,
+      virtualFolders,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mai-project-${Date.now()}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importProject = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as {
+        runtime?: Runtime;
+        code?: string;
+        virtualFiles?: VirtualCodeFile[];
+        virtualFolders?: VirtualFolder[];
+      };
+      if (data.runtime && runtimeOrder.includes(data.runtime)) setRuntime(data.runtime);
+      if (typeof data.code === "string") setCode(data.code);
+      if (Array.isArray(data.virtualFiles)) setVirtualFiles(data.virtualFiles.slice(0, 30));
+      if (Array.isArray(data.virtualFolders)) setVirtualFolders(data.virtualFolders.slice(0, 20));
+    } catch {
+      setTerminalOutput("Import impossible: archive projet invalide.");
+    }
+  };
+
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -402,7 +449,26 @@ export default function InterpreterPage() {
             value={code}
           />
           <div className="mt-3 space-y-2 rounded-xl border border-border/40 p-3">
-            <p className="text-xs font-semibold">Arborescence fichiers (multi-fichiers)</p>
+            <p className="flex items-center gap-1 text-xs font-semibold"><FolderTree className="size-3.5" /> Arborescence fichiers (multi-fichiers)</p>
+            <div className="flex gap-2">
+              <input className="h-7 flex-1 rounded border border-border/50 px-2 text-xs" placeholder="src/utils" value={newFolderPath} onChange={(event) => setNewFolderPath(event.target.value)} />
+              <button className="inline-flex items-center gap-1 rounded border px-2 text-xs" onClick={() => {
+                const normalized = newFolderPath.trim().replace(/^\/+|\/+$/g, "");
+                if (!normalized) return;
+                setVirtualFolders((current) => [...current, { id: crypto.randomUUID(), path: normalized }]);
+                setNewFolderPath("");
+              }} type="button"><FolderPlus className="size-3.5" /> Dossier</button>
+              <button className="inline-flex items-center gap-1 rounded border px-2 text-xs" onClick={exportProject} type="button"><FileDown className="size-3.5" /> Export .zip</button>
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded border px-2 text-xs">
+                <FileUp className="size-3.5" /> Import .zip
+                <input className="hidden" onChange={(event) => importProject(event.target.files?.[0] ?? null)} type="file" />
+              </label>
+            </div>
+            {virtualFolders.length > 0 && (
+              <div className="rounded border border-border/40 p-2 text-[11px]">
+                Dossiers: {virtualFolders.map((folder) => folder.path).join(" • ")}
+              </div>
+            )}
             {virtualFiles.map((file) => (
               <div key={file.id} className="space-y-1 rounded-md border border-border/40 p-2">
                 <div className="flex gap-2">
@@ -428,6 +494,7 @@ export default function InterpreterPage() {
                   placeholder="Contenu du fichier..."
                   value={file.content}
                 />
+                <p className="text-[10px] text-muted-foreground">Astuce: utilisez des chemins comme <code>src/main.py</code> pour organiser le file tree.</p>
               </div>
             ))}
             <button
@@ -648,6 +715,17 @@ export default function InterpreterPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                </div>
+              ))}
+            </div>
+            <p className="flex items-center gap-1 pt-2 text-xs font-semibold"><History className="size-3.5" /> Versions (mini-git local)</p>
+            <div className="max-h-32 space-y-1 overflow-auto pr-1">
+              {versionSnapshots.slice(0, 8).map((entry) => (
+                <div className="flex items-center gap-1" key={`${entry.createdAt}-snapshot`}>
+                  <button className="block flex-1 rounded-md border border-border/40 px-2 py-1 text-left text-[11px]" onClick={() => setCompareWithEntry(entry)} type="button">
+                    Snapshot {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[10px]" onClick={() => setCode(entry.sourceCode)} type="button">Restaurer</button>
                 </div>
               ))}
             </div>

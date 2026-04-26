@@ -13,6 +13,13 @@ type QuizQuestion = {
   correctAnswerIndex: number;
   explanation: string;
 };
+type CustomDraftQuestion = {
+  id: string;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswerIndex: number;
+  explanation: string;
+};
 
 type SavedFavorite = {
   id: string;
@@ -47,6 +54,16 @@ const QUESTION_TYPE_OPTIONS = ["qcm", "vrai_faux", "association", "completer", "
 const REVIEW_QUEUE_KEY = "mai.quizzly.review.v1";
 const REVIEW_INTERVALS_DAYS = [1, 3, 7, 30] as const;
 type ReviewCard = { question: QuizQuestion; stage: number; dueAt: string };
+const SUBJECT_COEFFICIENTS: Record<string, number> = {
+  "Mathématiques": 2,
+  Français: 2,
+  Histoire: 1,
+  Géographie: 1,
+  SVT: 1,
+  "Physique-Chimie": 1,
+  Anglais: 1,
+  Philosophie: 1,
+};
 
 export default function QuizzlyPlayPage() {
   const router = useRouter();
@@ -73,6 +90,7 @@ export default function QuizzlyPlayPage() {
   const [questionTypes, setQuestionTypes] = useState<string[]>(["qcm"]);
   const [reviewCards, setReviewCards] = useState<ReviewCard[]>([]);
   const [strictScore, setStrictScore] = useState(0);
+  const [customQuestions, setCustomQuestions] = useState<CustomDraftQuestion[]>([]);
 
   const current = questions[index];
 
@@ -80,7 +98,18 @@ export default function QuizzlyPlayPage() {
     try {
       setFavorites(JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]"));
       setLocalQuizzes(JSON.parse(localStorage.getItem(LOCAL_QUIZ_KEY) ?? "[]"));
-      setReviewCards(JSON.parse(localStorage.getItem(REVIEW_QUEUE_KEY) ?? "[]"));
+      const rawReview = JSON.parse(localStorage.getItem(REVIEW_QUEUE_KEY) ?? "[]");
+      const sanitized = Array.isArray(rawReview)
+        ? rawReview.filter(
+            (item) =>
+              item &&
+              typeof item.dueAt === "string" &&
+              Number.isFinite(new Date(item.dueAt).getTime()) &&
+              item.question &&
+              typeof item.question.question === "string"
+          )
+        : [];
+      setReviewCards(sanitized);
     } catch {
       setFavorites([]);
       setLocalQuizzes([]);
@@ -104,6 +133,23 @@ export default function QuizzlyPlayPage() {
       setChapter(payload.chapter ?? "");
       setThemePrompt(payload.themePrompt ?? "");
       setQuestionTypes(Array.isArray(payload.questionTypes) ? payload.questionTypes : ["qcm"]);
+      if (Array.isArray(payload.customQuestions)) {
+        const imported = payload.customQuestions
+          .map((item: any) => ({
+            id: crypto.randomUUID(),
+            question: String(item?.question ?? "").slice(0, 300),
+            options: [
+              String(item?.options?.[0] ?? ""),
+              String(item?.options?.[1] ?? ""),
+              String(item?.options?.[2] ?? ""),
+              String(item?.options?.[3] ?? ""),
+            ] as [string, string, string, string],
+            correctAnswerIndex: Math.min(3, Math.max(0, Number(item?.correctAnswerIndex) || 0)),
+            explanation: String(item?.explanation ?? "").slice(0, 500),
+          }))
+          .filter((item: CustomDraftQuestion) => item.question.trim().length > 0);
+        setCustomQuestions(imported.slice(0, 20));
+      }
     } catch {
       // ignore invalid share payload
     }
@@ -145,6 +191,29 @@ export default function QuizzlyPlayPage() {
   };
 
   const startQuiz = async () => {
+    if (examMode) {
+      setChronoEnabled(true);
+    }
+    if (customQuestions.length > 0) {
+      const prepared = customQuestions
+        .filter((item) => item.question.trim().length > 0 && item.options.every((opt) => opt.trim().length > 0))
+        .map((item) => ({
+          question: item.question.trim(),
+          options: item.options.map((opt) => opt.trim()),
+          correctAnswerIndex: item.correctAnswerIndex,
+          explanation: item.explanation.trim() || "Réponse issue du quiz personnalisé.",
+        }));
+      if (prepared.length > 0) {
+        setQuestions(prepared);
+        setIndex(0);
+        setSelected(null);
+        setCorrect(0);
+        setStrictScore(0);
+        setQuizStartedAt(Date.now());
+        setStep("playing");
+        return;
+      }
+    }
     setStep("loading");
     try {
       const res = await fetch("/api/quizzly/generate", {
@@ -218,6 +287,14 @@ export default function QuizzlyPlayPage() {
     setStep("result");
   };
 
+  const examNote = useMemo(() => {
+    if (!questions.length) return 0;
+    const coeff = SUBJECT_COEFFICIENTS[subject] ?? 1;
+    const weighted = strictScore * coeff;
+    const total = questions.length * coeff;
+    return Number(((weighted / Math.max(1, total)) * 20).toFixed(2));
+  }, [questions.length, strictScore, subject]);
+
   const nextQuestion = async () => {
     if (index >= questions.length - 1) {
       await finish();
@@ -261,6 +338,7 @@ export default function QuizzlyPlayPage() {
       chapter,
       themePrompt,
       questionTypes,
+      customQuestions: customQuestions.length > 0 ? customQuestions : undefined,
     };
     const encoded = btoa(JSON.stringify(payload));
     const url = `${window.location.origin}/quizzly/play?quiz=${encoded}`;
@@ -292,7 +370,7 @@ export default function QuizzlyPlayPage() {
       <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
         <h1 className="text-3xl font-black text-slate-800">Quiz terminé !</h1>
         <p className="text-lg font-semibold text-violet-700">{correct} / {questions.length}</p>
-        {examMode && <p className="text-sm text-slate-600">Note finale: {Math.min(20, Number(((strictScore / questions.length) * 20).toFixed(2)))}/20</p>}
+        {examMode && <p className="text-sm text-slate-600">Note finale (coef matière {SUBJECT_COEFFICIENTS[subject] ?? 1}): {Math.min(20, examNote)}/20</p>}
         <div className="flex flex-wrap justify-center gap-2">
           <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={downloadQuiz} type="button"><Download className="mr-1 inline h-4 w-4" /> Télécharger PDF</button>
           <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
@@ -339,11 +417,20 @@ export default function QuizzlyPlayPage() {
                       setStrictScore((prev) => prev + 1);
                       const bonus = chronoEnabled ? Math.max(0, Math.floor(remainingSeconds / 5)) : 0;
                       setCorrect((prev) => prev + (examMode ? 1 : 1 + bonus));
+                      setReviewCards((prev) => {
+                        const existing = prev.find((item) => item.question.question === current.question);
+                        const nextStage = Math.min(REVIEW_INTERVALS_DAYS.length - 1, (existing?.stage ?? -1) + 1);
+                        const due = new Date();
+                        due.setDate(due.getDate() + REVIEW_INTERVALS_DAYS[nextStage]);
+                        const next: ReviewCard = { question: current, stage: nextStage, dueAt: due.toISOString() };
+                        return [next, ...prev.filter((item) => item.question.question !== current.question)].slice(0, 200);
+                      });
                     } else {
                       navigator.vibrate?.(80);
                       setReviewCards((prev) => {
                         const existing = prev.find((item) => item.question.question === current.question);
-                        const nextStage = Math.min(REVIEW_INTERVALS_DAYS.length - 1, (existing?.stage ?? -1) + 1);
+                        const previousStage = existing?.stage ?? 0;
+                        const nextStage = Math.max(0, Math.min(REVIEW_INTERVALS_DAYS.length - 1, previousStage - 1));
                         const due = new Date();
                         due.setDate(due.getDate() + REVIEW_INTERVALS_DAYS[nextStage]);
                         const next: ReviewCard = { question: current, stage: nextStage, dueAt: due.toISOString() };
@@ -468,6 +555,41 @@ export default function QuizzlyPlayPage() {
         <label className="ml-4 text-sm">
           <input checked={examMode} onChange={(e) => setExamMode(e.target.checked)} type="checkbox" /> Mode examen / Brevet blanc
         </label>
+        {examMode && (
+          <p className="mt-2 text-xs text-slate-600">
+            Conditions examen: timer strict, aucune seconde chance, coefficient matière appliqué, note finale /20.
+          </p>
+        )}
+      </div>
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <p className="mb-2 font-bold text-slate-700">🧩 Quiz personnalisé (prof / classe)</p>
+        <p className="mb-3 text-xs text-slate-500">Créez vos propres questions et partagez-les via le lien 🔗.</p>
+        <div className="space-y-3">
+          {customQuestions.map((draft, idx) => (
+            <div key={draft.id} className="rounded-xl border border-slate-200 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500">Question custom #{idx + 1}</p>
+                <button className="text-xs text-red-600" onClick={() => setCustomQuestions((prev) => prev.filter((item) => item.id !== draft.id))} type="button">Supprimer</button>
+              </div>
+              <input className="mb-2 w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" placeholder="Énoncé" value={draft.question} onChange={(e) => setCustomQuestions((prev) => prev.map((item) => (item.id === draft.id ? { ...item, question: e.target.value } : item)))} />
+              <div className="grid gap-2 md:grid-cols-2">
+                {draft.options.map((opt, i) => (
+                  <input key={`${draft.id}-${i}`} className="rounded-lg border border-slate-200 px-2 py-1 text-sm" placeholder={`Option ${i + 1}`} value={opt} onChange={(e) => setCustomQuestions((prev) => prev.map((item) => (item.id === draft.id ? { ...item, options: item.options.map((inner, innerIndex) => (innerIndex === i ? e.target.value : inner)) as [string, string, string, string] } : item)))} />
+                ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-slate-600">Bonne réponse:</span>
+                <select className="rounded border border-slate-200 px-2 py-1 text-xs" value={draft.correctAnswerIndex} onChange={(e) => setCustomQuestions((prev) => prev.map((item) => (item.id === draft.id ? { ...item, correctAnswerIndex: Number(e.target.value) || 0 } : item)))}>
+                  {[0, 1, 2, 3].map((option) => <option key={option} value={option}>Option {option + 1}</option>)}
+                </select>
+              </div>
+              <input className="mt-2 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" placeholder="Explication (optionnel)" value={draft.explanation} onChange={(e) => setCustomQuestions((prev) => prev.map((item) => (item.id === draft.id ? { ...item, explanation: e.target.value } : item)))} />
+            </div>
+          ))}
+          <button className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700" onClick={() => setCustomQuestions((prev) => [...prev, { id: crypto.randomUUID(), question: "", options: ["", "", "", ""], correctAnswerIndex: 0, explanation: "" }])} type="button">
+            + Ajouter une question personnalisée
+          </button>
+        </div>
       </div>
 
       {localQuizzes.length > 0 && (
