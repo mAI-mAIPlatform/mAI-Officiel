@@ -7,6 +7,7 @@ import {
   Braces,
   ChevronDown,
   ChevronRight,
+  Clock3,
   EllipsisVertical,
   FileCode2,
   FunctionSquare,
@@ -21,6 +22,7 @@ import {
   Table,
   Upload,
   Variable,
+  WandSparkles,
   X,
   FolderTree,
   FolderPlus,
@@ -28,7 +30,7 @@ import {
   FileUp,
   Palette,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import {
   DropdownMenu,
@@ -95,6 +97,7 @@ type AutoSuggestion = { detail: string; insertText: string; kind: SuggestionKind
 type SnippetPlaceholder = { end: number; start: number };
 type SnippetSession = { index: number; placeholders: SnippetPlaceholder[] } | null;
 type AssistantMode = "explain" | "fix" | "optimize";
+type GenerationHistoryEntry = { createdAt: string; prompt: string; runtime: Runtime };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -358,6 +361,19 @@ export default function InterpreterPage() {
   const [showExplainBubble, setShowExplainBubble] = useState(false);
   const [isAssistantLoading, setIsAssistantLoading] = useState(false);
   const [errorLine, setErrorLine] = useState<number | null>(null);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [generationPrompt, setGenerationPrompt] = useState("");
+  const [generationRefinement, setGenerationRefinement] = useState("");
+  const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
+  const [showGenerationHistory, setShowGenerationHistory] = useState(false);
+  const [pendingGeneration, setPendingGeneration] = useState<{
+    code: string;
+    end: number;
+    previousCode: string;
+    prompt: string;
+    start: number;
+  } | null>(null);
+  const [cursorOffset, setCursorOffset] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -395,10 +411,15 @@ export default function InterpreterPage() {
     DEFAULT_TEXT_MODEL_KEY,
     FALLBACK_DEFAULT_TEXT_MODEL
   );
+  const [generationHistory, setGenerationHistory] = useLocalStorage<GenerationHistoryEntry[]>(
+    "mai.interpreter.generation-history.v1",
+    []
+  );
   const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
   const runtime = activeTab?.runtime ?? "python";
   const code = activeTab?.content ?? "";
   const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
 
   const setCode = (nextCode: string) => {
     setEditorTabs((current) =>
@@ -415,6 +436,18 @@ export default function InterpreterPage() {
       )
     );
   };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandBarOpen(true);
+        setTimeout(() => commandInputRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const features = useMemo(
     () => [
@@ -640,6 +673,12 @@ export default function InterpreterPage() {
   const visibleLines = lineList
     .map((content, index) => ({ content, lineNumber: index + 1 }))
     .filter((item) => !hiddenLines.has(item.lineNumber));
+  const generatedLineRange = pendingGeneration
+    ? {
+        end: code.slice(0, pendingGeneration.end).split("\n").length,
+        start: code.slice(0, pendingGeneration.start).split("\n").length,
+      }
+    : null;
 
   const onLineNumberClick = (lineNumber: number) => {
     setActiveLineNumber(lineNumber);
@@ -686,6 +725,78 @@ export default function InterpreterPage() {
       throw new Error(payload.error ?? "Assistant indisponible");
     }
     return payload.answer;
+  };
+
+  const extractImportedDataContext = async () => {
+    const contextChunks: string[] = [];
+    for (const file of files.slice(0, 2)) {
+      if (file.name.endsWith(".csv")) {
+        const text = await file.text();
+        const rows = text.split(/\r?\n/).filter(Boolean);
+        const headers = (rows[0] ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+        const preview = rows.slice(1, 4).join("\n");
+        contextChunks.push(`CSV ${file.name}\nColonnes: ${headers.join(", ")}\nAperçu:\n${preview}`);
+      }
+      if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+        const XLSX = await import("xlsx");
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) continue;
+        const json = XLSX.utils.sheet_to_json<Array<string | number | boolean>>(workbook.Sheets[firstSheetName], { header: 1 });
+        const firstRow = (json[0] ?? []).map((item) => String(item));
+        const preview = json.slice(1, 4).map((line) => line.map((item) => String(item)).join(", ")).join("\n");
+        contextChunks.push(`Excel ${file.name}\nColonnes: ${firstRow.join(", ")}\nAperçu:\n${preview}`);
+      }
+    }
+    return contextChunks.join("\n\n");
+  };
+
+  const animateCodeInsertion = async (baseCode: string, insertAt: number, generatedCode: string) => {
+    const safeStart = Math.max(0, Math.min(insertAt, baseCode.length));
+    for (let step = 1; step <= generatedCode.length; step += 1) {
+      const nextCode = `${baseCode.slice(0, safeStart)}${generatedCode.slice(0, step)}${baseCode.slice(safeStart)}`;
+      setCode(nextCode);
+      // biome-ignore lint/suspicious/noConsole: animation delay
+      await new Promise((resolve) => setTimeout(resolve, 6));
+    }
+    return { end: safeStart + generatedCode.length, start: safeStart };
+  };
+
+  const generateCodeFromCommand = async (customPrompt?: string) => {
+    const prompt = (customPrompt ?? generationPrompt).trim();
+    if (!prompt) return;
+    setIsGeneratingFromPrompt(true);
+    try {
+      const dataContext = await extractImportedDataContext();
+      const answer = await askCodeAssistant(
+        `Génère du code ${runtimeLabels[runtime]} exécutable uniquement.\nInsère uniquement un bloc de code markdown.\nInstruction: ${prompt}\n${dataContext ? `\nContexte des données importées:\n${dataContext}` : ""}`
+      );
+      const generatedCode = answer.match(/```[a-zA-Z]*\n([\s\S]*?)```/)?.[1]?.trim() ?? answer.trim();
+      if (!generatedCode) return;
+      const previousCode = code;
+      const insertionPoint = Math.max(0, Math.min(cursorOffset, previousCode.length));
+      const range = await animateCodeInsertion(previousCode, insertionPoint, generatedCode);
+      setPendingGeneration({
+        code: generatedCode,
+        end: range.end,
+        previousCode,
+        prompt,
+        start: range.start,
+      });
+      setGenerationHistory((current) => [
+        { createdAt: new Date().toISOString(), prompt, runtime },
+        ...current,
+      ].slice(0, 20));
+      setGenerationPrompt("");
+      setGenerationRefinement("");
+    } catch (error) {
+      setAssistantPanelOpen(true);
+      setAssistantMode("fix");
+      setAssistantPanelContent(`Erreur génération IA: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsGeneratingFromPrompt(false);
+    }
   };
 
   const explainSelection = async () => {
@@ -994,6 +1105,95 @@ export default function InterpreterPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <section className="liquid-panel rounded-2xl p-4 lg:order-2">
+          <div className="mb-3 space-y-2 rounded-xl border border-border/50 bg-background/50 p-2">
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-1 rounded-md border border-primary/50 bg-primary/10 px-2 py-1 text-xs text-primary"
+                onClick={() => {
+                  setCommandBarOpen((current) => !current);
+                  setTimeout(() => commandInputRef.current?.focus(), 0);
+                }}
+                type="button"
+              >
+                <WandSparkles className="size-3.5" /> Générer du code
+              </button>
+              <p className="text-[11px] text-muted-foreground">Ctrl+K</p>
+              <div className="ml-auto relative">
+                <button className="rounded-md border px-2 py-1 text-xs" onClick={() => setShowGenerationHistory((current) => !current)} type="button">
+                  <Clock3 className="size-3.5" />
+                </button>
+                {showGenerationHistory && (
+                  <div className="absolute right-0 z-20 mt-1 max-h-52 w-80 overflow-auto rounded-md border border-border/60 bg-background p-1 shadow-xl">
+                    {generationHistory.length === 0 ? (
+                      <p className="px-2 py-1 text-[11px] text-muted-foreground">Aucun historique.</p>
+                    ) : (
+                      generationHistory.map((entry, index) => (
+                        <button
+                          className="block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-muted/40"
+                          key={`${entry.createdAt}-${index}`}
+                          onClick={() => {
+                            setGenerationPrompt(entry.prompt);
+                            setRuntime(entry.runtime);
+                            setCommandBarOpen(true);
+                            setShowGenerationHistory(false);
+                            setTimeout(() => commandInputRef.current?.focus(), 0);
+                          }}
+                          type="button"
+                        >
+                          <p className="truncate">{entry.prompt}</p>
+                          <p className="text-[10px] text-muted-foreground">{runtimeLabels[entry.runtime]} · {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {commandBarOpen && (
+              <div className="space-y-2">
+                <input
+                  className="h-9 w-full rounded-lg border border-border/60 bg-background px-3 text-xs"
+                  onChange={(event) => setGenerationPrompt(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void generateCodeFromCommand();
+                    }
+                  }}
+                  placeholder="Ex: créer un graphique en barres montrant les ventes par mois..."
+                  ref={commandInputRef}
+                  value={generationPrompt}
+                />
+                <div className="flex gap-2">
+                  <button className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50" disabled={isGeneratingFromPrompt || !generationPrompt.trim()} onClick={() => void generateCodeFromCommand()} type="button">
+                    {isGeneratingFromPrompt ? "Génération..." : "Insérer avec IA"}
+                  </button>
+                  <button className="rounded-md border px-2 py-1 text-xs" onClick={() => setCommandBarOpen(false)} type="button">Fermer</button>
+                </div>
+              </div>
+            )}
+            {pendingGeneration && (
+              <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2">
+                <p className="text-[11px] font-semibold text-emerald-700">Code généré en surbrillance — valider l’insertion ?</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <button className="rounded-md bg-emerald-600 px-2 py-1 text-xs text-white" onClick={() => setPendingGeneration(null)} type="button">Accepter</button>
+                  <button className="rounded-md border border-red-400 px-2 py-1 text-xs text-red-600" onClick={() => {
+                    setCode(pendingGeneration.previousCode);
+                    setPendingGeneration(null);
+                  }} type="button">Rejeter</button>
+                  <input
+                    className="h-7 flex-1 rounded border border-border/60 px-2 text-xs"
+                    onChange={(event) => setGenerationRefinement(event.target.value)}
+                    placeholder="Affiner la demande (optionnel)"
+                    value={generationRefinement}
+                  />
+                  <button className="rounded-md border px-2 py-1 text-xs" onClick={() => void generateCodeFromCommand(`${pendingGeneration.prompt}. Affinage: ${generationRefinement || "améliore la version précédente"}`)} type="button">
+                    Affiner
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="overflow-hidden rounded-xl border border-border/50">
             <div className="flex items-center justify-between border-b border-border/40 bg-background/80 px-2 py-1">
               <div className="flex flex-1 items-center gap-1 overflow-x-auto">
@@ -1045,7 +1245,9 @@ export default function InterpreterPage() {
                     const hiddenCount = fold ? fold.end - fold.start : 0;
                     return (
                       <div className={`group flex h-5 items-center justify-end gap-1 rounded px-1 ${
-                        errorLine === line.lineNumber
+                        generatedLineRange && line.lineNumber >= generatedLineRange.start && line.lineNumber <= generatedLineRange.end
+                          ? "bg-emerald-500/20 text-emerald-600"
+                          : errorLine === line.lineNumber
                           ? "bg-red-500/20 text-red-500"
                           : activeLineNumber === line.lineNumber
                             ? "bg-primary/15 text-primary"
@@ -1078,6 +1280,7 @@ export default function InterpreterPage() {
                     const column = before.split("\n").at(-1)?.length ?? 0;
                     setActiveLineNumber(line);
                     setCursorPosition({ line, column: column + 1 });
+                    setCursorOffset(target.selectionStart);
                     buildAutocomplete(false, target.value, target.selectionStart);
                   }}
                   onKeyDown={(event) => {
@@ -1123,6 +1326,7 @@ export default function InterpreterPage() {
                     const column = before.split("\n").at(-1)?.length ?? 0;
                     setActiveLineNumber(line);
                     setCursorPosition({ line, column: column + 1 });
+                    setCursorOffset(target.selectionStart);
                     if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key)) {
                       buildAutocomplete(false, target.value, target.selectionStart);
                     }
@@ -1131,6 +1335,7 @@ export default function InterpreterPage() {
                     const target = event.currentTarget;
                     const start = target.selectionStart;
                     const end = target.selectionEnd;
+                    setCursorOffset(start);
                     if (end > start) {
                       setSelectedCode(target.value.slice(start, end));
                       setShowExplainBubble(true);
