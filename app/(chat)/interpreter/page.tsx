@@ -4,21 +4,39 @@ import {
   BarChart3,
   Brain,
   Bookmark,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Braces,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  Cog,
   EllipsisVertical,
+  ExternalLink,
+  FileCode2,
+  FunctionSquare,
+  Funnel,
   FileSpreadsheet,
   History,
   Info,
+  KeyRound,
+  Plus,
   Play,
+  Sparkles,
   SquareTerminal,
   Table,
   Upload,
+  Variable,
+  WandSparkles,
+  X,
   FolderTree,
   FolderPlus,
   FileDown,
   FileUp,
   Palette,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import {
   DropdownMenu,
@@ -29,6 +47,7 @@ import {
 import { MessageResponse } from "@/components/ai-elements/message";
 import { addStatsEvent } from "@/lib/user-stats";
 import { addInterpreterRun } from "@/lib/user-stats";
+import { DEFAULT_TEXT_MODEL_KEY, FALLBACK_DEFAULT_TEXT_MODEL } from "@/lib/default-models";
 
 type Runtime =
   | "python"
@@ -50,7 +69,18 @@ type Runtime =
   | "perl";
 
 type RuntimeFile = { contentBase64: string; name: string };
-type EditorTheme = "monokai" | "dracula" | "one-dark";
+type ThemeColors = {
+  comment: string;
+  cursor: string;
+  editorBg: string;
+  function: string;
+  gutterBg: string;
+  keyword: string;
+  number: string;
+  string: string;
+  text: string;
+};
+type EditorThemeConfig = { colors: ThemeColors; id: string; label: string; mode: "dark" | "light" };
 
 type ExecutionResponse = {
   error?: string;
@@ -77,6 +107,45 @@ type AssistantMessage = { id: string; role: "user" | "assistant"; content: strin
 type VirtualCodeFile = { id: string; name: string; content: string };
 type VirtualFolder = { id: string; path: string };
 type ProjectMeta = { logo: string; memory: string; info: string };
+type EditorTab = { id: string; name: string; runtime: Runtime; content: string };
+type FoldRange = { end: number; start: number };
+type SuggestionKind = "class" | "function" | "keyword" | "module" | "variable";
+type AutoSuggestion = { detail: string; insertText: string; kind: SuggestionKind; label: string; score: number };
+type SnippetPlaceholder = { end: number; start: number };
+type SnippetSession = { index: number; placeholders: SnippetPlaceholder[] } | null;
+type AssistantMode = "explain" | "fix" | "optimize";
+type GenerationHistoryEntry = { createdAt: string; prompt: string; runtime: Runtime };
+type EditorPreferences = {
+  autoClearOutputBeforeRun: boolean;
+  autoSaveSnippetOnRun: boolean;
+  confirmBeforeResetOutput: boolean;
+  fontFamily: string;
+  fontLigatures: boolean;
+  fontSize: number;
+  indentSize: number;
+  minimapEnabled: boolean;
+  outputPanelPosition: "bottom" | "right";
+  showInvisibleChars: boolean;
+  tabMode: "spaces" | "tabs";
+  wordWrap: boolean;
+};
+type DataRow = Record<string, string | number | null>;
+type ColumnFilter = { max?: number; min?: number; mode: "contains" | "exact" | "range"; value?: string };
+type ChartType = "area" | "bar" | "bar-horizontal" | "donut" | "heatmap" | "line" | "pie" | "radar" | "scatter" | "treemap";
+type ChartConfig = {
+  colorColumn: string;
+  palette: string;
+  showGrid: boolean;
+  showLegend: boolean;
+  sizeColumn: string;
+  title: string;
+  type: ChartType;
+  xAxis: string;
+  xLabel: string;
+  yAxis: string;
+  yLabel: string;
+};
+type ContextualPreset = { code: string; description: string; icon: string; id: string; title: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -145,6 +214,230 @@ const quickPresets: Array<{ label: string; runtime: Runtime }> = [
   { label: "Requête SQL", runtime: "sql" },
 ];
 
+const defaultThemeColors: ThemeColors = {
+  comment: "#6272a4",
+  cursor: "#f8f8f2",
+  editorBg: "#282a36",
+  function: "#8be9fd",
+  gutterBg: "#1f2230",
+  keyword: "#ff79c6",
+  number: "#bd93f9",
+  string: "#f1fa8c",
+  text: "#f8f8f2",
+};
+
+const builtInThemes: EditorThemeConfig[] = [
+  { id: "monokai", label: "Monokai", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#272822", gutterBg: "#1f201c", keyword: "#f92672", string: "#e6db74", comment: "#75715e", function: "#66d9ef", number: "#ae81ff", cursor: "#f8f8f0", text: "#f8f8f2" } },
+  { id: "dracula", label: "Dracula", mode: "dark", colors: defaultThemeColors },
+  { id: "one-dark", label: "One Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#282c34", gutterBg: "#1f2329", text: "#abb2bf", keyword: "#c678dd", string: "#98c379", comment: "#5c6370", function: "#61afef", number: "#d19a66" } },
+  { id: "github-dark", label: "GitHub Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0d1117", gutterBg: "#161b22", text: "#c9d1d9", keyword: "#ff7b72", string: "#a5d6ff", comment: "#8b949e", function: "#d2a8ff", number: "#ffa657", cursor: "#c9d1d9" } },
+  { id: "nord", label: "Nord", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#2e3440", gutterBg: "#3b4252", text: "#d8dee9", keyword: "#81a1c1", string: "#a3be8c", comment: "#616e88", function: "#88c0d0", number: "#b48ead", cursor: "#eceff4" } },
+  { id: "tokyo-night", label: "Tokyo Night", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#1a1b26", gutterBg: "#16161e", text: "#c0caf5", keyword: "#bb9af7", string: "#9ece6a", comment: "#565f89", function: "#7aa2f7", number: "#ff9e64", cursor: "#c0caf5" } },
+  { id: "catppuccin-mocha", label: "Catppuccin Mocha", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#1e1e2e", gutterBg: "#181825", text: "#cdd6f4", keyword: "#cba6f7", string: "#a6e3a1", comment: "#6c7086", function: "#89dceb", number: "#fab387", cursor: "#f5e0dc" } },
+  { id: "synthwave-84", label: "Synthwave 84", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#2a2139", gutterBg: "#241b2f", text: "#f92aad", keyword: "#f97e72", string: "#72f1b8", comment: "#848bbd", function: "#36f9f6", number: "#fede5d", cursor: "#36f9f6" } },
+  { id: "gruvbox-dark", label: "Gruvbox Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#282828", gutterBg: "#1d2021", text: "#ebdbb2", keyword: "#fb4934", string: "#b8bb26", comment: "#928374", function: "#83a598", number: "#d3869b", cursor: "#ebdbb2" } },
+  { id: "material-ocean", label: "Material Ocean", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0f111a", gutterBg: "#090b10", text: "#a6accd", keyword: "#c792ea", string: "#c3e88d", comment: "#546e7a", function: "#82aaff", number: "#f78c6c", cursor: "#ffcc00" } },
+  { id: "ayu-dark", label: "Ayu Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0a0e14", gutterBg: "#11151c", text: "#b3b1ad", keyword: "#ff8f40", string: "#b8cc52", comment: "#5c6773", function: "#59c2ff", number: "#d2a6ff", cursor: "#e6b450" } },
+  { id: "github-light", label: "GitHub Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#ffffff", gutterBg: "#f6f8fa", text: "#24292f", keyword: "#cf222e", string: "#0a3069", comment: "#6e7781", function: "#8250df", number: "#953800", cursor: "#24292f" } },
+  { id: "solarized-light", label: "Solarized Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#fdf6e3", gutterBg: "#eee8d5", text: "#657b83", keyword: "#859900", string: "#2aa198", comment: "#93a1a1", function: "#268bd2", number: "#d33682", cursor: "#586e75" } },
+  { id: "vitesse-light", label: "Vitesse Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f8f8f8", gutterBg: "#f0f0f0", text: "#393a34", keyword: "#1f6feb", string: "#ab5959", comment: "#a0ada0", function: "#2993a3", number: "#b75501", cursor: "#393a34" } },
+  { id: "palenight-light", label: "Palenight Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f7f7ff", gutterBg: "#ececff", text: "#403f53", keyword: "#7c4dff", string: "#43a047", comment: "#9ea0b3", function: "#1565c0", number: "#ff7043", cursor: "#403f53" } },
+];
+
+const defaultEditorPreferences: EditorPreferences = {
+  autoClearOutputBeforeRun: true,
+  autoSaveSnippetOnRun: false,
+  confirmBeforeResetOutput: true,
+  fontFamily: "Fira Code",
+  fontLigatures: true,
+  fontSize: 12,
+  indentSize: 2,
+  minimapEnabled: true,
+  outputPanelPosition: "right",
+  showInvisibleChars: false,
+  tabMode: "spaces",
+  wordWrap: false,
+};
+
+const chartPalettes: Record<string, string[]> = {
+  aurora: ["#5B8FF9", "#61DDAA", "#65789B", "#F6BD16", "#7262FD"],
+  sunset: ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#845EC2"],
+  nord: ["#88C0D0", "#81A1C1", "#5E81AC", "#A3BE8C", "#EBCB8B"],
+  mono: ["#1F2937", "#4B5563", "#6B7280", "#9CA3AF", "#D1D5DB"],
+  candy: ["#FF85B3", "#FFC75F", "#F9F871", "#B0A8F0", "#00C9A7"],
+};
+
+const chartTypeCards: Array<{ description: string; label: string; type: ChartType }> = [
+  { type: "bar", label: "Barres verticales", description: "Comparaison standard" },
+  { type: "bar-horizontal", label: "Barres horizontales", description: "Catégories longues" },
+  { type: "line", label: "Lignes", description: "Évolution temporelle" },
+  { type: "area", label: "Aires", description: "Volume cumulé" },
+  { type: "scatter", label: "Scatter plot", description: "Distribution XY" },
+  { type: "pie", label: "Camembert", description: "Parts de total" },
+  { type: "donut", label: "Donut", description: "Camembert creusé" },
+  { type: "radar", label: "Radar", description: "Comparatif multi-axes" },
+  { type: "heatmap", label: "Heatmap", description: "Intensité matricielle" },
+  { type: "treemap", label: "Treemap", description: "Proportions hiérarchiques" },
+];
+
+const runtimeExtensions: Record<Runtime, string> = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+  bash: "sh",
+  html: "html",
+  c: "c",
+  cpp: "cpp",
+  go: "go",
+  ruby: "rb",
+  php: "php",
+  sql: "sql",
+  json: "json",
+  markdown: "md",
+  rust: "rs",
+  java: "java",
+  r: "r",
+  perl: "pl",
+};
+
+const runtimeIcons: Record<Runtime, typeof Braces> = {
+  python: FileCode2,
+  javascript: Braces,
+  typescript: Braces,
+  bash: SquareTerminal,
+  html: FileCode2,
+  c: FileCode2,
+  cpp: FileCode2,
+  go: FileCode2,
+  ruby: FileCode2,
+  php: FileCode2,
+  sql: Table,
+  json: Braces,
+  markdown: FileCode2,
+  rust: FileCode2,
+  java: FileCode2,
+  r: BarChart3,
+  perl: FileCode2,
+};
+
+const toUtf8Bytes = (text: string) => new TextEncoder().encode(text).length;
+
+const suggestionIconByKind: Record<SuggestionKind, typeof Variable> = {
+  class: Braces,
+  function: FunctionSquare,
+  keyword: KeyRound,
+  module: FileCode2,
+  variable: Variable,
+};
+
+const pythonKeywords = ["def", "class", "for", "while", "if", "elif", "else", "try", "except", "return", "import", "from"];
+const pythonModuleMembers: Record<string, Array<{ detail: string; label: string }>> = {
+  csv: [{ label: "DictReader", detail: "class" }, { label: "reader", detail: "fn(iterable) -> iterator" }],
+  json: [{ label: "dump", detail: "fn(obj, fp) -> None" }, { label: "dumps", detail: "fn(obj) -> str" }, { label: "loads", detail: "fn(str) -> object" }],
+  math: [{ label: "sqrt", detail: "fn(x) -> float" }, { label: "pow", detail: "fn(x, y) -> float" }, { label: "pi", detail: "const float" }],
+  matplotlib: [{ label: "pyplot", detail: "module" }],
+  os: [{ label: "getcwd", detail: "fn() -> str" }, { label: "listdir", detail: "fn(path) -> list[str]" }, { label: "path", detail: "module" }],
+  pandas: [{ label: "DataFrame", detail: "class" }, { label: "read_csv", detail: "fn(path) -> DataFrame" }],
+  statistics: [{ label: "mean", detail: "fn(data) -> float" }, { label: "median", detail: "fn(data) -> float" }, { label: "stdev", detail: "fn(data) -> float" }],
+};
+const jsTsKeywords = ["function", "const", "let", "class", "if", "else", "for", "while", "return", "async", "await", "import", "export"];
+const jsTsMembers: Record<string, Array<{ detail: string; label: string }>> = {
+  Array: [{ label: "map", detail: "fn(callback) -> Array" }, { label: "filter", detail: "fn(callback) -> Array" }, { label: "reduce", detail: "fn(callback, init) -> any" }],
+  Date: [{ label: "now", detail: "fn() -> number" }, { label: "toISOString", detail: "fn() -> string" }],
+  Math: [{ label: "floor", detail: "fn(x) -> number" }, { label: "random", detail: "fn() -> number" }, { label: "max", detail: "fn(...n) -> number" }],
+  Object: [{ label: "keys", detail: "fn(obj) -> string[]" }, { label: "entries", detail: "fn(obj) -> [k,v][]" }],
+  Promise: [{ label: "then", detail: "fn(onFulfilled) -> Promise" }, { label: "catch", detail: "fn(onRejected) -> Promise" }],
+  String: [{ label: "toUpperCase", detail: "fn() -> string" }, { label: "trim", detail: "fn() -> string" }, { label: "split", detail: "fn(sep) -> string[]" }],
+};
+
+const snippetTemplates: Partial<Record<Runtime, Record<string, string>>> = {
+  python: { for: "for ${1:item} in ${2:items}:\n    ${3:pass}" },
+  javascript: { for: "for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i} += 1) {\n  ${3:// code}\n}" },
+  typescript: { for: "for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i} += 1) {\n  ${3:// code}\n}" },
+};
+
+const parseSnippetTemplate = (template: string) => {
+  const regex = /\$\{(\d+):([^}]+)\}/g;
+  let output = "";
+  let lastIndex = 0;
+  const placeholders: Array<{ index: number; start: number; end: number }> = [];
+  for (const match of template.matchAll(regex)) {
+    const full = match[0];
+    const idx = Number(match[1]);
+    const text = match[2] ?? "";
+    const start = match.index ?? 0;
+    output += template.slice(lastIndex, start);
+    const rangeStart = output.length;
+    output += text;
+    placeholders.push({ index: idx, start: rangeStart, end: rangeStart + text.length });
+    lastIndex = start + full.length;
+  }
+  output += template.slice(lastIndex);
+  placeholders.sort((a, b) => a.index - b.index);
+  return { placeholders: placeholders.map((item) => ({ start: item.start, end: item.end })), text: output };
+};
+
+const computeFoldRanges = (content: string): FoldRange[] => {
+  const lines = content.split("\n");
+  const ranges: FoldRange[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const trimmed = line.trim();
+    const indent = line.match(/^\s*/)?.[0].length ?? 0;
+    const hasBraceStart = /[{[(]\s*$/.test(trimmed);
+    const hasKeywordStart = /^(def|class|for|while|if|else|elif|function|public|private|protected|fn|loop)\b/.test(trimmed);
+    if (!hasBraceStart && !hasKeywordStart) continue;
+    let end = index;
+    if (hasBraceStart) {
+      let balance = 0;
+      for (let cursor = index; cursor < lines.length; cursor += 1) {
+        const l = lines[cursor] ?? "";
+        balance += (l.match(/[{[(]/g) ?? []).length;
+        balance -= (l.match(/[})\]]/g) ?? []).length;
+        if (cursor > index && balance <= 0) {
+          end = cursor;
+          break;
+        }
+      }
+    } else {
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const nextLine = lines[cursor] ?? "";
+        if (!nextLine.trim()) continue;
+        const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
+        if (nextIndent <= indent) {
+          end = cursor - 1;
+          break;
+        }
+        end = cursor;
+      }
+    }
+    if (end > index) ranges.push({ start: index + 1, end: end + 1 });
+  }
+  return ranges;
+};
+
+const extractDeclaredSymbols = (source: string, runtime: Runtime) => {
+  const variables = new Set<string>();
+  const functions = new Set<string>();
+  if (runtime === "python") {
+    for (const line of source.split("\n")) {
+      const funcMatch = line.match(/^\s*def\s+([a-zA-Z_]\w*)/);
+      if (funcMatch?.[1]) functions.add(funcMatch[1]);
+      const variableMatch = line.match(/^\s*([a-zA-Z_]\w*)\s*=/);
+      if (variableMatch?.[1]) variables.add(variableMatch[1]);
+    }
+  }
+  if (runtime === "javascript" || runtime === "typescript") {
+    for (const line of source.split("\n")) {
+      const funcMatch = line.match(/^\s*(?:function\s+)?([a-zA-Z_$]\w*)\s*=\s*\(/) ?? line.match(/^\s*function\s+([a-zA-Z_$]\w*)/);
+      if (funcMatch?.[1]) functions.add(funcMatch[1]);
+      const variableMatch = line.match(/^\s*(?:const|let|var)\s+([a-zA-Z_$]\w*)/);
+      if (variableMatch?.[1]) variables.add(variableMatch[1]);
+    }
+  }
+  return { functions: Array.from(functions), variables: Array.from(variables) };
+};
+
 async function toRuntimeFile(file: File): Promise<RuntimeFile> {
   const buffer = await file.arrayBuffer();
   const contentBase64 = btoa(
@@ -158,13 +451,86 @@ async function toRuntimeFile(file: File): Promise<RuntimeFile> {
 }
 
 export default function InterpreterPage() {
-  const [runtime, setRuntime] = useState<Runtime>("python");
-  const [code, setCode] = useState(runtimeSnippets.python);
+  const [editorTabs, setEditorTabs] = useState<EditorTab[]>([
+    { id: crypto.randomUUID(), name: "main.py", runtime: "python", content: runtimeSnippets.python },
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>(() => editorTabs[0]?.id ?? "");
+  const [foldedStarts, setFoldedStarts] = useState<Record<string, number[]>>({});
+  const [cursorPosition, setCursorPosition] = useState({ column: 1, line: 1 });
+  const [activeLineNumber, setActiveLineNumber] = useState(1);
+  const [showEditorPreferences, setShowEditorPreferences] = useState(false);
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  const [autocompleteItems, setAutocompleteItems] = useState<AutoSuggestion[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const [autocompleteAnchor, setAutocompleteAnchor] = useState({ left: 20, top: 40 });
+  const [autocompleteTarget, setAutocompleteTarget] = useState({ end: 0, start: 0 });
+  const [snippetSession, setSnippetSession] = useState<SnippetSession>(null);
+  const [assistantPanelOpen, setAssistantPanelOpen] = useState(false);
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>("explain");
+  const [assistantPanelContent, setAssistantPanelContent] = useState("");
+  const [assistantDiffPreview, setAssistantDiffPreview] = useState("");
+  const [assistantOptimizations, setAssistantOptimizations] = useState<string[]>([]);
+  const [assistantProposedCode, setAssistantProposedCode] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState("");
+  const [showExplainBubble, setShowExplainBubble] = useState(false);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+  const [errorLine, setErrorLine] = useState<number | null>(null);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [generationPrompt, setGenerationPrompt] = useState("");
+  const [generationRefinement, setGenerationRefinement] = useState("");
+  const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
+  const [showGenerationHistory, setShowGenerationHistory] = useState(false);
+  const [pendingGeneration, setPendingGeneration] = useState<{
+    code: string;
+    end: number;
+    previousCode: string;
+    prompt: string;
+    start: number;
+  } | null>(null);
+  const [cursorOffset, setCursorOffset] = useState(0);
+  const [outputTab, setOutputTab] = useState<"data" | "output">("output");
+  const [dataRows, setDataRows] = useState<DataRow[]>([]);
+  const [dataColumns, setDataColumns] = useState<string[]>([]);
+  const [dataTypes, setDataTypes] = useState<Record<string, string>>({});
+  const [globalDataSearch, setGlobalDataSearch] = useState("");
+  const [dataSort, setDataSort] = useState<{ column: string; direction: "asc" | "desc" } | null>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilter>>({});
+  const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
+  const [quickPreviewMode, setQuickPreviewMode] = useState(true);
+  const [dataPage, setDataPage] = useState(1);
+  const [dataPageSize, setDataPageSize] = useState<25 | 50 | 100>(25);
+  const [dataProfile, setDataProfile] = useState<Array<{ column: string; count: number; max: number; mean: number; median: number; min: number; q1: number; q3: number; stddev: number }>>([]);
+  const [contextualPresets, setContextualPresets] = useState<ContextualPreset[]>([]);
+  const [showPresetBanner, setShowPresetBanner] = useState(false);
+  const [showChartBuilder, setShowChartBuilder] = useState(false);
+  const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
+  const [chartConfig, setChartConfig] = useState<ChartConfig>({
+    colorColumn: "",
+    palette: "aurora",
+    showGrid: true,
+    showLegend: true,
+    sizeColumn: "",
+    title: "Nouveau graphique",
+    type: "bar",
+    xAxis: "",
+    xLabel: "Axe X",
+    yAxis: "",
+    yLabel: "Axe Y",
+  });
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
   const [snippetName, setSnippetName] = useState("");
-  const [editorTheme, setEditorTheme] = useState<EditorTheme>("dracula");
+  const [editorTheme, setEditorTheme] = useState<string>("dracula");
+  const [customThemes, setCustomThemes] = useLocalStorage<EditorThemeConfig[]>(
+    "mai.interpreter.custom-themes.v1",
+    []
+  );
+  const [showThemeLibrary, setShowThemeLibrary] = useState(false);
+  const [hoveredThemeId, setHoveredThemeId] = useState<string>("dracula");
+  const [showCustomThemeEditor, setShowCustomThemeEditor] = useState(false);
+  const [customThemeName, setCustomThemeName] = useState("Mon thème");
+  const [customThemeDraft, setCustomThemeDraft] = useState<ThemeColors>(defaultThemeColors);
   const [history, setHistory] = useLocalStorage<ExecutionEntry[]>(
     "mai.interpreter.history.v1",
     []
@@ -193,6 +559,51 @@ export default function InterpreterPage() {
     "mai.interpreter.project-meta.v1",
     { info: "Projet local", logo: "🧪", memory: "" }
   );
+  const [selectedModelId] = useLocalStorage<string>(
+    DEFAULT_TEXT_MODEL_KEY,
+    FALLBACK_DEFAULT_TEXT_MODEL
+  );
+  const [generationHistory, setGenerationHistory] = useLocalStorage<GenerationHistoryEntry[]>(
+    "mai.interpreter.generation-history.v1",
+    []
+  );
+  const [editorPreferences, setEditorPreferences] = useLocalStorage<EditorPreferences>(
+    "mai.interpreter.preferences.v1",
+    defaultEditorPreferences
+  );
+  const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
+  const runtime = activeTab?.runtime ?? "python";
+  const code = activeTab?.content ?? "";
+  const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
+
+  const setCode = (nextCode: string) => {
+    setEditorTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId ? { ...tab, content: nextCode } : tab
+      )
+    );
+  };
+
+  const setRuntime = (nextRuntime: Runtime) => {
+    setEditorTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId ? { ...tab, runtime: nextRuntime } : tab
+      )
+    );
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandBarOpen(true);
+        setTimeout(() => commandInputRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const features = useMemo(
     () => [
@@ -205,16 +616,14 @@ export default function InterpreterPage() {
     []
   );
 
-  const editorThemeClass =
-    editorTheme === "monokai"
-      ? "bg-[#272822] text-[#f8f8f2]"
-      : editorTheme === "one-dark"
-        ? "bg-[#282c34] text-[#abb2bf]"
-        : "bg-[#282a36] text-[#f8f8f2]";
+  const allThemes = [...builtInThemes, ...customThemes];
+  const activeTheme = allThemes.find((theme) => theme.id === editorTheme) ?? builtInThemes[1];
 
   const onRun = async () => {
     setIsRunning(true);
-    setResult(null);
+    if (editorPreferences.autoClearOutputBeforeRun) {
+      setResult(null);
+    }
 
     try {
       const uploadedFiles = await Promise.all(files.map(toRuntimeFile));
@@ -246,6 +655,25 @@ export default function InterpreterPage() {
         nextEntry,
         ...current,
       ].slice(0, 50));
+      if (editorPreferences.autoSaveSnippetOnRun) {
+        setSavedSnippets((current) => [
+          {
+            id: crypto.randomUUID(),
+            name: `Auto ${runtimeLabels[runtime]} ${new Date().toLocaleTimeString("fr-FR")}`,
+            runtime,
+            sourceCode: code,
+          },
+          ...current,
+        ].slice(0, 50));
+      }
+      if (payload.error) {
+        const lineMatch = payload.error.match(/line\s+(\d+)/i) ?? payload.error.match(/:(\d+):\d+/);
+        const parsedLine = lineMatch?.[1] ? Number(lineMatch[1]) : null;
+        setErrorLine(Number.isFinite(parsedLine) ? parsedLine : null);
+        void analyzeFixFromError(payload.error);
+      } else {
+        setErrorLine(null);
+      }
     } catch (error) {
       const errorPayload = {
         error:
@@ -266,6 +694,7 @@ export default function InterpreterPage() {
           ...current,
         ].slice(0, 20)
       );
+      setErrorLine(null);
     } finally {
       setIsRunning(false);
     }
@@ -301,7 +730,7 @@ export default function InterpreterPage() {
       const response = await fetch("/api/code-interpreter/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: assistantPrompt.trim(), runtime }),
+        body: JSON.stringify({ modelId: selectedModelId, prompt: assistantPrompt.trim(), runtime }),
       });
       const payload = (await response.json()) as { answer?: string; error?: string };
       if (!response.ok || !payload.answer) {
@@ -364,8 +793,134 @@ export default function InterpreterPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `mai-project-${Date.now()}.zip`;
+    a.download = `mai-project-${Date.now()}.json`;
     a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadTextFile = (filename: string, content: string, type = "text/plain;charset=utf-8") => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCodeFile = () => {
+    const extension = runtimeExtensions[runtime] ?? "txt";
+    const baseName = activeTab?.name?.replace(/\.[^.]+$/, "") || `code-${runtime}`;
+    downloadTextFile(`${baseName}.${extension}`, code);
+  };
+
+  const exportOutputFile = () => {
+    if (!result) {
+      downloadTextFile("output.txt", "Aucune sortie disponible.");
+      return;
+    }
+    const rawText = [result.logs?.join("\n"), result.output, result.error].filter(Boolean).join("\n");
+    try {
+      const parsed = JSON.parse(result.output ?? "");
+      downloadTextFile("output.json", JSON.stringify(parsed, null, 2), "application/json");
+    } catch {
+      const payload = rawText || JSON.stringify(result, null, 2);
+      downloadTextFile("output.txt", payload);
+    }
+  };
+
+  const exportCodeImage = async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1800;
+    canvas.height = 1200;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const bg = activeTheme.colors.editorBg;
+    ctx.fillStyle = "#0b1020";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cardX = 90;
+    const cardY = 80;
+    const cardW = canvas.width - 180;
+    const cardH = canvas.height - 160;
+    const radius = 28;
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(cardX + radius, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
+    ctx.closePath();
+    ctx.fill();
+    const circles = ["#ff5f57", "#ffbd2e", "#28c840"];
+    circles.forEach((color, index) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cardX + 24 + index * 26, cardY + 24, 8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = activeTheme.colors.text;
+    ctx.font = "bold 26px Menlo, Monaco, monospace";
+    ctx.fillText(`${activeTab?.name || "main"} • ${runtimeLabels[runtime]}`, cardX + 120, cardY + 32);
+    const lines = code.split("\n").slice(0, 42);
+    const keywordRegex = /\b(def|class|for|while|if|else|return|import|from|const|let|function)\b/g;
+    ctx.font = "22px Menlo, Monaco, monospace";
+    lines.forEach((line, idx) => {
+      const y = cardY + 72 + idx * 24;
+      ctx.fillStyle = activeTheme.colors.text;
+      const sanitized = line.replace(/\t/g, "  ");
+      let cursor = 0;
+      for (const match of sanitized.matchAll(keywordRegex)) {
+        const start = match.index ?? 0;
+        const token = match[0];
+        ctx.fillStyle = activeTheme.colors.text;
+        ctx.fillText(sanitized.slice(cursor, start), cardX + 24 + ctx.measureText(sanitized.slice(0, cursor)).width, y);
+        ctx.fillStyle = activeTheme.colors.keyword;
+        ctx.fillText(token, cardX + 24 + ctx.measureText(sanitized.slice(0, start)).width, y);
+        cursor = start + token.length;
+      }
+      ctx.fillStyle = activeTheme.colors.text;
+      ctx.fillText(sanitized.slice(cursor), cardX + 24 + ctx.measureText(sanitized.slice(0, cursor)).width, y);
+    });
+    const anchor = document.createElement("a");
+    anchor.href = canvas.toDataURL("image/png");
+    anchor.download = `code-share-${Date.now()}.png`;
+    anchor.click();
+  };
+
+  const exportCodeAndOutputPdf = async () => {
+    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([842, 1191]);
+    const font = await pdf.embedFont(StandardFonts.Courier);
+    const bold = await pdf.embedFont(StandardFonts.CourierBold);
+    page.drawText("Code Interpreter Export", { x: 40, y: 1140, size: 16, font: bold });
+    page.drawText(`${activeTab?.name || "main"} • ${runtimeLabels[runtime]}`, { x: 40, y: 1122, size: 10, font });
+    let y = 1098;
+    page.drawText("Code source", { x: 40, y, size: 12, font: bold, color: rgb(0.1, 0.1, 0.7) });
+    y -= 16;
+    for (const line of code.split("\n").slice(0, 60)) {
+      page.drawText(line.slice(0, 110), { x: 44, y, size: 9, font, color: rgb(0.2, 0.2, 0.2) });
+      y -= 12;
+      if (y < 160) break;
+    }
+    page.drawLine({ start: { x: 40, y: y - 8 }, end: { x: 800, y: y - 8 }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
+    y -= 26;
+    page.drawText("Sortie", { x: 40, y, size: 12, font: bold, color: rgb(0.1, 0.4, 0.1) });
+    y -= 16;
+    const outputContent = [result?.logs?.join("\n"), result?.output, result?.error].filter(Boolean).join("\n") || "Aucune sortie.";
+    for (const line of outputContent.split("\n").slice(0, 80)) {
+      page.drawText(line.slice(0, 110), { x: 44, y, size: 9, font, color: rgb(0.15, 0.15, 0.15) });
+      y -= 12;
+      if (y < 40) break;
+    }
+    const bytes = await pdf.save();
+    const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `code-output-${Date.now()}.pdf`;
+    anchor.click();
     URL.revokeObjectURL(url);
   };
 
@@ -394,6 +949,661 @@ export default function InterpreterPage() {
     } catch {
       setTerminalOutput("Import impossible: archive projet invalide.");
     }
+  };
+
+  const parseDatasetFile = async (file: File) => {
+    if (file.name.endsWith(".csv")) {
+      const text = await file.text();
+      const rows = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (!rows.length) return { columns: [] as string[], records: [] as DataRow[] };
+      const columns = rows[0]?.split(",").map((item) => item.trim()) ?? [];
+      const records = rows.slice(1).map((row) => {
+        const values = row.split(",");
+        return columns.reduce<DataRow>((acc, column, index) => {
+          const raw = values[index]?.trim() ?? "";
+          const asNumber = Number(raw);
+          acc[column] = raw.length === 0 ? null : Number.isFinite(asNumber) && raw !== "" ? asNumber : raw;
+          return acc;
+        }, {});
+      });
+      return { columns, records };
+    }
+    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) return { columns: [] as string[], records: [] as DataRow[] };
+      const records = XLSX.utils.sheet_to_json<DataRow>(workbook.Sheets[firstSheet], { defval: null });
+      const columns = Object.keys(records[0] ?? {});
+      return { columns, records };
+    }
+    return { columns: [] as string[], records: [] as DataRow[] };
+  };
+
+  const computeStats = (values: number[]) => {
+    if (!values.length) return { max: 0, mean: 0, median: 0, min: 0, q1: 0, q3: 0, stddev: 0 };
+    const sorted = [...values].sort((a, b) => a - b);
+    const getQ = (q: number) => {
+      const position = (sorted.length - 1) * q;
+      const base = Math.floor(position);
+      const rest = position - base;
+      const next = sorted[base + 1] ?? sorted[base] ?? 0;
+      return (sorted[base] ?? 0) + rest * (next - (sorted[base] ?? 0));
+    };
+    const mean = sorted.reduce((acc, current) => acc + current, 0) / sorted.length;
+    const variance = sorted.reduce((acc, current) => acc + (current - mean) ** 2, 0) / sorted.length;
+    return {
+      max: sorted[sorted.length - 1] ?? 0,
+      mean,
+      median: getQ(0.5),
+      min: sorted[0] ?? 0,
+      q1: getQ(0.25),
+      q3: getQ(0.75),
+      stddev: Math.sqrt(variance),
+    };
+  };
+
+  useEffect(() => {
+    const loadDataPreview = async () => {
+      const source = files[0];
+      if (!source) {
+        setDataRows([]);
+        setDataColumns([]);
+        setDataTypes({});
+        setContextualPresets([]);
+        setShowPresetBanner(false);
+        return;
+      }
+      if (/\.(csv|xlsx|xls)$/i.test(source.name)) {
+        const parsed = await parseDatasetFile(source);
+        setDataRows(parsed.records);
+        setDataColumns(parsed.columns);
+        if (parsed.records.length > 0) {
+          setOutputTab("data");
+          setShowPresetBanner(true);
+        }
+        setDataTypes(
+          parsed.columns.reduce<Record<string, string>>((acc, column) => {
+            const sample = parsed.records.find((row) => row[column] !== null && row[column] !== "")?.[column];
+            acc[column] = typeof sample === "number" ? "number" : "string";
+            return acc;
+          }, {})
+        );
+        const numericColumns = parsed.columns.filter((column) =>
+          parsed.records.some((row) => typeof row[column] === "number")
+        );
+        const nextPresets: ContextualPreset[] = [];
+        if (numericColumns.length > 0) {
+          const list = JSON.stringify(numericColumns);
+          nextPresets.push(
+            {
+              id: "stats",
+              icon: "📊",
+              title: "Statistiques descriptives",
+              description: "Moyenne, médiane, écart-type et quartiles par colonne.",
+              code: `import pandas as pd\nimport numpy as np\ndf = pd.read_csv("${source.name}")\nfor col in ${list}:\n    series = pd.to_numeric(df[col], errors="coerce").dropna()\n    print(f"\\n{col}")\n    print("mean", series.mean())\n    print("median", series.median())\n    print("std", series.std())\n    print("q1", series.quantile(0.25), "q3", series.quantile(0.75))`,
+            },
+            {
+              id: "chart",
+              icon: "📈",
+              title: "Graphique automatique",
+              description: "Sélectionne un graphique adapté aux colonnes détectées.",
+              code: `import pandas as pd\nimport matplotlib.pyplot as plt\ndf = pd.read_csv("${source.name}")\nnum = df.select_dtypes(include="number")\nif num.shape[1] >= 2:\n    num.iloc[:, :2].plot(kind="scatter", x=num.columns[0], y=num.columns[1])\nelif num.shape[1] == 1:\n    df.plot(kind="bar", x=df.columns[0], y=num.columns[0])\nplt.tight_layout(); plt.show()`,
+            },
+            {
+              id: "missing",
+              icon: "🧩",
+              title: "Détecter les valeurs manquantes",
+              description: "Colonnes NaN et pourcentages de valeurs manquantes.",
+              code: `import pandas as pd\ndf = pd.read_csv("${source.name}")\nmissing = df.isna().sum()\npercent = (missing / len(df) * 100).round(2)\nprint(pd.DataFrame({"missing": missing, "percent": percent}).query("missing > 0"))`,
+            },
+            {
+              id: "corr",
+              icon: "🔥",
+              title: "Corrélation entre colonnes",
+              description: "Matrice de corrélation et heatmap.",
+              code: `import pandas as pd\nimport seaborn as sns\nimport matplotlib.pyplot as plt\ndf = pd.read_csv("${source.name}")\ncorr = df.select_dtypes(include="number").corr()\nprint(corr)\nsns.heatmap(corr, annot=True, cmap="coolwarm")\nplt.tight_layout(); plt.show()`,
+            }
+          );
+        }
+        setContextualPresets(nextPresets);
+        return;
+      }
+      if (source.name.endsWith(".json")) {
+        setDataRows([]);
+        setDataColumns([]);
+        setDataTypes({});
+        const presets: ContextualPreset[] = [
+          {
+            id: "json-flatten",
+            icon: "🗂️",
+            title: "Aplatir le JSON",
+            description: "Transformation structure imbriquée -> tableau plat.",
+            code: `import json\nimport pandas as pd\nwith open("${source.name}", "r", encoding="utf-8") as f:\n    data = json.load(f)\ndf = pd.json_normalize(data)\nprint(df.head())`,
+          },
+          {
+            id: "json-schema",
+            icon: "✅",
+            title: "Valider le schéma",
+            description: "Vérification de cohérence des types de champs.",
+            code: `import json\nfrom collections import defaultdict\nwith open("${source.name}", "r", encoding="utf-8") as f:\n    data = json.load(f)\nrows = data if isinstance(data, list) else [data]\ntypes = defaultdict(set)\nfor row in rows:\n    for k,v in row.items():\n        types[k].add(type(v).__name__)\nprint(dict(types))`,
+          },
+          {
+            id: "json-csv",
+            icon: "🔄",
+            title: "Convertir en CSV",
+            description: "Export tabulaire en CSV.",
+            code: `import json\nimport pandas as pd\nwith open("${source.name}", "r", encoding="utf-8") as f:\n    data = json.load(f)\ndf = pd.json_normalize(data)\ndf.to_csv("export.csv", index=False)\nprint("CSV exporté: export.csv")`,
+          },
+        ];
+        setContextualPresets(presets);
+        setShowPresetBanner(true);
+        return;
+      }
+      if (source.name.endsWith(".txt")) {
+        setDataRows([]);
+        setDataColumns([]);
+        setDataTypes({});
+        const presets: ContextualPreset[] = [
+          { id: "txt-analysis", icon: "📝", title: "Analyse de texte", description: "Résumé longueur, lignes et caractères.", code: `from pathlib import Path\ntext = Path("${source.name}").read_text(encoding="utf-8")\nprint("chars:", len(text), "lines:", text.count("\\n")+1)` },
+          { id: "txt-count", icon: "🔢", title: "Comptage de mots", description: "Top mots les plus fréquents.", code: `from pathlib import Path\nfrom collections import Counter\ntext = Path("${source.name}").read_text(encoding="utf-8").lower()\nwords = [w for w in text.split() if w.isalpha()]\nprint(Counter(words).most_common(20))` },
+          { id: "txt-regex", icon: "🎯", title: "Extraction de motifs", description: "Recherche regex configurable.", code: `from pathlib import Path\nimport re\ntext = Path("${source.name}").read_text(encoding="utf-8")\npattern = r\"\\b\\w+@\\w+\\.\\w+\\b\"\nprint(re.findall(pattern, text))` },
+        ];
+        setContextualPresets(presets);
+        setShowPresetBanner(true);
+        return;
+      }
+      setContextualPresets([]);
+      setShowPresetBanner(false);
+    };
+    void loadDataPreview();
+  }, [files]);
+
+  const foldRanges = useMemo(() => computeFoldRanges(code), [code]);
+  const foldedForTab = foldedStarts[activeTabId] ?? [];
+  const foldedSet = new Set(foldedForTab);
+  const lineList = code.split("\n");
+  const hiddenLines = new Set<number>();
+  for (const startLine of foldedForTab) {
+    const match = foldRanges.find((range) => range.start === startLine);
+    if (!match) continue;
+    for (let line = match.start + 1; line <= match.end; line += 1) hiddenLines.add(line);
+  }
+  const visibleLines = lineList
+    .map((content, index) => ({ content, lineNumber: index + 1 }))
+    .filter((item) => !hiddenLines.has(item.lineNumber));
+  const generatedLineRange = pendingGeneration
+    ? {
+        end: code.slice(0, pendingGeneration.end).split("\n").length,
+        start: code.slice(0, pendingGeneration.start).split("\n").length,
+      }
+    : null;
+
+  const filteredDataRows = dataRows.filter((row) => {
+    const matchesGlobal = globalDataSearch.trim().length === 0
+      || Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(globalDataSearch.toLowerCase()));
+    if (!matchesGlobal) return false;
+    return dataColumns.every((column) => {
+      const filter = columnFilters[column];
+      if (!filter) return true;
+      const rawValue = row[column];
+      const asString = String(rawValue ?? "").toLowerCase();
+      if (filter.mode === "contains") return asString.includes((filter.value ?? "").toLowerCase());
+      if (filter.mode === "exact") return asString === (filter.value ?? "").toLowerCase();
+      if (filter.mode === "range") {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric)) return false;
+        if (typeof filter.min === "number" && numeric < filter.min) return false;
+        if (typeof filter.max === "number" && numeric > filter.max) return false;
+      }
+      return true;
+    });
+  });
+
+  const sortedDataRows = [...filteredDataRows].sort((a, b) => {
+    if (!dataSort) return 0;
+    const left = a[dataSort.column];
+    const right = b[dataSort.column];
+    const multiplier = dataSort.direction === "asc" ? 1 : -1;
+    if (typeof left === "number" && typeof right === "number") {
+      return (left - right) * multiplier;
+    }
+    return String(left ?? "").localeCompare(String(right ?? "")) * multiplier;
+  });
+
+  const pagedDataRows = sortedDataRows.slice((dataPage - 1) * dataPageSize, dataPage * dataPageSize);
+  const totalPages = Math.max(1, Math.ceil(sortedDataRows.length / dataPageSize));
+  const previewRows = quickPreviewMode && sortedDataRows.length > 20
+    ? [...sortedDataRows.slice(0, 10), ...sortedDataRows.slice(-10)]
+    : pagedDataRows;
+  const chartRows = sortedDataRows.slice(0, 30);
+  const palette = chartPalettes[chartConfig.palette] ?? chartPalettes.aurora;
+  const chartSvgMarkup = (() => {
+    const width = 760;
+    const height = 380;
+    const padding = 40;
+    const xValues = chartRows.map((row) => String(row[chartConfig.xAxis] ?? ""));
+    const yValues = chartRows.map((row) => Number(row[chartConfig.yAxis] ?? 0)).map((value) => (Number.isFinite(value) ? value : 0));
+    const maxY = Math.max(1, ...yValues);
+    const points = yValues.map((value, index) => {
+      const x = padding + (index / Math.max(1, yValues.length - 1)) * (width - padding * 2);
+      const y = height - padding - (value / maxY) * (height - padding * 2);
+      return { x, y };
+    });
+    const bars = yValues.map((value, index) => {
+      const barWidth = (width - padding * 2) / Math.max(1, yValues.length) - 6;
+      const x = padding + index * ((width - padding * 2) / Math.max(1, yValues.length)) + 3;
+      const y = height - padding - (value / maxY) * (height - padding * 2);
+      const h = height - padding - y;
+      return { h, x, y, w: Math.max(4, barWidth) };
+    });
+    const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
+    const areaPath = `${linePath} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+    const pieTotal = Math.max(1, yValues.reduce((acc, current) => acc + current, 0));
+    let pieCursor = 0;
+    const pieSlices = yValues.map((value, index) => {
+      const angle = (value / pieTotal) * Math.PI * 2;
+      const startAngle = pieCursor;
+      pieCursor += angle;
+      return { color: palette[index % palette.length], end: pieCursor, start: startAngle, value };
+    });
+    const pieRadius = 115;
+    const pieCx = width / 2;
+    const pieCy = height / 2;
+    const pieArc = (start: number, end: number) => {
+      const x1 = pieCx + pieRadius * Math.cos(start);
+      const y1 = pieCy + pieRadius * Math.sin(start);
+      const x2 = pieCx + pieRadius * Math.cos(end);
+      const y2 = pieCy + pieRadius * Math.sin(end);
+      const largeArc = end - start > Math.PI ? 1 : 0;
+      return `M ${pieCx} ${pieCy} L ${x1} ${y1} A ${pieRadius} ${pieRadius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+    };
+    return { areaPath, bars, height, linePath, maxY, pieArc, pieSlices, points, width, xValues, yValues };
+  })();
+
+  const exportChartAsset = async (format: "png" | "python" | "svg" | "javascript") => {
+    if (!chartSvgMarkup) return;
+    const svgNode = document.getElementById("interpreter-chart-svg") as SVGSVGElement | null;
+    const svgText = svgNode?.outerHTML ?? "";
+    if (format === "svg") {
+      const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chart-${Date.now()}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    if (format === "png") {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1600;
+      canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const image = new Image();
+      image.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+      await new Promise((resolve) => {
+        image.onload = () => {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(null);
+        };
+      });
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `chart-${Date.now()}.png`;
+      a.click();
+      return;
+    }
+    const chartJsCode = `const config = { type: "${chartConfig.type === "bar-horizontal" ? "bar" : chartConfig.type}", data: { labels: ${JSON.stringify(chartSvgMarkup.xValues)}, datasets:[{ label: "${chartConfig.title}", data: ${JSON.stringify(chartSvgMarkup.yValues)} }] } };`;
+    const matplotlibCode = `import matplotlib.pyplot as plt\nlabels = ${JSON.stringify(chartSvgMarkup.xValues)}\nvalues = ${JSON.stringify(chartSvgMarkup.yValues)}\nplt.figure(figsize=(10,5))\nplt.${chartConfig.type === "line" ? "plot" : "bar"}(labels, values)\nplt.title("${chartConfig.title}")\nplt.xlabel("${chartConfig.xLabel}")\nplt.ylabel("${chartConfig.yLabel}")\nplt.show()`;
+    const insertion = format === "javascript" ? chartJsCode : matplotlibCode;
+    const nextCode = `${code.slice(0, cursorOffset)}\n${insertion}\n${code.slice(cursorOffset)}`;
+    setCode(nextCode);
+  };
+
+  const onLineNumberClick = (lineNumber: number) => {
+    setActiveLineNumber(lineNumber);
+    setCursorPosition((current) => ({ ...current, line: lineNumber }));
+  };
+
+  const toggleFold = (start: number) => {
+    setFoldedStarts((current) => {
+      const currentTab = current[activeTabId] ?? [];
+      const next = currentTab.includes(start)
+        ? currentTab.filter((line) => line !== start)
+        : [...currentTab, start];
+      return { ...current, [activeTabId]: next };
+    });
+  };
+
+  const addEditorTab = () => {
+    const fileName = window.prompt("Nom du fichier (ex: src/main.py)");
+    if (!fileName?.trim()) return;
+    const runtimeInput = window.prompt(
+      `Runtime (${runtimeOrder.join(", ")})`,
+      "python"
+    );
+    const nextRuntime = (runtimeInput?.trim().toLowerCase() ?? "python") as Runtime;
+    if (!runtimeOrder.includes(nextRuntime)) return;
+    const newTab: EditorTab = {
+      id: crypto.randomUUID(),
+      name: fileName.trim(),
+      runtime: nextRuntime,
+      content: runtimeSnippets[nextRuntime],
+    };
+    setEditorTabs((current) => [...current, newTab]);
+    setActiveTabId(newTab.id);
+  };
+
+  const askCodeAssistant = async (prompt: string) => {
+    const response = await fetch("/api/code-interpreter/assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelId: selectedModelId, prompt, runtime }),
+    });
+    const payload = (await response.json()) as { answer?: string; error?: string };
+    if (!response.ok || !payload.answer) {
+      throw new Error(payload.error ?? "Assistant indisponible");
+    }
+    return payload.answer;
+  };
+
+  const extractImportedDataContext = async () => {
+    const contextChunks: string[] = [];
+    for (const file of files.slice(0, 2)) {
+      if (file.name.endsWith(".csv")) {
+        const text = await file.text();
+        const rows = text.split(/\r?\n/).filter(Boolean);
+        const headers = (rows[0] ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+        const preview = rows.slice(1, 4).join("\n");
+        contextChunks.push(`CSV ${file.name}\nColonnes: ${headers.join(", ")}\nAperçu:\n${preview}`);
+      }
+      if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+        const XLSX = await import("xlsx");
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) continue;
+        const json = XLSX.utils.sheet_to_json<Array<string | number | boolean>>(workbook.Sheets[firstSheetName], { header: 1 });
+        const firstRow = (json[0] ?? []).map((item) => String(item));
+        const preview = json.slice(1, 4).map((line) => line.map((item) => String(item)).join(", ")).join("\n");
+        contextChunks.push(`Excel ${file.name}\nColonnes: ${firstRow.join(", ")}\nAperçu:\n${preview}`);
+      }
+    }
+    return contextChunks.join("\n\n");
+  };
+
+  const animateCodeInsertion = async (baseCode: string, insertAt: number, generatedCode: string) => {
+    const safeStart = Math.max(0, Math.min(insertAt, baseCode.length));
+    for (let step = 1; step <= generatedCode.length; step += 1) {
+      const nextCode = `${baseCode.slice(0, safeStart)}${generatedCode.slice(0, step)}${baseCode.slice(safeStart)}`;
+      setCode(nextCode);
+      // biome-ignore lint/suspicious/noConsole: animation delay
+      await new Promise((resolve) => setTimeout(resolve, 6));
+    }
+    return { end: safeStart + generatedCode.length, start: safeStart };
+  };
+
+  const generateCodeFromCommand = async (customPrompt?: string) => {
+    const prompt = (customPrompt ?? generationPrompt).trim();
+    if (!prompt) return;
+    setIsGeneratingFromPrompt(true);
+    try {
+      const dataContext = await extractImportedDataContext();
+      const answer = await askCodeAssistant(
+        `Génère du code ${runtimeLabels[runtime]} exécutable uniquement.\nInsère uniquement un bloc de code markdown.\nInstruction: ${prompt}\n${dataContext ? `\nContexte des données importées:\n${dataContext}` : ""}`
+      );
+      const generatedCode = answer.match(/```[a-zA-Z]*\n([\s\S]*?)```/)?.[1]?.trim() ?? answer.trim();
+      if (!generatedCode) return;
+      const previousCode = code;
+      const insertionPoint = Math.max(0, Math.min(cursorOffset, previousCode.length));
+      const range = await animateCodeInsertion(previousCode, insertionPoint, generatedCode);
+      setPendingGeneration({
+        code: generatedCode,
+        end: range.end,
+        previousCode,
+        prompt,
+        start: range.start,
+      });
+      setGenerationHistory((current) => [
+        { createdAt: new Date().toISOString(), prompt, runtime },
+        ...current,
+      ].slice(0, 20));
+      setGenerationPrompt("");
+      setGenerationRefinement("");
+    } catch (error) {
+      setAssistantPanelOpen(true);
+      setAssistantMode("fix");
+      setAssistantPanelContent(`Erreur génération IA: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsGeneratingFromPrompt(false);
+    }
+  };
+
+  const applyContextualPreset = async (preset: ContextualPreset) => {
+    const nextCode = `${code.slice(0, cursorOffset)}\n${preset.code}\n${code.slice(cursorOffset)}`;
+    if (runtime !== "python") {
+      setRuntime("python");
+    }
+    setCode(nextCode);
+    setTimeout(() => {
+      void onRun();
+    }, 50);
+  };
+
+  const explainSelection = async () => {
+    if (!selectedCode.trim()) return;
+    setAssistantPanelOpen(true);
+    setAssistantMode("explain");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Explique ce bloc de code en français, ligne par ligne, de façon pédagogique. Ajoute un mini résumé final.\n\nCode:\n${selectedCode}`
+      );
+      setAssistantPanelContent(answer);
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsAssistantLoading(false);
+      setShowExplainBubble(false);
+    }
+  };
+
+  const analyzeFixFromError = async (errorMessage: string) => {
+    setAssistantPanelOpen(true);
+    setAssistantMode("fix");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Diagnostique cette erreur et propose un correctif.\nRéponds avec les sections EXACTES:\n[CAUSE]\n...\n[LINE]\nnuméro ou ?\n[PATCH]\n\`\`\`\ncode corrigé complet\n\`\`\`\n\nRuntime: ${runtime}\nErreur:\n${errorMessage}\n\nCode actuel:\n${code}`
+      );
+      const cause = answer.match(/\[CAUSE\]([\s\S]*?)\[LINE\]/)?.[1]?.trim() ?? answer;
+      const line = answer.match(/\[LINE\]\s*([0-9]+)/)?.[1];
+      const patch = answer.match(/\[PATCH\][\s\S]*?```[\w-]*\n([\s\S]*?)```/)?.[1]?.trim();
+      setAssistantPanelContent(cause);
+      if (patch) {
+        setAssistantProposedCode(patch);
+        setAssistantDiffPreview(computeLineDiff(code, patch));
+      } else {
+        setAssistantProposedCode(null);
+        setAssistantDiffPreview("");
+      }
+      if (line) setErrorLine(Number(line));
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
+  const analyzeOptimizations = async () => {
+    setAssistantPanelOpen(true);
+    setAssistantMode("optimize");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Analyse ce code et propose 3 à 5 optimisations (performance, lisibilité, bonnes pratiques).\nFormat:\n- Titre: ...\n  Avant: ...\n  Après: ...\n\nCode:\n${code}`
+      );
+      setAssistantPanelContent(answer);
+      const suggestions = answer
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("- "));
+      setAssistantOptimizations(suggestions);
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+      setAssistantOptimizations([]);
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
+  const buildAutocomplete = (
+    forceOpen = false,
+    sourceText?: string,
+    caretPosition?: number
+  ) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+    const currentCode = sourceText ?? code;
+    const caret = caretPosition ?? textarea.selectionStart;
+    const before = currentCode.slice(0, caret);
+    const dotMatch = before.match(/([a-zA-Z_$][\w$]*)\.([\w$]*)$/);
+    const tokenMatch = before.match(/([a-zA-Z_$][\w$]*)$/);
+    const rawToken = tokenMatch?.[1] ?? "";
+    const minCharsReached = rawToken.length >= 2;
+    if (!forceOpen && !dotMatch && !minCharsReached) {
+      setAutocompleteOpen(false);
+      return;
+    }
+    const symbols = extractDeclaredSymbols(currentCode, runtime);
+    const suggestions: AutoSuggestion[] = [];
+    if (runtime === "python") {
+      for (const moduleName of Object.keys(pythonModuleMembers)) {
+        suggestions.push({ detail: "module", insertText: moduleName, kind: "module", label: moduleName, score: 1 });
+      }
+      for (const fnName of symbols.functions) {
+        suggestions.push({ detail: "fn(...) -> Any", insertText: fnName, kind: "function", label: fnName, score: 2 });
+      }
+      for (const variableName of symbols.variables) {
+        suggestions.push({ detail: "variable", insertText: variableName, kind: "variable", label: variableName, score: 2 });
+      }
+      for (const keyword of pythonKeywords) {
+        suggestions.push({ detail: "keyword", insertText: keyword, kind: "keyword", label: keyword, score: 0 });
+      }
+      const imports = Array.from(before.matchAll(/^\s*import\s+([a-zA-Z_]\w*)/gm)).map((item) => item[1]).filter(Boolean) as string[];
+      for (const imported of imports) {
+        for (const item of pythonModuleMembers[imported] ?? []) {
+          suggestions.push({ detail: item.detail, insertText: item.label, kind: "function", label: item.label, score: 3 });
+        }
+      }
+    }
+    if (runtime === "javascript" || runtime === "typescript") {
+      for (const [objectName, members] of Object.entries(jsTsMembers)) {
+        suggestions.push({ detail: "class", insertText: objectName, kind: "class", label: objectName, score: 1 });
+        for (const member of members) {
+          suggestions.push({ detail: member.detail, insertText: member.label, kind: "function", label: member.label, score: 2 });
+        }
+      }
+      for (const fnName of symbols.functions) {
+        suggestions.push({ detail: "fn(...): any", insertText: fnName, kind: "function", label: fnName, score: 3 });
+      }
+      for (const variableName of symbols.variables) {
+        suggestions.push({ detail: "variable", insertText: variableName, kind: "variable", label: variableName, score: 3 });
+      }
+      for (const keyword of jsTsKeywords) {
+        suggestions.push({ detail: "keyword", insertText: keyword, kind: "keyword", label: keyword, score: 0 });
+      }
+    }
+    const query = dotMatch ? (dotMatch[2] ?? "") : rawToken;
+    const dotTarget = dotMatch?.[1] ?? "";
+    const filtered = suggestions
+      .filter((item) => {
+        if (dotMatch) {
+          const byObject = jsTsMembers[dotTarget]?.some((entry) => entry.label === item.label)
+            || pythonModuleMembers[dotTarget]?.some((entry) => entry.label === item.label);
+          if (!byObject) return false;
+        }
+        return forceOpen || !query ? true : item.label.toLowerCase().includes(query.toLowerCase());
+      })
+      .sort((a, b) => {
+        const aStarts = query && a.label.toLowerCase().startsWith(query.toLowerCase()) ? 3 : 0;
+        const bStarts = query && b.label.toLowerCase().startsWith(query.toLowerCase()) ? 3 : 0;
+        return b.score + bStarts - (a.score + aStarts);
+      })
+      .slice(0, 8);
+    if (!filtered.length) {
+      setAutocompleteOpen(false);
+      return;
+    }
+    const lastLine = before.split("\n").at(-1) ?? "";
+    setAutocompleteAnchor({ left: 8 + lastLine.length * 7, top: 10 + (before.split("\n").length - 1) * 20 });
+    setAutocompleteItems(filtered);
+    setSelectedSuggestionIndex(0);
+    setAutocompleteTarget({
+      start: dotMatch ? caret - (dotMatch[2]?.length ?? 0) : caret - rawToken.length,
+      end: caret,
+    });
+    setAutocompleteOpen(true);
+  };
+
+  const applySuggestion = (suggestion: AutoSuggestion) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+    const nextCode = `${code.slice(0, autocompleteTarget.start)}${suggestion.insertText}${code.slice(autocompleteTarget.end)}`;
+    const nextCaret = autocompleteTarget.start + suggestion.insertText.length;
+    setCode(nextCode);
+    setAutocompleteOpen(false);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = nextCaret;
+      textarea.selectionEnd = nextCaret;
+    }, 0);
+  };
+
+  const tryExpandSnippet = () => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return false;
+    const templates = snippetTemplates[runtime];
+    if (!templates) return false;
+    const caret = textarea.selectionStart;
+    const before = code.slice(0, caret);
+    const trigger = before.match(/([a-zA-Z_]\w*)$/)?.[1];
+    if (!trigger || !templates[trigger]) return false;
+    const parsed = parseSnippetTemplate(templates[trigger]);
+    const start = caret - trigger.length;
+    const nextCode = `${code.slice(0, start)}${parsed.text}${code.slice(caret)}`;
+    const adjusted = parsed.placeholders.map((item) => ({ start: start + item.start, end: start + item.end }));
+    setCode(nextCode);
+    if (!adjusted.length) return true;
+    setSnippetSession({ index: 0, placeholders: adjusted });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = adjusted[0]?.start ?? start;
+      textarea.selectionEnd = adjusted[0]?.end ?? start;
+    }, 0);
+    return true;
+  };
+
+  const moveSnippetPlaceholder = () => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea || !snippetSession) return false;
+    const nextIndex = snippetSession.index + 1;
+    if (nextIndex >= snippetSession.placeholders.length) {
+      setSnippetSession(null);
+      return false;
+    }
+    const next = snippetSession.placeholders[nextIndex];
+    setSnippetSession({ ...snippetSession, index: nextIndex });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = next.start;
+      textarea.selectionEnd = next.end;
+    }, 0);
+    return true;
   };
 
   return (
@@ -427,17 +1637,55 @@ export default function InterpreterPage() {
           </label>
           <label className="ml-2">
             Thème
-            <select
-              className="ml-2 rounded-lg border border-border/50 bg-background px-2 py-1"
-              onChange={(event) =>
-                setEditorTheme(event.target.value as EditorTheme)
-              }
-              value={editorTheme}
-            >
-              <option value="monokai">Monokai</option>
-              <option value="dracula">Dracula</option>
-              <option value="one-dark">One Dark</option>
-            </select>
+            <span className="relative ml-2 inline-block">
+              <button className="rounded-lg border border-border/50 bg-background px-2 py-1" onClick={() => setShowThemeLibrary((current) => !current)} type="button">
+                {activeTheme.label}
+              </button>
+              {showThemeLibrary && (
+                <div className="absolute right-0 z-30 mt-1 grid w-[520px] grid-cols-[1fr_220px] gap-2 rounded-lg border border-border/60 bg-background p-2 shadow-xl">
+                  <div className="max-h-72 overflow-auto pr-1">
+                    {allThemes.map((theme) => (
+                      <button
+                        className={`mb-1 flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs ${editorTheme === theme.id ? "bg-primary/15 text-primary" : "hover:bg-muted/40"}`}
+                        key={theme.id}
+                        onClick={() => {
+                          setEditorTheme(theme.id);
+                          setShowThemeLibrary(false);
+                        }}
+                        onMouseEnter={() => setHoveredThemeId(theme.id)}
+                        type="button"
+                      >
+                        <span>{theme.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{theme.mode}</span>
+                      </button>
+                    ))}
+                    <button className="mt-1 w-full rounded border border-dashed px-2 py-1 text-xs" onClick={() => {
+                      setShowCustomThemeEditor(true);
+                      setShowThemeLibrary(false);
+                    }} type="button">
+                      + Créer mon thème
+                    </button>
+                  </div>
+                  {(() => {
+                    const previewTheme = allThemes.find((theme) => theme.id === hoveredThemeId) ?? activeTheme;
+                    return (
+                      <div className="rounded border border-border/50 p-2 text-[10px]" style={{ background: previewTheme.colors.editorBg, color: previewTheme.colors.text }}>
+                        <div className="mb-1 text-[10px] font-semibold">{previewTheme.label}</div>
+                        <pre className="space-y-0.5 font-mono">
+                          <div><span style={{ color: previewTheme.colors.keyword }}>def</span> <span style={{ color: previewTheme.colors.function }}>build_chart</span>():</div>
+                          <div>  <span style={{ color: previewTheme.colors.comment }}># Aperçu thème</span></div>
+                          <div>  data = <span style={{ color: previewTheme.colors.string }}>"sales.csv"</span></div>
+                          <div>  return <span style={{ color: previewTheme.colors.number }}>42</span></div>
+                        </pre>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </span>
+            <button className="ml-1 inline-flex items-center rounded border px-1.5 py-1" onClick={() => setShowEditorPreferences((current) => !current)} type="button">
+              <Cog className="size-3.5" />
+            </button>
           </label>
         </div>
       </div>
@@ -487,14 +1735,426 @@ export default function InterpreterPage() {
           />
         </label>
       </section>
+      {showCustomThemeEditor && (
+        <section className="rounded-xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Créer mon thème</h3>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowCustomThemeEditor(false)} type="button">Fermer</button>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            <label className="text-xs">Nom du thème<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setCustomThemeName(event.target.value)} value={customThemeName} /></label>
+            {([
+              ["editorBg", "Fond éditeur"],
+              ["gutterBg", "Fond gouttière"],
+              ["text", "Texte principal"],
+              ["keyword", "Mots-clés"],
+              ["string", "Chaînes"],
+              ["comment", "Commentaires"],
+              ["function", "Fonctions"],
+              ["number", "Nombres"],
+              ["cursor", "Curseur"],
+            ] as const).map(([key, label]) => (
+              <label className="text-xs" key={key}>
+                {label}
+                <input
+                  className="mt-1 h-8 w-full rounded border"
+                  onChange={(event) => setCustomThemeDraft((current) => ({ ...current, [key]: event.target.value }))}
+                  type="color"
+                  value={customThemeDraft[key]}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
+              onClick={() => {
+                const id = `custom-${customThemeName.trim().toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+                const newTheme: EditorThemeConfig = {
+                  id,
+                  label: customThemeName.trim() || "Thème personnalisé",
+                  mode: "dark",
+                  colors: customThemeDraft,
+                };
+                setCustomThemes((current) => [newTheme, ...current].slice(0, 20));
+                setEditorTheme(id);
+                setShowCustomThemeEditor(false);
+              }}
+              type="button"
+            >
+              Sauvegarder le thème
+            </button>
+          </div>
+        </section>
+      )}
+      {showEditorPreferences && (
+        <section className="rounded-xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Préférences de l’éditeur</h3>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowEditorPreferences(false)} type="button">Fermer</button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2 rounded border border-border/40 p-2">
+              <p className="text-xs font-semibold">Typographie</p>
+              <label className="text-xs">Police
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, fontFamily: event.target.value }))} value={editorPreferences.fontFamily}>
+                  {["Fira Code", "JetBrains Mono", "Source Code Pro", "Cascadia Code", "Menlo", "Monaco"].map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs">Taille police: {editorPreferences.fontSize}px
+                <input className="mt-1 w-full" max={24} min={10} onChange={(event) => setEditorPreferences((current) => ({ ...current, fontSize: Number(event.target.value) }))} type="range" value={editorPreferences.fontSize} />
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.fontLigatures} onChange={(event) => setEditorPreferences((current) => ({ ...current, fontLigatures: event.target.checked }))} type="checkbox" /> Ligatures typographiques</label>
+            </div>
+            <div className="space-y-2 rounded border border-border/40 p-2">
+              <p className="text-xs font-semibold">Édition</p>
+              <label className="text-xs">Indentation ({editorPreferences.indentSize})
+                <input className="mt-1 w-full" max={8} min={2} onChange={(event) => setEditorPreferences((current) => ({ ...current, indentSize: Number(event.target.value) }))} type="range" value={editorPreferences.indentSize} />
+              </label>
+              <label className="text-xs">Mode indentation
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, tabMode: event.target.value as "spaces" | "tabs" }))} value={editorPreferences.tabMode}>
+                  <option value="spaces">Espaces</option>
+                  <option value="tabs">Tabulations</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.showInvisibleChars} onChange={(event) => setEditorPreferences((current) => ({ ...current, showInvisibleChars: event.target.checked }))} type="checkbox" /> Afficher caractères invisibles</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.wordWrap} onChange={(event) => setEditorPreferences((current) => ({ ...current, wordWrap: event.target.checked }))} type="checkbox" /> Retour à la ligne automatique</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.minimapEnabled} onChange={(event) => setEditorPreferences((current) => ({ ...current, minimapEnabled: event.target.checked }))} type="checkbox" /> Mini-map</label>
+            </div>
+            <div className="space-y-2 rounded border border-border/40 p-2 md:col-span-2">
+              <p className="text-xs font-semibold">Comportement</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.autoSaveSnippetOnRun} onChange={(event) => setEditorPreferences((current) => ({ ...current, autoSaveSnippetOnRun: event.target.checked }))} type="checkbox" /> Sauvegarde auto des snippets au run</label>
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.autoClearOutputBeforeRun} onChange={(event) => setEditorPreferences((current) => ({ ...current, autoClearOutputBeforeRun: event.target.checked }))} type="checkbox" /> Effacer sortie avant exécution</label>
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.confirmBeforeResetOutput} onChange={(event) => setEditorPreferences((current) => ({ ...current, confirmBeforeResetOutput: event.target.checked }))} type="checkbox" /> Confirmer avant reset sortie</label>
+                <label className="text-xs">Position panneau sortie
+                  <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, outputPanelPosition: event.target.value as "bottom" | "right" }))} value={editorPreferences.outputPanelPosition}>
+                    <option value="right">Droite</option>
+                    <option value="bottom">Bas</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
-        <section className="liquid-panel rounded-2xl p-4 lg:order-2">
-          <textarea
-            className={`min-h-[360px] w-full rounded-xl border border-border/40 p-3 font-mono text-xs ${editorThemeClass}`}
-            onChange={(event) => setCode(event.target.value)}
-            value={code}
-          />
+      <div className={`grid gap-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:grid-cols-[1.3fr_1fr]" : "grid-cols-1"}`}>
+        <section className={`liquid-panel rounded-2xl p-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:order-1" : "order-1"}`}>
+          <div className="mb-3 space-y-2 rounded-xl border border-border/50 bg-background/50 p-2">
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-1 rounded-md border border-primary/50 bg-primary/10 px-2 py-1 text-xs text-primary"
+                onClick={() => {
+                  setCommandBarOpen((current) => !current);
+                  setTimeout(() => commandInputRef.current?.focus(), 0);
+                }}
+                type="button"
+              >
+                <WandSparkles className="size-3.5" /> Générer du code
+              </button>
+              <p className="text-[11px] text-muted-foreground">Ctrl+K</p>
+              <div className="ml-auto relative">
+                <button className="rounded-md border px-2 py-1 text-xs" onClick={() => setShowGenerationHistory((current) => !current)} type="button">
+                  <Clock3 className="size-3.5" />
+                </button>
+                {showGenerationHistory && (
+                  <div className="absolute right-0 z-20 mt-1 max-h-52 w-80 overflow-auto rounded-md border border-border/60 bg-background p-1 shadow-xl">
+                    {generationHistory.length === 0 ? (
+                      <p className="px-2 py-1 text-[11px] text-muted-foreground">Aucun historique.</p>
+                    ) : (
+                      generationHistory.map((entry, index) => (
+                        <button
+                          className="block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-muted/40"
+                          key={`${entry.createdAt}-${index}`}
+                          onClick={() => {
+                            setGenerationPrompt(entry.prompt);
+                            setRuntime(entry.runtime);
+                            setCommandBarOpen(true);
+                            setShowGenerationHistory(false);
+                            setTimeout(() => commandInputRef.current?.focus(), 0);
+                          }}
+                          type="button"
+                        >
+                          <p className="truncate">{entry.prompt}</p>
+                          <p className="text-[10px] text-muted-foreground">{runtimeLabels[entry.runtime]} · {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {commandBarOpen && (
+              <div className="space-y-2">
+                <input
+                  className="h-9 w-full rounded-lg border border-border/60 bg-background px-3 text-xs"
+                  onChange={(event) => setGenerationPrompt(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void generateCodeFromCommand();
+                    }
+                  }}
+                  placeholder="Ex: créer un graphique en barres montrant les ventes par mois..."
+                  ref={commandInputRef}
+                  value={generationPrompt}
+                />
+                <div className="flex gap-2">
+                  <button className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50" disabled={isGeneratingFromPrompt || !generationPrompt.trim()} onClick={() => void generateCodeFromCommand()} type="button">
+                    {isGeneratingFromPrompt ? "Génération..." : "Insérer avec IA"}
+                  </button>
+                  <button className="rounded-md border px-2 py-1 text-xs" onClick={() => setCommandBarOpen(false)} type="button">Fermer</button>
+                </div>
+              </div>
+            )}
+            {pendingGeneration && (
+              <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2">
+                <p className="text-[11px] font-semibold text-emerald-700">Code généré en surbrillance — valider l’insertion ?</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <button className="rounded-md bg-emerald-600 px-2 py-1 text-xs text-white" onClick={() => setPendingGeneration(null)} type="button">Accepter</button>
+                  <button className="rounded-md border border-red-400 px-2 py-1 text-xs text-red-600" onClick={() => {
+                    setCode(pendingGeneration.previousCode);
+                    setPendingGeneration(null);
+                  }} type="button">Rejeter</button>
+                  <input
+                    className="h-7 flex-1 rounded border border-border/60 px-2 text-xs"
+                    onChange={(event) => setGenerationRefinement(event.target.value)}
+                    placeholder="Affiner la demande (optionnel)"
+                    value={generationRefinement}
+                  />
+                  <button className="rounded-md border px-2 py-1 text-xs" onClick={() => void generateCodeFromCommand(`${pendingGeneration.prompt}. Affinage: ${generationRefinement || "améliore la version précédente"}`)} type="button">
+                    Affiner
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border/50">
+            <div className="flex items-center justify-between border-b border-border/40 bg-background/80 px-2 py-1">
+              <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+                {editorTabs.map((tab) => {
+                  const TabIcon = runtimeIcons[tab.runtime] ?? FileCode2;
+                  return (
+                    <button
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${tab.id === activeTabId ? "bg-primary/15 text-primary" : "hover:bg-background"}`}
+                      key={tab.id}
+                      onClick={() => setActiveTabId(tab.id)}
+                      type="button"
+                    >
+                      <TabIcon className="size-3.5" />
+                      <span>{tab.name}</span>
+                      {editorTabs.length > 1 && (
+                        <span
+                          className="ml-1 rounded p-0.5 hover:bg-destructive/15"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setEditorTabs((current) => {
+                              const nextTabs = current.filter((item) => item.id !== tab.id);
+                              if (tab.id === activeTabId && nextTabs[0]) {
+                                setActiveTabId(nextTabs[0].id);
+                              }
+                              return nextTabs.length ? nextTabs : current;
+                            });
+                          }}
+                        >
+                          <X className="size-3" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                <button className="inline-flex items-center rounded-md border border-dashed px-2 py-1 text-xs" onClick={addEditorTab} type="button">
+                  <Plus className="mr-1 size-3.5" /> Nouveau
+                </button>
+              </div>
+              <button className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px]" onClick={() => setEditorPreferences((current) => ({ ...current, minimapEnabled: !current.minimapEnabled }))} type="button">
+                <FileCode2 className="size-3.5" /> Mini-map {editorPreferences.minimapEnabled ? "ON" : "OFF"}
+              </button>
+            </div>
+            <div className={`grid min-h-[360px] ${editorPreferences.minimapEnabled ? "grid-cols-[1fr_120px]" : "grid-cols-1"}`}>
+              <div className="relative grid grid-cols-[52px_1fr]" style={{ background: activeTheme.colors.editorBg, color: activeTheme.colors.text, fontFamily: editorPreferences.fontFamily, fontSize: `${editorPreferences.fontSize}px`, fontVariantLigatures: editorPreferences.fontLigatures ? "normal" : "none" }}>
+                <div className="border-r border-border/30 px-1 py-2 text-right text-[11px]" style={{ background: activeTheme.colors.gutterBg }}>
+                  {visibleLines.map((line) => {
+                    const fold = foldRanges.find((item) => item.start === line.lineNumber);
+                    const isFolded = foldedSet.has(line.lineNumber);
+                    const hiddenCount = fold ? fold.end - fold.start : 0;
+                    return (
+                      <div className={`group flex h-5 items-center justify-end gap-1 rounded px-1 ${
+                        generatedLineRange && line.lineNumber >= generatedLineRange.start && line.lineNumber <= generatedLineRange.end
+                          ? "bg-emerald-500/20 text-emerald-600"
+                          : errorLine === line.lineNumber
+                          ? "bg-red-500/20 text-red-500"
+                          : activeLineNumber === line.lineNumber
+                            ? "bg-primary/15 text-primary"
+                            : ""
+                      }`} key={line.lineNumber}>
+                        {fold ? (
+                          <button className="opacity-0 transition group-hover:opacity-100" onClick={() => toggleFold(line.lineNumber)} type="button">
+                            {isFolded ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
+                          </button>
+                        ) : <span className="w-3" />}
+                        <button className="min-w-6 text-right" onClick={() => onLineNumberClick(line.lineNumber)} type="button">{line.lineNumber}</button>
+                        {isFolded && hiddenCount > 0 ? <span className="text-[10px] text-muted-foreground">+{hiddenCount}</span> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                <textarea
+                  className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 outline-none"
+                  style={{ caretColor: activeTheme.colors.cursor, color: activeTheme.colors.text }}
+                  wrap={editorPreferences.wordWrap ? "soft" : "off"}
+                  ref={editorTextareaRef}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    if (!event.target.value) {
+                      setAutocompleteOpen(false);
+                    }
+                  }}
+                  onClick={(event) => {
+                    const target = event.target as HTMLTextAreaElement;
+                    const before = target.value.slice(0, target.selectionStart);
+                    const line = before.split("\n").length;
+                    const column = before.split("\n").at(-1)?.length ?? 0;
+                    setActiveLineNumber(line);
+                    setCursorPosition({ line, column: column + 1 });
+                    setCursorOffset(target.selectionStart);
+                    buildAutocomplete(false, target.value, target.selectionStart);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.ctrlKey && event.code === "Space") {
+                      event.preventDefault();
+                      buildAutocomplete(true);
+                      return;
+                    }
+                    if (autocompleteOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                      event.preventDefault();
+                      setSelectedSuggestionIndex((current) => {
+                        if (event.key === "ArrowDown") {
+                          return (current + 1) % autocompleteItems.length;
+                        }
+                        return (current - 1 + autocompleteItems.length) % autocompleteItems.length;
+                      });
+                      return;
+                    }
+                    if (event.key === "Escape") {
+                      setAutocompleteOpen(false);
+                      return;
+                    }
+                    if (event.key === "Enter" || event.key === "Tab") {
+                      if (autocompleteOpen) {
+                        event.preventDefault();
+                        const selected = autocompleteItems[selectedSuggestionIndex];
+                        if (selected) applySuggestion(selected);
+                        return;
+                      }
+                      if (event.key === "Tab" && moveSnippetPlaceholder()) {
+                        event.preventDefault();
+                        return;
+                      }
+                      if (event.key === "Tab" && tryExpandSnippet()) {
+                        event.preventDefault();
+                        return;
+                      }
+                      if (event.key === "Tab") {
+                        event.preventDefault();
+                        const target = event.currentTarget;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const indentation = editorPreferences.tabMode === "tabs" ? "\t" : " ".repeat(editorPreferences.indentSize);
+                        const nextValue = `${target.value.slice(0, start)}${indentation}${target.value.slice(end)}`;
+                        setCode(nextValue);
+                        const nextCursor = start + indentation.length;
+                        setTimeout(() => {
+                          target.selectionStart = nextCursor;
+                          target.selectionEnd = nextCursor;
+                          setCursorOffset(nextCursor);
+                        }, 0);
+                      }
+                    }
+                  }}
+                  onKeyUp={(event) => {
+                    const target = event.currentTarget;
+                    const before = target.value.slice(0, target.selectionStart);
+                    const line = before.split("\n").length;
+                    const column = before.split("\n").at(-1)?.length ?? 0;
+                    setActiveLineNumber(line);
+                    setCursorPosition({ line, column: column + 1 });
+                    setCursorOffset(target.selectionStart);
+                    if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key)) {
+                      buildAutocomplete(false, target.value, target.selectionStart);
+                    }
+                  }}
+                  onSelect={(event) => {
+                    const target = event.currentTarget;
+                    const start = target.selectionStart;
+                    const end = target.selectionEnd;
+                    setCursorOffset(start);
+                    if (end > start) {
+                      setSelectedCode(target.value.slice(start, end));
+                      setShowExplainBubble(true);
+                    } else {
+                      setShowExplainBubble(false);
+                    }
+                  }}
+                  value={code}
+                />
+                {showExplainBubble && selectedCode.trim() && (
+                  <button
+                    className="absolute right-3 top-3 z-20 rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground shadow-lg"
+                    onClick={explainSelection}
+                    type="button"
+                  >
+                    ✨ Expliquer ce code
+                  </button>
+                )}
+                {autocompleteOpen && (
+                  <div
+                    className="absolute z-20 max-h-64 w-96 overflow-auto rounded-md border border-border/60 bg-background/95 p-1 text-xs shadow-xl"
+                    style={{ left: Math.min(autocompleteAnchor.left, 440), top: Math.min(autocompleteAnchor.top + 26, 300) }}
+                  >
+                    {autocompleteItems.map((item, index) => {
+                      const Icon = suggestionIconByKind[item.kind];
+                      return (
+                        <button
+                          className={`flex w-full items-center justify-between rounded px-2 py-1 text-left ${selectedSuggestionIndex === index ? "bg-primary/15 text-primary" : "hover:bg-muted/50"}`}
+                          key={`${item.kind}-${item.label}-${index}`}
+                          onClick={() => applySuggestion(item)}
+                          type="button"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Icon className="size-3.5" />
+                            <span>{item.label}</span>
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{item.detail}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {editorPreferences.minimapEnabled && (
+                <div className="border-l border-border/40 bg-muted/20 p-2">
+                  <div className="max-h-[360px] overflow-auto rounded bg-background/60 p-1 font-mono text-[8px] leading-3">
+                    {lineList.map((line, index) => (
+                      <button className={`block w-full truncate text-left ${activeLineNumber === index + 1 ? "bg-primary/15 text-primary" : "text-muted-foreground"}`} key={`${index + 1}-${line}`} onClick={() => onLineNumberClick(index + 1)} type="button">
+                        {(editorPreferences.showInvisibleChars ? line.replace(/\t/g, "→\t").replace(/ /g, "·") : line) || "·"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-border/40 bg-background/80 px-3 py-1 text-[11px]">
+              <span>Runtime: {runtimeLabels[runtime]}</span>
+              <span>Ligne {cursorPosition.line}, Col {cursorPosition.column}</span>
+              <span>Total lignes: {lineList.length}</span>
+              <span>UTF-8</span>
+              <span>{toUtf8Bytes(code)} octets</span>
+            </div>
+          </div>
           <div className="mt-3 space-y-2 rounded-xl border border-border/40 p-3">
             <p className="flex items-center gap-1 text-xs font-semibold"><FolderTree className="size-3.5" /> Arborescence fichiers (multi-fichiers)</p>
             <div className="flex gap-2">
@@ -603,9 +2263,14 @@ export default function InterpreterPage() {
           </label>
 
           {files.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Fichiers: {files.map((item) => item.name).join(", ")}
-            </p>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>Fichiers: {files.map((item) => item.name).join(", ")}</p>
+              {dataRows.length > 0 && (
+                <button className="rounded border px-2 py-1 text-xs text-foreground" onClick={() => setShowChartBuilder(true)} type="button">
+                  Créer un graphique
+                </button>
+              )}
+            </div>
           ) : null}
 
           <div className="flex flex-wrap gap-2">
@@ -619,8 +2284,34 @@ export default function InterpreterPage() {
               {isRunning ? "Exécution..." : "Run"}
             </button>
             <button
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary"
+              onClick={() => setAssistantPanelOpen((current) => !current)}
+              type="button"
+            >
+              <Sparkles className="size-4 animate-pulse" />
+              Assistant IA
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm" type="button">
+                  <ExternalLink className="size-4" />
+                  Exporter
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={exportCodeFile}>Exporter le code</DropdownMenuItem>
+                <DropdownMenuItem onSelect={exportOutputFile}>Exporter la sortie</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportCodeImage()}>Exporter en image</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportCodeAndOutputPdf()}>Exporter code et sortie</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
               className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm"
               onClick={() => {
+                if (editorPreferences.confirmBeforeResetOutput) {
+                  const confirmed = window.confirm("Confirmer la réinitialisation de la sortie ?");
+                  if (!confirmed) return;
+                }
                 setFiles([]);
                 setResult(null);
               }}
@@ -630,46 +2321,182 @@ export default function InterpreterPage() {
             </button>
           </div>
         </section>
-
-        <section className="liquid-panel rounded-2xl p-4 lg:order-1">
-          <h2 className="mb-2 text-sm font-medium">Output</h2>
-          <div className="space-y-2 text-xs">
-            {result?.logs?.length ? (
-              <pre className="rounded-xl bg-background/80 p-2">
-                {result.logs.join("\n")}
-              </pre>
-            ) : null}
-            {result?.output ? (
-              <pre className="rounded-xl bg-emerald-500/10 p-2">
-                {result.output}
-              </pre>
-            ) : null}
-            {result?.error ? (
-              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
-                {result.error}
-              </pre>
-            ) : null}
-            {typeof result?.exitCode === "undefined" ? null : (
-              <p>Code retour: {String(result.exitCode)}</p>
-            )}
-            {result ? null : (
-              <p className="text-muted-foreground">
-                Aucun résultat pour le moment.
-              </p>
-            )}
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {features.map((item) => (
-              <div
-                className="flex items-center gap-2 text-xs text-muted-foreground"
-                key={item.label}
-              >
-                <item.icon className="size-3.5" />
-                <span>{item.label}</span>
+        {contextualPresets.length > 0 && (
+          <section className={`${editorPreferences.outputPanelPosition === "right" ? "lg:col-span-2" : ""} transition-all duration-300 ${showPresetBanner ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"}`}>
+            <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold">Presets contextuels détectés</p>
+                <button className="rounded border px-2 py-1 text-[11px]" onClick={() => setShowPresetBanner(false)} type="button">Masquer</button>
               </div>
-            ))}
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {contextualPresets.map((preset) => (
+                  <div className="rounded-lg border border-border/50 p-2" key={preset.id}>
+                    <p className="text-xs font-semibold">{preset.icon} {preset.title}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{preset.description}</p>
+                    <button className="mt-2 rounded border px-2 py-1 text-[11px]" onClick={() => void applyContextualPreset(preset)} type="button">
+                      Appliquer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className={`liquid-panel rounded-2xl p-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:order-2" : "order-2"}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-medium">Panneau de sortie</h2>
+            <div className="flex gap-1">
+              <button className={`rounded px-2 py-1 text-xs ${outputTab === "output" ? "bg-primary text-primary-foreground" : "border border-border/40"}`} onClick={() => setOutputTab("output")} type="button">Output</button>
+              <button className={`rounded px-2 py-1 text-xs ${outputTab === "data" ? "bg-primary text-primary-foreground" : "border border-border/40"}`} onClick={() => setOutputTab("data")} type="button">Data Explorer</button>
+            </div>
           </div>
+          {outputTab === "output" ? (
+            <>
+              <div className="space-y-2 text-xs">
+                {result?.logs?.length ? (
+                  <pre className="rounded-xl bg-background/80 p-2">
+                    {result.logs.join("\n")}
+                  </pre>
+                ) : null}
+                {result?.output ? (
+                  <pre className="rounded-xl bg-emerald-500/10 p-2">
+                    {result.output}
+                  </pre>
+                ) : null}
+                {result?.error ? (
+                  <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
+                    {result.error}
+                  </pre>
+                ) : null}
+                {typeof result?.exitCode === "undefined" ? null : (
+                  <p>Code retour: {String(result.exitCode)}</p>
+                )}
+                {result ? null : (
+                  <p className="text-muted-foreground">
+                    Aucun résultat pour le moment.
+                  </p>
+                )}
+              </div>
+              <div className="mt-4 grid gap-2">
+                {features.map((item) => (
+                  <div
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                    key={item.label}
+                  >
+                    <item.icon className="size-3.5" />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 text-xs">
+              <div className="grid gap-2 rounded-lg border border-border/50 bg-background/40 p-2 md:grid-cols-2">
+                <p>Lignes: <strong>{dataRows.length}</strong></p>
+                <p>Colonnes: <strong>{dataColumns.length}</strong></p>
+                <p>Types: {dataColumns.map((column) => `${column}:${dataTypes[column] ?? "?"}`).join(" • ") || "N/A"}</p>
+                <p>Valeurs manquantes: {dataColumns.map((column) => {
+                  const missing = dataRows.filter((row) => row[column] === null || row[column] === "").length;
+                  return <span className={missing > 0 ? "text-amber-600" : "text-emerald-600"} key={column}>{column}={missing} </span>;
+                })}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input className="h-8 flex-1 rounded border border-border/50 px-2 text-xs" onChange={(event) => {
+                  setGlobalDataSearch(event.target.value);
+                  setDataPage(1);
+                }} placeholder="Recherche globale..." value={globalDataSearch} />
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setQuickPreviewMode((current) => !current)} type="button">
+                  {quickPreviewMode ? "Aperçu rapide ON" : "Aperçu rapide OFF"}
+                </button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => {
+                  const profiles = dataColumns
+                    .map((column) => {
+                      const numeric = dataRows.map((row) => Number(row[column])).filter((value) => Number.isFinite(value));
+                      if (!numeric.length) return null;
+                      const stats = computeStats(numeric);
+                      return { column, count: numeric.length, ...stats };
+                    })
+                    .filter(Boolean) as Array<{ column: string; count: number; max: number; mean: number; median: number; min: number; q1: number; q3: number; stddev: number }>;
+                  setDataProfile(profiles);
+                }} type="button">Profiler les données</button>
+              </div>
+              <div className="overflow-auto rounded-lg border border-border/50">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      {dataColumns.map((column) => (
+                        <th className="whitespace-nowrap border-b px-2 py-1" key={column}>
+                          <div className="flex items-center gap-1">
+                            <button className="inline-flex items-center gap-1" onClick={() => setDataSort((current) => current?.column === column ? { column, direction: current.direction === "asc" ? "desc" : "asc" } : { column, direction: "asc" })} type="button">
+                              {column}
+                              {dataSort?.column === column ? dataSort.direction === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : <ArrowUpDown className="size-3" />}
+                            </button>
+                            <button onClick={() => setActiveFilterColumn((current) => current === column ? null : column)} type="button"><Funnel className="size-3" /></button>
+                          </div>
+                          {activeFilterColumn === column && (
+                            <div className="mt-1 space-y-1 rounded border bg-background p-1">
+                              <select className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "contains" }), mode: event.target.value as ColumnFilter["mode"] } }))} value={columnFilters[column]?.mode ?? "contains"}>
+                                <option value="contains">Texte contient</option>
+                                <option value="exact">Valeur exacte</option>
+                                <option value="range">Plage numérique</option>
+                              </select>
+                              {columnFilters[column]?.mode === "range" ? (
+                                <div className="flex gap-1">
+                                  <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "range" }), min: Number(event.target.value) } }))} placeholder="min" type="number" />
+                                  <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "range" }), max: Number(event.target.value) } }))} placeholder="max" type="number" />
+                                </div>
+                              ) : (
+                                <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "contains" }), value: event.target.value } }))} placeholder="Filtrer..." />
+                              )}
+                            </div>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, index) => (
+                      <tr className="border-b" key={`row-${index}`}>
+                        {dataColumns.map((column) => (
+                          <td className="px-2 py-1" key={`${index}-${column}`}>{String(row[column] ?? "")}</td>
+                        ))}
+                      </tr>
+                    ))}
+                    {quickPreviewMode && sortedDataRows.length > 20 && (
+                      <tr><td className="px-2 py-1 text-center text-muted-foreground" colSpan={Math.max(1, dataColumns.length)}>... {Math.max(0, sortedDataRows.length - 20)} lignes masquées ...</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px]">Lignes/page
+                  <select className="ml-1 rounded border px-1" onChange={(event) => {
+                    setDataPageSize(Number(event.target.value) as 25 | 50 | 100);
+                    setDataPage(1);
+                  }} value={dataPageSize}>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </label>
+                <button className="rounded border px-2 py-1 text-[11px]" disabled={dataPage <= 1} onClick={() => setDataPage((current) => Math.max(1, current - 1))} type="button">Préc.</button>
+                <span className="text-[11px]">Page {dataPage}/{totalPages}</span>
+                <button className="rounded border px-2 py-1 text-[11px]" disabled={dataPage >= totalPages} onClick={() => setDataPage((current) => Math.min(totalPages, current + 1))} type="button">Suiv.</button>
+              </div>
+              {dataProfile.length > 0 && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {dataProfile.map((item) => (
+                    <div className="rounded border border-border/50 p-2" key={item.column}>
+                      <p className="font-semibold">{item.column}</p>
+                      <p>Moyenne: {item.mean.toFixed(2)} | Médiane: {item.median.toFixed(2)} | Écart-type: {item.stddev.toFixed(2)}</p>
+                      <p>Min: {item.min.toFixed(2)} | Q1: {item.q1.toFixed(2)} | Q3: {item.q3.toFixed(2)} | Max: {item.max.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 space-y-2">
             <p className="flex items-center gap-1 text-xs font-semibold">
@@ -808,7 +2635,7 @@ export default function InterpreterPage() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `generated-${runtime}.${runtime === "python" ? "py" : "txt"}`;
+                  a.download = `generated-${runtime}.${runtimeExtensions[runtime]}`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -836,6 +2663,192 @@ export default function InterpreterPage() {
           </div>
         </section>
       </div>
+      {showChartBuilder && (
+        <div className="fixed inset-0 z-40 bg-black/40 p-4">
+          <div className="mx-auto grid h-[90vh] max-w-[1400px] grid-cols-[300px_1fr_260px] gap-3 rounded-2xl border border-border/60 bg-background p-3 shadow-2xl">
+            <aside className="space-y-3 overflow-auto rounded-xl border border-border/50 p-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Créer un graphique</h3>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowChartBuilder(false)} type="button">Fermer</button>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-semibold">Type de graphique</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {chartTypeCards.map((item) => (
+                    <button className={`rounded border p-1 text-left text-[11px] ${chartConfig.type === item.type ? "border-primary bg-primary/10" : ""}`} key={item.type} onClick={() => setChartConfig((current) => ({ ...current, type: item.type }))} type="button">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                {([
+                  ["xAxis", "Axe X"],
+                  ["yAxis", "Axe Y"],
+                  ["colorColumn", "Couleur"],
+                  ["sizeColumn", "Taille"],
+                ] as const).map(([key, label]) => (
+                  <div className="rounded border border-dashed p-2" key={key} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+                    if (!draggingColumn) return;
+                    setChartConfig((current) => ({ ...current, [key]: draggingColumn }));
+                  }}>
+                    <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
+                    <p className="text-xs font-medium">{chartConfig[key] || "Déposer une colonne"}</p>
+                  </div>
+                ))}
+              </div>
+              <label className="text-xs">Titre<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, title: event.target.value }))} value={chartConfig.title} /></label>
+              <label className="text-xs">Label X<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, xLabel: event.target.value }))} value={chartConfig.xLabel} /></label>
+              <label className="text-xs">Label Y<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, yLabel: event.target.value }))} value={chartConfig.yLabel} /></label>
+              <label className="text-xs">Palette
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, palette: event.target.value }))} value={chartConfig.palette}>
+                  {Object.keys(chartPalettes).map((paletteName) => <option key={paletteName} value={paletteName}>{paletteName}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={chartConfig.showLegend} onChange={(event) => setChartConfig((current) => ({ ...current, showLegend: event.target.checked }))} type="checkbox" /> Légende</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={chartConfig.showGrid} onChange={(event) => setChartConfig((current) => ({ ...current, showGrid: event.target.checked }))} type="checkbox" /> Grille</label>
+              <div className="grid grid-cols-2 gap-1">
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("png")} type="button">Exporter PNG</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("svg")} type="button">Exporter SVG</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("python")} type="button">Code Python</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("javascript")} type="button">Code Chart.js</button>
+              </div>
+            </aside>
+            <section className="overflow-auto rounded-xl border border-border/50 bg-background p-3">
+              <h4 className="mb-2 text-sm font-semibold">{chartConfig.title}</h4>
+              <svg id="interpreter-chart-svg" viewBox={`0 0 ${chartSvgMarkup.width} ${chartSvgMarkup.height}`} xmlns="http://www.w3.org/2000/svg">
+                <rect fill="#fff" height={chartSvgMarkup.height} width={chartSvgMarkup.width} x={0} y={0} />
+                {chartConfig.showGrid && Array.from({ length: 5 }).map((_, index) => (
+                  <line key={`grid-${index}`} stroke="#e5e7eb" strokeWidth={1} x1={40} x2={chartSvgMarkup.width - 40} y1={40 + index * ((chartSvgMarkup.height - 80) / 4)} y2={40 + index * ((chartSvgMarkup.height - 80) / 4)} />
+                ))}
+                {(chartConfig.type === "bar" || chartConfig.type === "bar-horizontal") && chartSvgMarkup.bars.map((bar, index) => (
+                  <rect fill={palette[index % palette.length]} height={chartConfig.type === "bar" ? bar.h : 14} key={`bar-${index}`} width={chartConfig.type === "bar" ? bar.w : Math.max(10, (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * (chartSvgMarkup.width - 120))} x={chartConfig.type === "bar" ? bar.x : 80} y={chartConfig.type === "bar" ? bar.y : 50 + index * 18} />
+                ))}
+                {chartConfig.type === "line" && <path d={chartSvgMarkup.linePath} fill="none" stroke={palette[0]} strokeWidth={3} />}
+                {chartConfig.type === "area" && <path d={chartSvgMarkup.areaPath} fill={palette[0]} opacity={0.35} stroke={palette[0]} strokeWidth={2} />}
+                {(chartConfig.type === "scatter" || chartConfig.type === "radar") && chartSvgMarkup.points.map((point, index) => (
+                  <circle cx={chartConfig.type === "radar" ? chartSvgMarkup.width / 2 + Math.cos((index / Math.max(1, chartSvgMarkup.points.length)) * Math.PI * 2) * (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * 120 : point.x} cy={chartConfig.type === "radar" ? chartSvgMarkup.height / 2 + Math.sin((index / Math.max(1, chartSvgMarkup.points.length)) * Math.PI * 2) * (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * 120 : point.y} fill={palette[index % palette.length]} key={`point-${index}`} r={chartConfig.type === "scatter" ? 4 + (chartConfig.sizeColumn ? Number(chartRows[index]?.[chartConfig.sizeColumn] ?? 0) / 20 : 0) : 4} />
+                ))}
+                {(chartConfig.type === "pie" || chartConfig.type === "donut") && chartSvgMarkup.pieSlices.map((slice, index) => (
+                  <path d={chartSvgMarkup.pieArc(slice.start, slice.end)} fill={slice.color} key={`slice-${index}`} stroke="#fff" strokeWidth={1} />
+                ))}
+                {chartConfig.type === "donut" && <circle cx={chartSvgMarkup.width / 2} cy={chartSvgMarkup.height / 2} fill="#fff" r={55} />}
+                {chartConfig.type === "heatmap" && chartRows.slice(0, 36).map((row, index) => {
+                  const value = Number(row[chartConfig.yAxis] ?? 0);
+                  const ratio = Math.max(0, Math.min(1, value / chartSvgMarkup.maxY));
+                  const x = 70 + (index % 6) * 95;
+                  const y = 60 + Math.floor(index / 6) * 45;
+                  return <rect fill={`rgba(59,130,246,${ratio})`} height={35} key={`heat-${index}`} width={85} x={x} y={y} />;
+                })}
+                {chartConfig.type === "treemap" && chartRows.slice(0, 8).map((row, index) => {
+                  const value = Number(row[chartConfig.yAxis] ?? 0);
+                  const width = Math.max(60, (value / chartSvgMarkup.maxY) * 240);
+                  return <rect fill={palette[index % palette.length]} height={35} key={`tree-${index}`} width={width} x={50 + (index % 2) * 320} y={60 + Math.floor(index / 2) * 40} />;
+                })}
+                <text fill="#374151" fontSize={16} x={20} y={20}>{chartConfig.title}</text>
+              </svg>
+            </section>
+            <aside className="overflow-auto rounded-xl border border-border/50 p-3">
+              <p className="mb-2 text-xs font-semibold">Colonnes disponibles</p>
+              <div className="space-y-1">
+                {dataColumns.map((column) => (
+                  <button
+                    className="block w-full cursor-grab rounded border px-2 py-1 text-left text-xs hover:bg-muted/40"
+                    draggable
+                    key={column}
+                    onDragStart={() => setDraggingColumn(column)}
+                    type="button"
+                  >
+                    {column}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+      {assistantPanelOpen && (
+        <aside className="fixed right-4 top-20 z-30 h-[78vh] w-[420px] overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur">
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold">Assistant IA Code</p>
+              <p className="text-[11px] text-muted-foreground">Modèle actif: {selectedModelId}</p>
+            </div>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setAssistantPanelOpen(false)} type="button">Fermer</button>
+          </div>
+          <div className="flex gap-1 border-b border-border/40 p-2">
+            {([
+              ["explain", "Expliquer"],
+              ["fix", "Corriger"],
+              ["optimize", "Optimiser"],
+            ] as const).map(([mode, label]) => (
+              <button
+                className={`flex-1 rounded-md px-2 py-1 text-xs ${assistantMode === mode ? "bg-primary text-primary-foreground" : "border border-border/40"}`}
+                key={mode}
+                onClick={() => setAssistantMode(mode)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="h-[calc(78vh-104px)] space-y-3 overflow-auto p-3 text-xs">
+            {assistantMode === "explain" && (
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Sélectionnez un bloc puis cliquez sur « Expliquer ce code » dans l’éditeur.</p>
+                {selectedCode ? <pre className="max-h-40 overflow-auto rounded border border-border/40 bg-muted/20 p-2">{selectedCode}</pre> : null}
+                <button className="rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50" disabled={!selectedCode.trim() || isAssistantLoading} onClick={explainSelection} type="button">
+                  {isAssistantLoading ? "Analyse..." : "Expliquer ce code"}
+                </button>
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-border/40 bg-background p-2">{assistantPanelContent}</pre> : null}
+              </div>
+            )}
+            {assistantMode === "fix" && (
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Ce mode se déclenche automatiquement après une erreur d’exécution.</p>
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-red-500/30 bg-red-500/5 p-2">{assistantPanelContent}</pre> : <p>Aucun diagnostic pour l’instant.</p>}
+                {assistantDiffPreview ? (
+                  <pre className="max-h-52 overflow-auto rounded border border-border/40 bg-background p-2">
+                    {assistantDiffPreview.split("\n").map((line, index) => (
+                      <div className={line.startsWith("+") ? "text-emerald-600" : line.startsWith("-") ? "text-red-600" : ""} key={`${line}-${index}`}>{line}</div>
+                    ))}
+                  </pre>
+                ) : null}
+                <button
+                  className="rounded-md bg-emerald-600 px-2 py-1 text-white disabled:opacity-50"
+                  disabled={!assistantProposedCode}
+                  onClick={() => {
+                    if (!assistantProposedCode) return;
+                    setCode(assistantProposedCode);
+                    setAssistantDiffPreview("");
+                  }}
+                  type="button"
+                >
+                  Appliquer la correction
+                </button>
+              </div>
+            )}
+            {assistantMode === "optimize" && (
+              <div className="space-y-2">
+                <button className="rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50" disabled={isAssistantLoading} onClick={analyzeOptimizations} type="button">
+                  {isAssistantLoading ? "Analyse..." : "Analyser et optimiser"}
+                </button>
+                {assistantOptimizations.length > 0 ? (
+                  <div className="space-y-1">
+                    {assistantOptimizations.map((suggestion, index) => (
+                      <button className="block w-full rounded border border-border/40 p-2 text-left hover:bg-muted/30" key={`${suggestion}-${index}`} type="button">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-border/40 bg-background p-2">{assistantPanelContent}</pre> : null}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
