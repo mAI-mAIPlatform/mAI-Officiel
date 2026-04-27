@@ -9,14 +9,17 @@ import {
   ChevronRight,
   EllipsisVertical,
   FileCode2,
+  FunctionSquare,
   FileSpreadsheet,
   History,
   Info,
+  KeyRound,
   Plus,
   Play,
   SquareTerminal,
   Table,
   Upload,
+  Variable,
   X,
   FolderTree,
   FolderPlus,
@@ -24,7 +27,7 @@ import {
   FileUp,
   Palette,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import {
   DropdownMenu,
@@ -85,6 +88,10 @@ type VirtualFolder = { id: string; path: string };
 type ProjectMeta = { logo: string; memory: string; info: string };
 type EditorTab = { id: string; name: string; runtime: Runtime; content: string };
 type FoldRange = { end: number; start: number };
+type SuggestionKind = "class" | "function" | "keyword" | "module" | "variable";
+type AutoSuggestion = { detail: string; insertText: string; kind: SuggestionKind; label: string; score: number };
+type SnippetPlaceholder = { end: number; start: number };
+type SnippetSession = { index: number; placeholders: SnippetPlaceholder[] } | null;
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -195,6 +202,61 @@ const runtimeIcons: Record<Runtime, typeof Braces> = {
 
 const toUtf8Bytes = (text: string) => new TextEncoder().encode(text).length;
 
+const suggestionIconByKind: Record<SuggestionKind, typeof Variable> = {
+  class: Braces,
+  function: FunctionSquare,
+  keyword: KeyRound,
+  module: FileCode2,
+  variable: Variable,
+};
+
+const pythonKeywords = ["def", "class", "for", "while", "if", "elif", "else", "try", "except", "return", "import", "from"];
+const pythonModuleMembers: Record<string, Array<{ detail: string; label: string }>> = {
+  csv: [{ label: "DictReader", detail: "class" }, { label: "reader", detail: "fn(iterable) -> iterator" }],
+  json: [{ label: "dump", detail: "fn(obj, fp) -> None" }, { label: "dumps", detail: "fn(obj) -> str" }, { label: "loads", detail: "fn(str) -> object" }],
+  math: [{ label: "sqrt", detail: "fn(x) -> float" }, { label: "pow", detail: "fn(x, y) -> float" }, { label: "pi", detail: "const float" }],
+  matplotlib: [{ label: "pyplot", detail: "module" }],
+  os: [{ label: "getcwd", detail: "fn() -> str" }, { label: "listdir", detail: "fn(path) -> list[str]" }, { label: "path", detail: "module" }],
+  pandas: [{ label: "DataFrame", detail: "class" }, { label: "read_csv", detail: "fn(path) -> DataFrame" }],
+  statistics: [{ label: "mean", detail: "fn(data) -> float" }, { label: "median", detail: "fn(data) -> float" }, { label: "stdev", detail: "fn(data) -> float" }],
+};
+const jsTsKeywords = ["function", "const", "let", "class", "if", "else", "for", "while", "return", "async", "await", "import", "export"];
+const jsTsMembers: Record<string, Array<{ detail: string; label: string }>> = {
+  Array: [{ label: "map", detail: "fn(callback) -> Array" }, { label: "filter", detail: "fn(callback) -> Array" }, { label: "reduce", detail: "fn(callback, init) -> any" }],
+  Date: [{ label: "now", detail: "fn() -> number" }, { label: "toISOString", detail: "fn() -> string" }],
+  Math: [{ label: "floor", detail: "fn(x) -> number" }, { label: "random", detail: "fn() -> number" }, { label: "max", detail: "fn(...n) -> number" }],
+  Object: [{ label: "keys", detail: "fn(obj) -> string[]" }, { label: "entries", detail: "fn(obj) -> [k,v][]" }],
+  Promise: [{ label: "then", detail: "fn(onFulfilled) -> Promise" }, { label: "catch", detail: "fn(onRejected) -> Promise" }],
+  String: [{ label: "toUpperCase", detail: "fn() -> string" }, { label: "trim", detail: "fn() -> string" }, { label: "split", detail: "fn(sep) -> string[]" }],
+};
+
+const snippetTemplates: Partial<Record<Runtime, Record<string, string>>> = {
+  python: { for: "for ${1:item} in ${2:items}:\n    ${3:pass}" },
+  javascript: { for: "for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i} += 1) {\n  ${3:// code}\n}" },
+  typescript: { for: "for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i} += 1) {\n  ${3:// code}\n}" },
+};
+
+const parseSnippetTemplate = (template: string) => {
+  const regex = /\$\{(\d+):([^}]+)\}/g;
+  let output = "";
+  let lastIndex = 0;
+  const placeholders: Array<{ index: number; start: number; end: number }> = [];
+  for (const match of template.matchAll(regex)) {
+    const full = match[0];
+    const idx = Number(match[1]);
+    const text = match[2] ?? "";
+    const start = match.index ?? 0;
+    output += template.slice(lastIndex, start);
+    const rangeStart = output.length;
+    output += text;
+    placeholders.push({ index: idx, start: rangeStart, end: rangeStart + text.length });
+    lastIndex = start + full.length;
+  }
+  output += template.slice(lastIndex);
+  placeholders.sort((a, b) => a.index - b.index);
+  return { placeholders: placeholders.map((item) => ({ start: item.start, end: item.end })), text: output };
+};
+
 const computeFoldRanges = (content: string): FoldRange[] => {
   const lines = content.split("\n");
   const ranges: FoldRange[] = [];
@@ -234,6 +296,28 @@ const computeFoldRanges = (content: string): FoldRange[] => {
   return ranges;
 };
 
+const extractDeclaredSymbols = (source: string, runtime: Runtime) => {
+  const variables = new Set<string>();
+  const functions = new Set<string>();
+  if (runtime === "python") {
+    for (const line of source.split("\n")) {
+      const funcMatch = line.match(/^\s*def\s+([a-zA-Z_]\w*)/);
+      if (funcMatch?.[1]) functions.add(funcMatch[1]);
+      const variableMatch = line.match(/^\s*([a-zA-Z_]\w*)\s*=/);
+      if (variableMatch?.[1]) variables.add(variableMatch[1]);
+    }
+  }
+  if (runtime === "javascript" || runtime === "typescript") {
+    for (const line of source.split("\n")) {
+      const funcMatch = line.match(/^\s*(?:function\s+)?([a-zA-Z_$]\w*)\s*=\s*\(/) ?? line.match(/^\s*function\s+([a-zA-Z_$]\w*)/);
+      if (funcMatch?.[1]) functions.add(funcMatch[1]);
+      const variableMatch = line.match(/^\s*(?:const|let|var)\s+([a-zA-Z_$]\w*)/);
+      if (variableMatch?.[1]) variables.add(variableMatch[1]);
+    }
+  }
+  return { functions: Array.from(functions), variables: Array.from(variables) };
+};
+
 async function toRuntimeFile(file: File): Promise<RuntimeFile> {
   const buffer = await file.arrayBuffer();
   const contentBase64 = btoa(
@@ -255,6 +339,12 @@ export default function InterpreterPage() {
   const [cursorPosition, setCursorPosition] = useState({ column: 1, line: 1 });
   const [activeLineNumber, setActiveLineNumber] = useState(1);
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  const [autocompleteItems, setAutocompleteItems] = useState<AutoSuggestion[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const [autocompleteAnchor, setAutocompleteAnchor] = useState({ left: 20, top: 40 });
+  const [autocompleteTarget, setAutocompleteTarget] = useState({ end: 0, start: 0 });
+  const [snippetSession, setSnippetSession] = useState<SnippetSession>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -291,6 +381,7 @@ export default function InterpreterPage() {
   const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
   const runtime = activeTab?.runtime ?? "python";
   const code = activeTab?.content ?? "";
+  const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const setCode = (nextCode: string) => {
     setEditorTabs((current) =>
@@ -558,6 +649,151 @@ export default function InterpreterPage() {
     setActiveTabId(newTab.id);
   };
 
+  const buildAutocomplete = (
+    forceOpen = false,
+    sourceText?: string,
+    caretPosition?: number
+  ) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+    const currentCode = sourceText ?? code;
+    const caret = caretPosition ?? textarea.selectionStart;
+    const before = currentCode.slice(0, caret);
+    const dotMatch = before.match(/([a-zA-Z_$][\w$]*)\.([\w$]*)$/);
+    const tokenMatch = before.match(/([a-zA-Z_$][\w$]*)$/);
+    const rawToken = tokenMatch?.[1] ?? "";
+    const minCharsReached = rawToken.length >= 2;
+    if (!forceOpen && !dotMatch && !minCharsReached) {
+      setAutocompleteOpen(false);
+      return;
+    }
+    const symbols = extractDeclaredSymbols(currentCode, runtime);
+    const suggestions: AutoSuggestion[] = [];
+    if (runtime === "python") {
+      for (const moduleName of Object.keys(pythonModuleMembers)) {
+        suggestions.push({ detail: "module", insertText: moduleName, kind: "module", label: moduleName, score: 1 });
+      }
+      for (const fnName of symbols.functions) {
+        suggestions.push({ detail: "fn(...) -> Any", insertText: fnName, kind: "function", label: fnName, score: 2 });
+      }
+      for (const variableName of symbols.variables) {
+        suggestions.push({ detail: "variable", insertText: variableName, kind: "variable", label: variableName, score: 2 });
+      }
+      for (const keyword of pythonKeywords) {
+        suggestions.push({ detail: "keyword", insertText: keyword, kind: "keyword", label: keyword, score: 0 });
+      }
+      const imports = Array.from(before.matchAll(/^\s*import\s+([a-zA-Z_]\w*)/gm)).map((item) => item[1]).filter(Boolean) as string[];
+      for (const imported of imports) {
+        for (const item of pythonModuleMembers[imported] ?? []) {
+          suggestions.push({ detail: item.detail, insertText: item.label, kind: "function", label: item.label, score: 3 });
+        }
+      }
+    }
+    if (runtime === "javascript" || runtime === "typescript") {
+      for (const [objectName, members] of Object.entries(jsTsMembers)) {
+        suggestions.push({ detail: "class", insertText: objectName, kind: "class", label: objectName, score: 1 });
+        for (const member of members) {
+          suggestions.push({ detail: member.detail, insertText: member.label, kind: "function", label: member.label, score: 2 });
+        }
+      }
+      for (const fnName of symbols.functions) {
+        suggestions.push({ detail: "fn(...): any", insertText: fnName, kind: "function", label: fnName, score: 3 });
+      }
+      for (const variableName of symbols.variables) {
+        suggestions.push({ detail: "variable", insertText: variableName, kind: "variable", label: variableName, score: 3 });
+      }
+      for (const keyword of jsTsKeywords) {
+        suggestions.push({ detail: "keyword", insertText: keyword, kind: "keyword", label: keyword, score: 0 });
+      }
+    }
+    const query = dotMatch ? (dotMatch[2] ?? "") : rawToken;
+    const dotTarget = dotMatch?.[1] ?? "";
+    const filtered = suggestions
+      .filter((item) => {
+        if (dotMatch) {
+          const byObject = jsTsMembers[dotTarget]?.some((entry) => entry.label === item.label)
+            || pythonModuleMembers[dotTarget]?.some((entry) => entry.label === item.label);
+          if (!byObject) return false;
+        }
+        return forceOpen || !query ? true : item.label.toLowerCase().includes(query.toLowerCase());
+      })
+      .sort((a, b) => {
+        const aStarts = query && a.label.toLowerCase().startsWith(query.toLowerCase()) ? 3 : 0;
+        const bStarts = query && b.label.toLowerCase().startsWith(query.toLowerCase()) ? 3 : 0;
+        return b.score + bStarts - (a.score + aStarts);
+      })
+      .slice(0, 8);
+    if (!filtered.length) {
+      setAutocompleteOpen(false);
+      return;
+    }
+    const lastLine = before.split("\n").at(-1) ?? "";
+    setAutocompleteAnchor({ left: 8 + lastLine.length * 7, top: 10 + (before.split("\n").length - 1) * 20 });
+    setAutocompleteItems(filtered);
+    setSelectedSuggestionIndex(0);
+    setAutocompleteTarget({
+      start: dotMatch ? caret - (dotMatch[2]?.length ?? 0) : caret - rawToken.length,
+      end: caret,
+    });
+    setAutocompleteOpen(true);
+  };
+
+  const applySuggestion = (suggestion: AutoSuggestion) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+    const nextCode = `${code.slice(0, autocompleteTarget.start)}${suggestion.insertText}${code.slice(autocompleteTarget.end)}`;
+    const nextCaret = autocompleteTarget.start + suggestion.insertText.length;
+    setCode(nextCode);
+    setAutocompleteOpen(false);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = nextCaret;
+      textarea.selectionEnd = nextCaret;
+    }, 0);
+  };
+
+  const tryExpandSnippet = () => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return false;
+    const templates = snippetTemplates[runtime];
+    if (!templates) return false;
+    const caret = textarea.selectionStart;
+    const before = code.slice(0, caret);
+    const trigger = before.match(/([a-zA-Z_]\w*)$/)?.[1];
+    if (!trigger || !templates[trigger]) return false;
+    const parsed = parseSnippetTemplate(templates[trigger]);
+    const start = caret - trigger.length;
+    const nextCode = `${code.slice(0, start)}${parsed.text}${code.slice(caret)}`;
+    const adjusted = parsed.placeholders.map((item) => ({ start: start + item.start, end: start + item.end }));
+    setCode(nextCode);
+    if (!adjusted.length) return true;
+    setSnippetSession({ index: 0, placeholders: adjusted });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = adjusted[0]?.start ?? start;
+      textarea.selectionEnd = adjusted[0]?.end ?? start;
+    }, 0);
+    return true;
+  };
+
+  const moveSnippetPlaceholder = () => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea || !snippetSession) return false;
+    const nextIndex = snippetSession.index + 1;
+    if (nextIndex >= snippetSession.placeholders.length) {
+      setSnippetSession(null);
+      return false;
+    }
+    const next = snippetSession.placeholders[nextIndex];
+    setSnippetSession({ ...snippetSession, index: nextIndex });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = next.start;
+      textarea.selectionEnd = next.end;
+    }, 0);
+    return true;
+  };
+
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -716,7 +952,13 @@ export default function InterpreterPage() {
                 </div>
                 <textarea
                   className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 font-mono text-xs outline-none"
-                  onChange={(event) => setCode(event.target.value)}
+                  ref={editorTextareaRef}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    if (!event.target.value) {
+                      setAutocompleteOpen(false);
+                    }
+                  }}
                   onClick={(event) => {
                     const target = event.target as HTMLTextAreaElement;
                     const before = target.value.slice(0, target.selectionStart);
@@ -724,6 +966,43 @@ export default function InterpreterPage() {
                     const column = before.split("\n").at(-1)?.length ?? 0;
                     setActiveLineNumber(line);
                     setCursorPosition({ line, column: column + 1 });
+                    buildAutocomplete(false, target.value, target.selectionStart);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.ctrlKey && event.code === "Space") {
+                      event.preventDefault();
+                      buildAutocomplete(true);
+                      return;
+                    }
+                    if (autocompleteOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                      event.preventDefault();
+                      setSelectedSuggestionIndex((current) => {
+                        if (event.key === "ArrowDown") {
+                          return (current + 1) % autocompleteItems.length;
+                        }
+                        return (current - 1 + autocompleteItems.length) % autocompleteItems.length;
+                      });
+                      return;
+                    }
+                    if (event.key === "Escape") {
+                      setAutocompleteOpen(false);
+                      return;
+                    }
+                    if (event.key === "Enter" || event.key === "Tab") {
+                      if (autocompleteOpen) {
+                        event.preventDefault();
+                        const selected = autocompleteItems[selectedSuggestionIndex];
+                        if (selected) applySuggestion(selected);
+                        return;
+                      }
+                      if (event.key === "Tab" && moveSnippetPlaceholder()) {
+                        event.preventDefault();
+                        return;
+                      }
+                      if (event.key === "Tab" && tryExpandSnippet()) {
+                        event.preventDefault();
+                      }
+                    }
                   }}
                   onKeyUp={(event) => {
                     const target = event.currentTarget;
@@ -732,9 +1011,36 @@ export default function InterpreterPage() {
                     const column = before.split("\n").at(-1)?.length ?? 0;
                     setActiveLineNumber(line);
                     setCursorPosition({ line, column: column + 1 });
+                    if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key)) {
+                      buildAutocomplete(false, target.value, target.selectionStart);
+                    }
                   }}
                   value={code}
                 />
+                {autocompleteOpen && (
+                  <div
+                    className="absolute z-20 max-h-64 w-96 overflow-auto rounded-md border border-border/60 bg-background/95 p-1 text-xs shadow-xl"
+                    style={{ left: Math.min(autocompleteAnchor.left, 440), top: Math.min(autocompleteAnchor.top + 26, 300) }}
+                  >
+                    {autocompleteItems.map((item, index) => {
+                      const Icon = suggestionIconByKind[item.kind];
+                      return (
+                        <button
+                          className={`flex w-full items-center justify-between rounded px-2 py-1 text-left ${selectedSuggestionIndex === index ? "bg-primary/15 text-primary" : "hover:bg-muted/50"}`}
+                          key={`${item.kind}-${item.label}-${index}`}
+                          onClick={() => applySuggestion(item)}
+                          type="button"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Icon className="size-3.5" />
+                            <span>{item.label}</span>
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{item.detail}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               {showMiniMap && (
                 <div className="border-l border-border/40 bg-muted/20 p-2">
