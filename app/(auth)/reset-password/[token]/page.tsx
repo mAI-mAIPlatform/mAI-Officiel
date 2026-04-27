@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 
 export default function ResetPasswordPage() {
   const params = useParams<{ token: string }>();
+  const token = params?.token ?? "";
   const router = useRouter();
   const [state, action] = useActionState(resetPasswordWithToken, { status: "failed" as const });
 
@@ -25,7 +26,7 @@ export default function ResetPasswordPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Nouveau mot de passe</h1>
       <form action={action} className="space-y-3">
-        <input name="token" type="hidden" value={String(params.token ?? "")} />
+        <input name="token" type="hidden" value={token} />
         <input className="w-full rounded-xl border border-slate-200 px-3 py-2" minLength={8} name="password" placeholder="Nouveau mot de passe" required type="password" />
         <button className="w-full rounded-xl bg-violet-600 px-4 py-2 font-semibold text-white" type="submit">Réinitialiser</button>
       </form>
