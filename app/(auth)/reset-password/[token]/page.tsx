@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { Suspense, useActionState, useEffect } from "react";
 import { resetPasswordWithToken } from "../../actions";
 import { toast } from "@/components/chat/toast";
 import { useParams, useRouter } from "next/navigation";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
   const router = useRouter();
@@ -31,5 +31,13 @@ export default function ResetPasswordPage() {
         <button className="w-full rounded-xl bg-violet-600 px-4 py-2 font-semibold text-white" type="submit">Réinitialiser</button>
       </form>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="space-y-4"><h1 className="text-2xl font-semibold tracking-tight">Nouveau mot de passe</h1></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
