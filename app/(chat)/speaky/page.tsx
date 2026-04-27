@@ -143,6 +143,25 @@ type CollaborativeProject = {
   assembledAudioUrl?: string;
 };
 
+type GenerationMethod = "cloud" | "web-speech";
+
+type HistoryEntry = {
+  id: string;
+  title: string;
+  createdAt: string;
+  pinned?: boolean;
+  text: string;
+  language: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  method: GenerationMethod;
+  durationSec: number;
+  url: string;
+};
+
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
   { code: "en", label: "English" },
@@ -817,6 +836,19 @@ export default function SpeakyPage() {
   >({});
   const [transitionMode, setTransitionMode] = useState<"none" | "smooth">("none");
   const [transitionMs, setTransitionMs] = useState(300);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyLanguageFilter, setHistoryLanguageFilter] = useState("all");
+  const [historyVoiceFilter, setHistoryVoiceFilter] = useState("all");
+  const [historyMethodFilter, setHistoryMethodFilter] = useState<
+    GenerationMethod | "all"
+  >("all");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
+  const [historyViewMode, setHistoryViewMode] = useState<"list" | "grid">("list");
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
+  const [historyProgress, setHistoryProgress] = useState<
+    Record<string, { currentTime: number; duration: number; volume: number }>
+  >({});
   const [lastImportPreview, setLastImportPreview] = useState("");
   const [lastImportMeta, setLastImportMeta] = useState<{
     fileName: string;
@@ -831,15 +863,10 @@ export default function SpeakyPage() {
     pauseSeconds: 0,
     volume: 1,
   });
-  const [history, setHistory] = useLocalStorage<
-    Array<{
-      createdAt: string;
-      pinned?: boolean;
-      text: string;
-      voice: string;
-      url: string;
-    }>
-  >("mai.speaky.history.v1", []);
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(
+    "mai.speaky.history.v1",
+    []
+  );
   const [personalPresets, setPersonalPresets] = useLocalStorage<AudioPreset[]>(
     "mai.speaky.presets.v1",
     []
@@ -857,6 +884,8 @@ export default function SpeakyPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const editorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const historyAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const historyImportInputRef = useRef<HTMLInputElement | null>(null);
   const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
   const pauseResolverRef = useRef<(() => void) | null>(null);
@@ -963,6 +992,53 @@ export default function SpeakyPage() {
       percent: Math.round((completed / activeProject.sections.length) * 100),
     };
   }, [activeProject]);
+  const historyLanguages = useMemo(
+    () => Array.from(new Set(history.map((entry) => entry.language))),
+    [history]
+  );
+  const historyVoices = useMemo(
+    () => Array.from(new Set(history.map((entry) => entry.voice))),
+    [history]
+  );
+  const filteredHistory = useMemo(() => {
+    return history
+      .filter((entry) =>
+        historyLanguageFilter === "all" ? true : entry.language === historyLanguageFilter
+      )
+      .filter((entry) =>
+        historyVoiceFilter === "all" ? true : entry.voice === historyVoiceFilter
+      )
+      .filter((entry) =>
+        historyMethodFilter === "all" ? true : entry.method === historyMethodFilter
+      )
+      .filter((entry) => {
+        const timestamp = new Date(entry.createdAt).getTime();
+        const from = historyDateFrom ? new Date(historyDateFrom).getTime() : 0;
+        const to = historyDateTo ? new Date(historyDateTo).getTime() : Infinity;
+        return timestamp >= from && timestamp <= to;
+      })
+      .filter((entry) => {
+        const needle = historySearch.trim().toLowerCase();
+        if (!needle) return true;
+        return (
+          entry.title.toLowerCase().includes(needle) ||
+          entry.text.toLowerCase().includes(needle)
+        );
+      })
+      .sort(
+        (left, right) =>
+          Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) ||
+          new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      );
+  }, [
+    history,
+    historyDateFrom,
+    historyDateTo,
+    historyLanguageFilter,
+    historyMethodFilter,
+    historySearch,
+    historyVoiceFilter,
+  ]);
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -1005,6 +1081,38 @@ export default function SpeakyPage() {
       toast.error("Lien de preset invalide.");
     }
   }, [setPersonalPresets]);
+
+  useEffect(() => {
+    const needsMigration = history.some((entry) => !("id" in entry) || !("title" in entry));
+    if (!needsMigration) return;
+    setHistory((current) =>
+      current.map((entry) => {
+        const legacy = entry as HistoryEntry & {
+          createdAt: string;
+          text: string;
+          voice: string;
+          url: string;
+          pinned?: boolean;
+        };
+        return {
+          id: legacy.id ?? crypto.randomUUID(),
+          title: legacy.title ?? `Génération ${new Date(legacy.createdAt).toLocaleString("fr-FR")}`,
+          createdAt: legacy.createdAt,
+          pinned: legacy.pinned,
+          text: legacy.text,
+          language: legacy.language ?? language,
+          voice: legacy.voice,
+          voiceStyle: legacy.voiceStyle ?? voiceStyle,
+          voiceGender: legacy.voiceGender ?? voiceGender,
+          rate: legacy.rate ?? rate,
+          tone: legacy.tone ?? tone,
+          method: legacy.method ?? "cloud",
+          durationSec: legacy.durationSec ?? Math.ceil(legacy.text.length / 12),
+          url: legacy.url,
+        };
+      })
+    );
+  }, [history, language, rate, setHistory, tone, voiceGender, voiceStyle]);
 
   useEffect(() => {
     return () => {
@@ -1454,8 +1562,92 @@ export default function SpeakyPage() {
     toast.success("Projet publié dans la galerie avec crédits collaborateurs.");
   };
 
-  const publishHistoryItem = (item: { text: string; voice: string; url: string; createdAt: string }) => {
-    const title = window.prompt("Titre public de cette création ?");
+  const replayHistoryItem = (item: HistoryEntry) => {
+    setText(item.text);
+    setLanguage(item.language);
+    setVoice(item.voice);
+    setVoiceStyle(item.voiceStyle);
+    setVoiceGender(item.voiceGender);
+    setRate(item.rate);
+    setTone(item.tone);
+    setAudioUrl(item.url);
+    toast.success(`Configuration rechargée: ${item.title}`);
+  };
+
+  const renameHistoryItem = (item: HistoryEntry) => {
+    const title = window.prompt("Nouveau titre :", item.title);
+    if (!title) return;
+    setHistory((current) =>
+      current.map((row) => (row.id === item.id ? { ...row, title } : row))
+    );
+  };
+
+  const duplicateHistoryItem = (item: HistoryEntry) => {
+    const copy: HistoryEntry = {
+      ...item,
+      id: crypto.randomUUID(),
+      title: `${item.title} (copie)`,
+      createdAt: new Date().toISOString(),
+    };
+    setHistory((current) => [copy, ...current].slice(0, 80));
+  };
+
+  const deleteHistoryItem = (item: HistoryEntry) => {
+    if (!window.confirm(`Supprimer \"${item.title}\" ?`)) return;
+    setHistory((current) => current.filter((row) => row.id !== item.id));
+  };
+
+  const downloadHistoryAs = async (item: HistoryEntry, format: OutputFormat) => {
+    const response = await fetch(item.url);
+    const arrayBuffer = await response.arrayBuffer();
+    let blob: Blob;
+    if (format === "wav") {
+      blob = new Blob(
+        [await decodeAndConcatToWav([new Uint8Array(arrayBuffer)])],
+        { type: "audio/wav" }
+      );
+    } else {
+      blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${item.title.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportHistoryJson = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `speaky-history-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importHistoryJson = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text()) as HistoryEntry[];
+      if (!Array.isArray(parsed)) {
+        throw new Error("Fichier invalide");
+      }
+      setHistory(parsed.slice(0, 200));
+      toast.success("Historique importé.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Import impossible");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const publishHistoryItem = (item: HistoryEntry) => {
+    const title = window.prompt("Titre public de cette création ?", item.title);
     if (!title) return;
     const description =
       window.prompt("Description courte (optionnelle) :") ?? "";
@@ -1589,17 +1781,26 @@ export default function SpeakyPage() {
       setAudioUrl(nextUrl);
       setEstimatedDuration(totalDuration);
       setProvider("streamelements + batch");
-      setHistory(
+      setHistory((current) =>
         [
           {
+            id: crypto.randomUUID(),
+            title: `${mode === "podcast" ? "Podcast" : "Batch"} ${new Date().toLocaleTimeString("fr-FR")}`,
             createdAt: new Date().toISOString(),
             pinned: false,
             text: plainTextForGeneration,
+            language,
             voice,
+            voiceStyle,
+            voiceGender,
+            rate,
+            tone,
+            method: "cloud" as GenerationMethod,
+            durationSec: totalDuration,
             url: nextUrl,
           },
-          ...history,
-        ].slice(0, 20)
+          ...current,
+        ].slice(0, 80)
       );
 
       toast.success(
@@ -2698,69 +2899,123 @@ export default function SpeakyPage() {
           )}
 
           <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-2">
-            <p className="mb-2 text-xs font-semibold text-foreground">Historique des générations</p>
-            <div className="max-h-28 space-y-1 overflow-auto">
-              {history
-                .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
-                .slice(0, 8)
-                .map((item) => (
-                  <div className="rounded-md border border-border/40 px-2 py-1 text-[11px]" key={`${item.createdAt}-${item.voice}`}>
-                    <button
-                      className="block w-full text-left"
-                      onClick={() => {
-                        setText(item.text);
-                        setVoice(item.voice);
-                        setAudioUrl(item.url);
-                      }}
-                      type="button"
-                    >
-                      {item.voice} · {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground">
+                Gestionnaire audio (Historique)
+              </p>
+              <div className="flex gap-1">
+                <button className="rounded border px-2 py-1 text-[11px]" onClick={exportHistoryJson} type="button">
+                  Export JSON
+                </button>
+                <button
+                  className="rounded border px-2 py-1 text-[11px]"
+                  onClick={() => historyImportInputRef.current?.click()}
+                  type="button"
+                >
+                  Import JSON
+                </button>
+                <input accept=".json" className="hidden" onChange={importHistoryJson} ref={historyImportInputRef} type="file" />
+              </div>
+            </div>
+            <div className="mb-2 grid gap-1 md:grid-cols-2">
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistorySearch(event.target.value)} placeholder="Recherche texte/titre..." value={historySearch} />
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryLanguageFilter(event.target.value)} value={historyLanguageFilter}>
+                <option value="all">Toutes langues</option>
+                {historyLanguages.map((lang) => <option key={lang} value={lang}>{lang.toUpperCase()}</option>)}
+              </select>
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryVoiceFilter(event.target.value)} value={historyVoiceFilter}>
+                <option value="all">Toutes voix</option>
+                {historyVoices.map((voiceName) => <option key={voiceName} value={voiceName}>{voiceName}</option>)}
+              </select>
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryMethodFilter(event.target.value as GenerationMethod | "all")} value={historyMethodFilter}>
+                <option value="all">Toutes méthodes</option>
+                <option value="cloud">Cloud</option>
+                <option value="web-speech">Web Speech</option>
+              </select>
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryDateFrom(event.target.value)} type="date" value={historyDateFrom} />
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryDateTo(event.target.value)} type="date" value={historyDateTo} />
+            </div>
+            <div className="mb-2 flex gap-1 text-[11px]">
+              <button className={`rounded border px-2 py-1 ${historyViewMode === "list" ? "bg-black text-white" : ""}`} onClick={() => setHistoryViewMode("list")} type="button">Vue liste</button>
+              <button className={`rounded border px-2 py-1 ${historyViewMode === "grid" ? "bg-black text-white" : ""}`} onClick={() => setHistoryViewMode("grid")} type="button">Vue grille</button>
+            </div>
+            <div className={`max-h-96 overflow-auto ${historyViewMode === "grid" ? "grid grid-cols-1 gap-2 md:grid-cols-2" : "space-y-2"}`}>
+              {filteredHistory.map((item) => {
+                const isExpanded = expandedHistoryIds.includes(item.id);
+                const textPreview = isExpanded ? item.text : `${item.text.slice(0, 160)}${item.text.length > 160 ? "…" : ""}`;
+                const audioProgress = historyProgress[item.id] ?? { currentTime: 0, duration: item.durationSec, volume: 1 };
+                return (
+                  <div className="rounded-md border border-border/40 px-2 py-2 text-[11px]" key={item.id}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-foreground">{item.title}</p>
+                      <button className="rounded border px-1" onClick={() => renameHistoryItem(item)} type="button">Renommer</button>
+                    </div>
+                    <p className="text-muted-foreground">{textPreview}</p>
+                    <button className="text-[10px] underline" onClick={() => setExpandedHistoryIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [item.id, ...current])} type="button">
+                      {isExpanded ? "Réduire" : "Voir plus"}
                     </button>
-                    <div className="mt-1 flex gap-1">
+                    <p className="mt-1 text-[10px]">
+                      {item.language.toUpperCase()} · {item.voice} · {item.voiceStyle} · {item.voiceGender} · {item.rate.toFixed(2)}x · ton {item.tone}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString("fr-FR")} · {item.durationSec}s · {item.method}
+                    </p>
+                    <audio
+                      className="mt-1 w-full"
+                      controls
+                      onTimeUpdate={(event) => {
+                        const node = event.currentTarget;
+                        setHistoryProgress((current) => ({
+                          ...current,
+                          [item.id]: {
+                            currentTime: node.currentTime,
+                            duration: node.duration || item.durationSec,
+                            volume: node.volume,
+                          },
+                        }));
+                      }}
+                      ref={(node) => {
+                        historyAudioRefs.current[item.id] = node;
+                      }}
+                      src={item.url}
+                    />
+                    <input
+                      className="w-full"
+                      max={audioProgress.duration || item.durationSec}
+                      min={0}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        const node = historyAudioRefs.current[item.id];
+                        if (node) node.currentTime = nextValue;
+                      }}
+                      step={0.01}
+                      type="range"
+                      value={audioProgress.currentTime}
+                    />
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <button className="rounded border px-1" onClick={() => replayHistoryItem(item)} type="button">Rejouer</button>
+                      <button className="rounded border px-1" onClick={() => downloadHistoryAs(item, "mp3")} type="button">MP3</button>
+                      <button className="rounded border px-1" onClick={() => downloadHistoryAs(item, "wav")} type="button">WAV</button>
+                      <button className="rounded border px-1" onClick={() => publishHistoryItem(item)} type="button">Galerie</button>
+                      <button className="rounded border px-1" onClick={() => duplicateHistoryItem(item)} type="button">Dupliquer</button>
                       <button
                         className="rounded border px-1"
-                        onClick={() => {
-                          const link = document.createElement("a");
-                          link.href = item.url;
-                          link.download = `speaky-history-${Date.now()}.mp3`;
-                          link.click();
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(item.url);
+                          toast.success("Lien copié.");
                         }}
                         type="button"
                       >
-                        DL
+                        Partager
                       </button>
-                      <button
-                        className="rounded border px-1"
-                        onClick={() =>
-                          setHistory((prev) =>
-                            prev.map((row) =>
-                              row.createdAt === item.createdAt ? { ...row, pinned: !row.pinned } : row
-                            )
-                          )
-                        }
-                        type="button"
-                      >
-                        {item.pinned ? "Unpin" : "Pin"}
-                      </button>
-                      <button
-                        className="rounded border border-red-300 px-1 text-red-500"
-                        onClick={() =>
-                          setHistory((prev) => prev.filter((row) => row.createdAt !== item.createdAt))
-                        }
-                        type="button"
-                      >
-                        Del
-                      </button>
-                      <button
-                        className="rounded border border-cyan-300 px-1 text-cyan-600"
-                        onClick={() => publishHistoryItem(item)}
-                        type="button"
-                      >
-                        Public
-                      </button>
+                      <button className="rounded border border-red-300 px-1 text-red-500" onClick={() => deleteHistoryItem(item)} type="button">Supprimer</button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
+              {filteredHistory.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Aucune entrée correspondante.</p>
+              ) : null}
             </div>
           </div>
         </aside>
