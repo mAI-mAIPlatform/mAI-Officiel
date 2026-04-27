@@ -16,6 +16,7 @@ import {
   KeyRound,
   Plus,
   Play,
+  Sparkles,
   SquareTerminal,
   Table,
   Upload,
@@ -38,6 +39,7 @@ import {
 import { MessageResponse } from "@/components/ai-elements/message";
 import { addStatsEvent } from "@/lib/user-stats";
 import { addInterpreterRun } from "@/lib/user-stats";
+import { DEFAULT_TEXT_MODEL_KEY, FALLBACK_DEFAULT_TEXT_MODEL } from "@/lib/default-models";
 
 type Runtime =
   | "python"
@@ -92,6 +94,7 @@ type SuggestionKind = "class" | "function" | "keyword" | "module" | "variable";
 type AutoSuggestion = { detail: string; insertText: string; kind: SuggestionKind; label: string; score: number };
 type SnippetPlaceholder = { end: number; start: number };
 type SnippetSession = { index: number; placeholders: SnippetPlaceholder[] } | null;
+type AssistantMode = "explain" | "fix" | "optimize";
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -345,6 +348,16 @@ export default function InterpreterPage() {
   const [autocompleteAnchor, setAutocompleteAnchor] = useState({ left: 20, top: 40 });
   const [autocompleteTarget, setAutocompleteTarget] = useState({ end: 0, start: 0 });
   const [snippetSession, setSnippetSession] = useState<SnippetSession>(null);
+  const [assistantPanelOpen, setAssistantPanelOpen] = useState(false);
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>("explain");
+  const [assistantPanelContent, setAssistantPanelContent] = useState("");
+  const [assistantDiffPreview, setAssistantDiffPreview] = useState("");
+  const [assistantOptimizations, setAssistantOptimizations] = useState<string[]>([]);
+  const [assistantProposedCode, setAssistantProposedCode] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState("");
+  const [showExplainBubble, setShowExplainBubble] = useState(false);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+  const [errorLine, setErrorLine] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -377,6 +390,10 @@ export default function InterpreterPage() {
   const [projectMeta, setProjectMeta] = useLocalStorage<ProjectMeta>(
     "mai.interpreter.project-meta.v1",
     { info: "Projet local", logo: "🧪", memory: "" }
+  );
+  const [selectedModelId] = useLocalStorage<string>(
+    DEFAULT_TEXT_MODEL_KEY,
+    FALLBACK_DEFAULT_TEXT_MODEL
   );
   const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
   const runtime = activeTab?.runtime ?? "python";
@@ -451,6 +468,14 @@ export default function InterpreterPage() {
         nextEntry,
         ...current,
       ].slice(0, 50));
+      if (payload.error) {
+        const lineMatch = payload.error.match(/line\s+(\d+)/i) ?? payload.error.match(/:(\d+):\d+/);
+        const parsedLine = lineMatch?.[1] ? Number(lineMatch[1]) : null;
+        setErrorLine(Number.isFinite(parsedLine) ? parsedLine : null);
+        void analyzeFixFromError(payload.error);
+      } else {
+        setErrorLine(null);
+      }
     } catch (error) {
       const errorPayload = {
         error:
@@ -471,6 +496,7 @@ export default function InterpreterPage() {
           ...current,
         ].slice(0, 20)
       );
+      setErrorLine(null);
     } finally {
       setIsRunning(false);
     }
@@ -506,7 +532,7 @@ export default function InterpreterPage() {
       const response = await fetch("/api/code-interpreter/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: assistantPrompt.trim(), runtime }),
+        body: JSON.stringify({ modelId: selectedModelId, prompt: assistantPrompt.trim(), runtime }),
       });
       const payload = (await response.json()) as { answer?: string; error?: string };
       if (!response.ok || !payload.answer) {
@@ -647,6 +673,86 @@ export default function InterpreterPage() {
     };
     setEditorTabs((current) => [...current, newTab]);
     setActiveTabId(newTab.id);
+  };
+
+  const askCodeAssistant = async (prompt: string) => {
+    const response = await fetch("/api/code-interpreter/assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelId: selectedModelId, prompt, runtime }),
+    });
+    const payload = (await response.json()) as { answer?: string; error?: string };
+    if (!response.ok || !payload.answer) {
+      throw new Error(payload.error ?? "Assistant indisponible");
+    }
+    return payload.answer;
+  };
+
+  const explainSelection = async () => {
+    if (!selectedCode.trim()) return;
+    setAssistantPanelOpen(true);
+    setAssistantMode("explain");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Explique ce bloc de code en français, ligne par ligne, de façon pédagogique. Ajoute un mini résumé final.\n\nCode:\n${selectedCode}`
+      );
+      setAssistantPanelContent(answer);
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsAssistantLoading(false);
+      setShowExplainBubble(false);
+    }
+  };
+
+  const analyzeFixFromError = async (errorMessage: string) => {
+    setAssistantPanelOpen(true);
+    setAssistantMode("fix");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Diagnostique cette erreur et propose un correctif.\nRéponds avec les sections EXACTES:\n[CAUSE]\n...\n[LINE]\nnuméro ou ?\n[PATCH]\n\`\`\`\ncode corrigé complet\n\`\`\`\n\nRuntime: ${runtime}\nErreur:\n${errorMessage}\n\nCode actuel:\n${code}`
+      );
+      const cause = answer.match(/\[CAUSE\]([\s\S]*?)\[LINE\]/)?.[1]?.trim() ?? answer;
+      const line = answer.match(/\[LINE\]\s*([0-9]+)/)?.[1];
+      const patch = answer.match(/\[PATCH\][\s\S]*?```[\w-]*\n([\s\S]*?)```/)?.[1]?.trim();
+      setAssistantPanelContent(cause);
+      if (patch) {
+        setAssistantProposedCode(patch);
+        setAssistantDiffPreview(computeLineDiff(code, patch));
+      } else {
+        setAssistantProposedCode(null);
+        setAssistantDiffPreview("");
+      }
+      if (line) setErrorLine(Number(line));
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
+  const analyzeOptimizations = async () => {
+    setAssistantPanelOpen(true);
+    setAssistantMode("optimize");
+    setIsAssistantLoading(true);
+    try {
+      const answer = await askCodeAssistant(
+        `Analyse ce code et propose 3 à 5 optimisations (performance, lisibilité, bonnes pratiques).\nFormat:\n- Titre: ...\n  Avant: ...\n  Après: ...\n\nCode:\n${code}`
+      );
+      setAssistantPanelContent(answer);
+      const suggestions = answer
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("- "));
+      setAssistantOptimizations(suggestions);
+    } catch (error) {
+      setAssistantPanelContent(`Erreur assistant: ${error instanceof Error ? error.message : "inconnue"}`);
+      setAssistantOptimizations([]);
+    } finally {
+      setIsAssistantLoading(false);
+    }
   };
 
   const buildAutocomplete = (
@@ -938,7 +1044,13 @@ export default function InterpreterPage() {
                     const isFolded = foldedSet.has(line.lineNumber);
                     const hiddenCount = fold ? fold.end - fold.start : 0;
                     return (
-                      <div className={`group flex h-5 items-center justify-end gap-1 rounded px-1 ${activeLineNumber === line.lineNumber ? "bg-primary/15 text-primary" : ""}`} key={line.lineNumber}>
+                      <div className={`group flex h-5 items-center justify-end gap-1 rounded px-1 ${
+                        errorLine === line.lineNumber
+                          ? "bg-red-500/20 text-red-500"
+                          : activeLineNumber === line.lineNumber
+                            ? "bg-primary/15 text-primary"
+                            : ""
+                      }`} key={line.lineNumber}>
                         {fold ? (
                           <button className="opacity-0 transition group-hover:opacity-100" onClick={() => toggleFold(line.lineNumber)} type="button">
                             {isFolded ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
@@ -1015,8 +1127,28 @@ export default function InterpreterPage() {
                       buildAutocomplete(false, target.value, target.selectionStart);
                     }
                   }}
+                  onSelect={(event) => {
+                    const target = event.currentTarget;
+                    const start = target.selectionStart;
+                    const end = target.selectionEnd;
+                    if (end > start) {
+                      setSelectedCode(target.value.slice(start, end));
+                      setShowExplainBubble(true);
+                    } else {
+                      setShowExplainBubble(false);
+                    }
+                  }}
                   value={code}
                 />
+                {showExplainBubble && selectedCode.trim() && (
+                  <button
+                    className="absolute right-3 top-3 z-20 rounded-full bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground shadow-lg"
+                    onClick={explainSelection}
+                    type="button"
+                  >
+                    ✨ Expliquer ce code
+                  </button>
+                )}
                 {autocompleteOpen && (
                   <div
                     className="absolute z-20 max-h-64 w-96 overflow-auto rounded-md border border-border/60 bg-background/95 p-1 text-xs shadow-xl"
@@ -1184,6 +1316,14 @@ export default function InterpreterPage() {
             >
               <Play className="size-4" />
               {isRunning ? "Exécution..." : "Run"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary"
+              onClick={() => setAssistantPanelOpen((current) => !current)}
+              type="button"
+            >
+              <Sparkles className="size-4 animate-pulse" />
+              Assistant IA
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm"
@@ -1403,6 +1543,87 @@ export default function InterpreterPage() {
           </div>
         </section>
       </div>
+      {assistantPanelOpen && (
+        <aside className="fixed right-4 top-20 z-30 h-[78vh] w-[420px] overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur">
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold">Assistant IA Code</p>
+              <p className="text-[11px] text-muted-foreground">Modèle actif: {selectedModelId}</p>
+            </div>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setAssistantPanelOpen(false)} type="button">Fermer</button>
+          </div>
+          <div className="flex gap-1 border-b border-border/40 p-2">
+            {([
+              ["explain", "Expliquer"],
+              ["fix", "Corriger"],
+              ["optimize", "Optimiser"],
+            ] as const).map(([mode, label]) => (
+              <button
+                className={`flex-1 rounded-md px-2 py-1 text-xs ${assistantMode === mode ? "bg-primary text-primary-foreground" : "border border-border/40"}`}
+                key={mode}
+                onClick={() => setAssistantMode(mode)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="h-[calc(78vh-104px)] space-y-3 overflow-auto p-3 text-xs">
+            {assistantMode === "explain" && (
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Sélectionnez un bloc puis cliquez sur « Expliquer ce code » dans l’éditeur.</p>
+                {selectedCode ? <pre className="max-h-40 overflow-auto rounded border border-border/40 bg-muted/20 p-2">{selectedCode}</pre> : null}
+                <button className="rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50" disabled={!selectedCode.trim() || isAssistantLoading} onClick={explainSelection} type="button">
+                  {isAssistantLoading ? "Analyse..." : "Expliquer ce code"}
+                </button>
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-border/40 bg-background p-2">{assistantPanelContent}</pre> : null}
+              </div>
+            )}
+            {assistantMode === "fix" && (
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Ce mode se déclenche automatiquement après une erreur d’exécution.</p>
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-red-500/30 bg-red-500/5 p-2">{assistantPanelContent}</pre> : <p>Aucun diagnostic pour l’instant.</p>}
+                {assistantDiffPreview ? (
+                  <pre className="max-h-52 overflow-auto rounded border border-border/40 bg-background p-2">
+                    {assistantDiffPreview.split("\n").map((line, index) => (
+                      <div className={line.startsWith("+") ? "text-emerald-600" : line.startsWith("-") ? "text-red-600" : ""} key={`${line}-${index}`}>{line}</div>
+                    ))}
+                  </pre>
+                ) : null}
+                <button
+                  className="rounded-md bg-emerald-600 px-2 py-1 text-white disabled:opacity-50"
+                  disabled={!assistantProposedCode}
+                  onClick={() => {
+                    if (!assistantProposedCode) return;
+                    setCode(assistantProposedCode);
+                    setAssistantDiffPreview("");
+                  }}
+                  type="button"
+                >
+                  Appliquer la correction
+                </button>
+              </div>
+            )}
+            {assistantMode === "optimize" && (
+              <div className="space-y-2">
+                <button className="rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50" disabled={isAssistantLoading} onClick={analyzeOptimizations} type="button">
+                  {isAssistantLoading ? "Analyse..." : "Analyser et optimiser"}
+                </button>
+                {assistantOptimizations.length > 0 ? (
+                  <div className="space-y-1">
+                    {assistantOptimizations.map((suggestion, index) => (
+                      <button className="block w-full rounded border border-border/40 p-2 text-left hover:bg-muted/30" key={`${suggestion}-${index}`} type="button">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {assistantPanelContent ? <pre className="whitespace-pre-wrap rounded border border-border/40 bg-background p-2">{assistantPanelContent}</pre> : null}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

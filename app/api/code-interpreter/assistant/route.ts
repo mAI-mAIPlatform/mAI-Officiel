@@ -4,6 +4,7 @@ import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { getLanguageModel } from "@/lib/ai/providers";
 
 const bodySchema = z.object({
+  modelId: z.string().min(1).max(200).optional(),
   prompt: z.string().min(3).max(4000),
   runtime: z.string().min(1),
 });
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Paramètres invalides" }, { status: 400 });
     }
 
-    const model = getLanguageModel(DEFAULT_CHAT_MODEL);
+    const model = getLanguageModel(parsed.data.modelId ?? DEFAULT_CHAT_MODEL);
     const { text } = await generateText({
       model,
       prompt: `Tu es un assistant de programmation pour un bac à sable.
