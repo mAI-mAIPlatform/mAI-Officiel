@@ -17,7 +17,7 @@ function getSectionLabel(tab: string | null, pathname: string) {
 }
 
 export function ProjectsBreadcrumb() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
 
   const projectMatch = pathname.match(/^\/projects\/([^/]+)/);
