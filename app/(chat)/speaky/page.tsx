@@ -6,12 +6,14 @@ import {
   Gauge,
   LibraryBig,
   Loader2,
+  Moon,
   Pause,
   Play,
   Sparkles,
   Square,
   Upload,
   Volume,
+  Sun,
   Waves,
   Wand2,
 } from "lucide-react";
@@ -414,6 +416,129 @@ const COLLABORATOR_COLORS = [
   "#eab308",
 ];
 
+type SpeakyThemeId =
+  | "classic-light"
+  | "classic-dark"
+  | "studio-night"
+  | "ocean-sound"
+  | "forest-asmr"
+  | "neon-radio"
+  | "pastel-soft";
+
+type SpeakyTheme = {
+  id: SpeakyThemeId;
+  name: string;
+  premium?: boolean;
+  palette: {
+    background: string;
+    panel: string;
+    card: string;
+    text: string;
+    muted: string;
+    accent: string;
+    wave: string;
+  };
+};
+
+const SPEAKY_THEMES: SpeakyTheme[] = [
+  {
+    id: "classic-light",
+    name: "Clair classique",
+    palette: {
+      background: "#f8fafc",
+      panel: "#ffffff",
+      card: "#f1f5f9",
+      text: "#0f172a",
+      muted: "#475569",
+      accent: "#7c3aed",
+      wave: "#06b6d4",
+    },
+  },
+  {
+    id: "classic-dark",
+    name: "Sombre",
+    palette: {
+      background: "#0b1220",
+      panel: "#1a2232",
+      card: "#202a3d",
+      text: "#e2e8f0",
+      muted: "#94a3b8",
+      accent: "#a855f7",
+      wave: "#a855f7",
+    },
+  },
+  {
+    id: "studio-night",
+    name: "Studio Nuit",
+    premium: true,
+    palette: {
+      background: "#050505",
+      panel: "#111111",
+      card: "#1f1a14",
+      text: "#f6f3ea",
+      muted: "#d6c7a6",
+      accent: "#d4af37",
+      wave: "#d4af37",
+    },
+  },
+  {
+    id: "ocean-sound",
+    name: "Océan Sonore",
+    premium: true,
+    palette: {
+      background: "#042f4b",
+      panel: "#075985",
+      card: "#0f766e",
+      text: "#e0f2fe",
+      muted: "#bae6fd",
+      accent: "#14b8a6",
+      wave: "#2dd4bf",
+    },
+  },
+  {
+    id: "forest-asmr",
+    name: "Forêt ASMR",
+    premium: true,
+    palette: {
+      background: "#0f2a1d",
+      panel: "#1b4332",
+      card: "#4f6f52",
+      text: "#ecfdf5",
+      muted: "#bbf7d0",
+      accent: "#22c55e",
+      wave: "#34d399",
+    },
+  },
+  {
+    id: "neon-radio",
+    name: "Néon Radio",
+    premium: true,
+    palette: {
+      background: "#09090b",
+      panel: "#18181b",
+      card: "#27272a",
+      text: "#faf5ff",
+      muted: "#e9d5ff",
+      accent: "#f472b6",
+      wave: "#38bdf8",
+    },
+  },
+  {
+    id: "pastel-soft",
+    name: "Pastel Doux",
+    premium: true,
+    palette: {
+      background: "#fdf2f8",
+      panel: "#f5f3ff",
+      card: "#ecfeff",
+      text: "#4c1d95",
+      muted: "#6d28d9",
+      accent: "#ec4899",
+      wave: "#8b5cf6",
+    },
+  },
+];
+
 function generateWaveBars(seed = 24) {
   return Array.from({ length: seed }, (_, index) => index);
 }
@@ -798,6 +923,14 @@ export default function SpeakyPage() {
     useState<ScriptEditorMode>("standard");
   const [pauseDurationMs, setPauseDurationMs] = useState(500);
   const [pronunciationIpa, setPronunciationIpa] = useState("");
+  const [isDarkMode, setIsDarkMode] = useLocalStorage<boolean>(
+    "mai.speaky.dark-mode.v1",
+    true
+  );
+  const [themeId, setThemeId] = useLocalStorage<SpeakyThemeId>(
+    "mai.speaky.theme-id.v1",
+    "classic-dark"
+  );
   const [voice, setVoice] = useState("Lea");
   const [rate, setRate] = useState(1);
   const [tone, setTone] = useState(0);
@@ -966,6 +1099,16 @@ export default function SpeakyPage() {
         .slice(0, 4),
     []
   );
+  const activeTheme = useMemo(
+    () => SPEAKY_THEMES.find((theme) => theme.id === themeId) ?? SPEAKY_THEMES[1]!,
+    [themeId]
+  );
+  const effectiveTheme = useMemo(() => {
+    if (themeId === "classic-light" || themeId === "classic-dark") {
+      return isDarkMode ? SPEAKY_THEMES[1]! : SPEAKY_THEMES[0]!;
+    }
+    return activeTheme;
+  }, [activeTheme, isDarkMode, themeId]);
   const activeProject = useMemo(
     () =>
       collaborativeProjects.find((project) => project.id === activeProjectId) ??
@@ -1919,7 +2062,13 @@ export default function SpeakyPage() {
   };
 
   return (
-    <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
+    <div
+      className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 transition-colors duration-300 md:p-8"
+      style={{
+        background: effectiveTheme.palette.background,
+        color: effectiveTheme.palette.text,
+      }}
+    >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Speaky</h1>
@@ -1927,6 +2076,23 @@ export default function SpeakyPage() {
             Génération par lot et podcast multi-voix.
           </p>
         </div>
+        <button
+          className="rounded-xl border px-3 py-2"
+          onClick={() => {
+            setIsDarkMode((current) => !current);
+            setThemeId((current) =>
+              current === "classic-light" || current === "classic-dark"
+                ? isDarkMode
+                  ? "classic-light"
+                  : "classic-dark"
+                : current
+            );
+          }}
+          style={{ borderColor: effectiveTheme.palette.accent }}
+          type="button"
+        >
+          {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
@@ -1964,6 +2130,56 @@ export default function SpeakyPage() {
             >
               Projets collaboratifs
             </button>
+          </div>
+
+          <div
+            className="mb-3 rounded-xl border p-3 transition-colors duration-300"
+            style={{
+              background: effectiveTheme.palette.panel,
+              borderColor: `${effectiveTheme.palette.accent}55`,
+            }}
+          >
+            <p className="mb-2 text-xs font-semibold">Apparence</p>
+            <label className="mb-2 inline-flex items-center gap-2 text-[11px]">
+              <input
+                checked={isDarkMode}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setIsDarkMode(checked);
+                  setThemeId(checked ? "classic-dark" : "classic-light");
+                }}
+                type="checkbox"
+              />
+              Mode sombre / clair
+            </label>
+            <p className="mb-1 text-[11px] font-medium">Thèmes</p>
+            <div className="grid gap-2 md:grid-cols-3">
+              {SPEAKY_THEMES.map((theme) => (
+                <button
+                  className={`rounded-lg border p-2 text-left text-[11px] ${
+                    theme.id === themeId ? "ring-1 ring-offset-1" : ""
+                  }`}
+                  key={theme.id}
+                  onClick={() => {
+                    setThemeId(theme.id);
+                    if (theme.id === "classic-dark") setIsDarkMode(true);
+                    if (theme.id === "classic-light") setIsDarkMode(false);
+                  }}
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.palette.background}, ${theme.palette.card})`,
+                    borderColor:
+                      theme.id === themeId
+                        ? effectiveTheme.palette.accent
+                        : `${theme.palette.text}33`,
+                    color: theme.palette.text,
+                  }}
+                  type="button"
+                >
+                  <p className="font-medium">{theme.name}</p>
+                  {theme.premium ? <p>Premium</p> : <p>Gratuit</p>}
+                </button>
+              ))}
+            </div>
           </div>
 
           {workspaceMode === "projects" ? (
@@ -2645,7 +2861,13 @@ export default function SpeakyPage() {
               </p>
               <p className="text-[11px] text-muted-foreground">Temps restant estimé: ~{progress.etaSec}s</p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress.percent}%` }} />
+                <div
+                  className="h-full transition-all"
+                  style={{
+                    width: `${progress.percent}%`,
+                    backgroundColor: effectiveTheme.palette.accent,
+                  }}
+                />
               </div>
             </div>
           ) : null}
@@ -2841,9 +3063,13 @@ export default function SpeakyPage() {
           <div className="mb-4 flex h-16 items-end gap-1 rounded-xl border border-border/40 bg-background/60 p-2">
             {bars.map((bar) => (
               <span
-                className={`w-1.5 rounded-full bg-cyan-500/70 ${isPlaying || isGenerating ? "animate-pulse" : "opacity-40"}`}
+                className={`w-1.5 rounded-full ${isPlaying || isGenerating ? "animate-pulse" : "opacity-40"}`}
                 key={bar}
-                style={{ height: `${25 + ((bar * 17) % 65)}%`, animationDelay: `${bar * 45}ms` }}
+                style={{
+                  height: `${25 + ((bar * 17) % 65)}%`,
+                  animationDelay: `${bar * 45}ms`,
+                  backgroundColor: effectiveTheme.palette.wave,
+                }}
               />
             ))}
           </div>
