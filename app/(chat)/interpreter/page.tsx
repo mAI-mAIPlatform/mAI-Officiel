@@ -4,14 +4,20 @@ import {
   BarChart3,
   Brain,
   Bookmark,
+  Braces,
+  ChevronDown,
+  ChevronRight,
   EllipsisVertical,
+  FileCode2,
   FileSpreadsheet,
   History,
   Info,
+  Plus,
   Play,
   SquareTerminal,
   Table,
   Upload,
+  X,
   FolderTree,
   FolderPlus,
   FileDown,
@@ -77,6 +83,8 @@ type AssistantMessage = { id: string; role: "user" | "assistant"; content: strin
 type VirtualCodeFile = { id: string; name: string; content: string };
 type VirtualFolder = { id: string; path: string };
 type ProjectMeta = { logo: string; memory: string; info: string };
+type EditorTab = { id: string; name: string; runtime: Runtime; content: string };
+type FoldRange = { end: number; start: number };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -145,6 +153,87 @@ const quickPresets: Array<{ label: string; runtime: Runtime }> = [
   { label: "Requête SQL", runtime: "sql" },
 ];
 
+const runtimeExtensions: Record<Runtime, string> = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+  bash: "sh",
+  html: "html",
+  c: "c",
+  cpp: "cpp",
+  go: "go",
+  ruby: "rb",
+  php: "php",
+  sql: "sql",
+  json: "json",
+  markdown: "md",
+  rust: "rs",
+  java: "java",
+  r: "r",
+  perl: "pl",
+};
+
+const runtimeIcons: Record<Runtime, typeof Braces> = {
+  python: FileCode2,
+  javascript: Braces,
+  typescript: Braces,
+  bash: SquareTerminal,
+  html: FileCode2,
+  c: FileCode2,
+  cpp: FileCode2,
+  go: FileCode2,
+  ruby: FileCode2,
+  php: FileCode2,
+  sql: Table,
+  json: Braces,
+  markdown: FileCode2,
+  rust: FileCode2,
+  java: FileCode2,
+  r: BarChart3,
+  perl: FileCode2,
+};
+
+const toUtf8Bytes = (text: string) => new TextEncoder().encode(text).length;
+
+const computeFoldRanges = (content: string): FoldRange[] => {
+  const lines = content.split("\n");
+  const ranges: FoldRange[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const trimmed = line.trim();
+    const indent = line.match(/^\s*/)?.[0].length ?? 0;
+    const hasBraceStart = /[{[(]\s*$/.test(trimmed);
+    const hasKeywordStart = /^(def|class|for|while|if|else|elif|function|public|private|protected|fn|loop)\b/.test(trimmed);
+    if (!hasBraceStart && !hasKeywordStart) continue;
+    let end = index;
+    if (hasBraceStart) {
+      let balance = 0;
+      for (let cursor = index; cursor < lines.length; cursor += 1) {
+        const l = lines[cursor] ?? "";
+        balance += (l.match(/[{[(]/g) ?? []).length;
+        balance -= (l.match(/[})\]]/g) ?? []).length;
+        if (cursor > index && balance <= 0) {
+          end = cursor;
+          break;
+        }
+      }
+    } else {
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const nextLine = lines[cursor] ?? "";
+        if (!nextLine.trim()) continue;
+        const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
+        if (nextIndent <= indent) {
+          end = cursor - 1;
+          break;
+        }
+        end = cursor;
+      }
+    }
+    if (end > index) ranges.push({ start: index + 1, end: end + 1 });
+  }
+  return ranges;
+};
+
 async function toRuntimeFile(file: File): Promise<RuntimeFile> {
   const buffer = await file.arrayBuffer();
   const contentBase64 = btoa(
@@ -158,8 +247,14 @@ async function toRuntimeFile(file: File): Promise<RuntimeFile> {
 }
 
 export default function InterpreterPage() {
-  const [runtime, setRuntime] = useState<Runtime>("python");
-  const [code, setCode] = useState(runtimeSnippets.python);
+  const [editorTabs, setEditorTabs] = useState<EditorTab[]>([
+    { id: crypto.randomUUID(), name: "main.py", runtime: "python", content: runtimeSnippets.python },
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>(() => editorTabs[0]?.id ?? "");
+  const [foldedStarts, setFoldedStarts] = useState<Record<string, number[]>>({});
+  const [cursorPosition, setCursorPosition] = useState({ column: 1, line: 1 });
+  const [activeLineNumber, setActiveLineNumber] = useState(1);
+  const [showMiniMap, setShowMiniMap] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -193,6 +288,25 @@ export default function InterpreterPage() {
     "mai.interpreter.project-meta.v1",
     { info: "Projet local", logo: "🧪", memory: "" }
   );
+  const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
+  const runtime = activeTab?.runtime ?? "python";
+  const code = activeTab?.content ?? "";
+
+  const setCode = (nextCode: string) => {
+    setEditorTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId ? { ...tab, content: nextCode } : tab
+      )
+    );
+  };
+
+  const setRuntime = (nextRuntime: Runtime) => {
+    setEditorTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId ? { ...tab, runtime: nextRuntime } : tab
+      )
+    );
+  };
 
   const features = useMemo(
     () => [
@@ -396,6 +510,54 @@ export default function InterpreterPage() {
     }
   };
 
+  const foldRanges = useMemo(() => computeFoldRanges(code), [code]);
+  const foldedForTab = foldedStarts[activeTabId] ?? [];
+  const foldedSet = new Set(foldedForTab);
+  const lineList = code.split("\n");
+  const hiddenLines = new Set<number>();
+  for (const startLine of foldedForTab) {
+    const match = foldRanges.find((range) => range.start === startLine);
+    if (!match) continue;
+    for (let line = match.start + 1; line <= match.end; line += 1) hiddenLines.add(line);
+  }
+  const visibleLines = lineList
+    .map((content, index) => ({ content, lineNumber: index + 1 }))
+    .filter((item) => !hiddenLines.has(item.lineNumber));
+
+  const onLineNumberClick = (lineNumber: number) => {
+    setActiveLineNumber(lineNumber);
+    setCursorPosition((current) => ({ ...current, line: lineNumber }));
+  };
+
+  const toggleFold = (start: number) => {
+    setFoldedStarts((current) => {
+      const currentTab = current[activeTabId] ?? [];
+      const next = currentTab.includes(start)
+        ? currentTab.filter((line) => line !== start)
+        : [...currentTab, start];
+      return { ...current, [activeTabId]: next };
+    });
+  };
+
+  const addEditorTab = () => {
+    const fileName = window.prompt("Nom du fichier (ex: src/main.py)");
+    if (!fileName?.trim()) return;
+    const runtimeInput = window.prompt(
+      `Runtime (${runtimeOrder.join(", ")})`,
+      "python"
+    );
+    const nextRuntime = (runtimeInput?.trim().toLowerCase() ?? "python") as Runtime;
+    if (!runtimeOrder.includes(nextRuntime)) return;
+    const newTab: EditorTab = {
+      id: crypto.randomUUID(),
+      name: fileName.trim(),
+      runtime: nextRuntime,
+      content: runtimeSnippets[nextRuntime],
+    };
+    setEditorTabs((current) => [...current, newTab]);
+    setActiveTabId(newTab.id);
+  };
+
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -490,11 +652,110 @@ export default function InterpreterPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <section className="liquid-panel rounded-2xl p-4 lg:order-2">
-          <textarea
-            className={`min-h-[360px] w-full rounded-xl border border-border/40 p-3 font-mono text-xs ${editorThemeClass}`}
-            onChange={(event) => setCode(event.target.value)}
-            value={code}
-          />
+          <div className="overflow-hidden rounded-xl border border-border/50">
+            <div className="flex items-center justify-between border-b border-border/40 bg-background/80 px-2 py-1">
+              <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+                {editorTabs.map((tab) => {
+                  const TabIcon = runtimeIcons[tab.runtime] ?? FileCode2;
+                  return (
+                    <button
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${tab.id === activeTabId ? "bg-primary/15 text-primary" : "hover:bg-background"}`}
+                      key={tab.id}
+                      onClick={() => setActiveTabId(tab.id)}
+                      type="button"
+                    >
+                      <TabIcon className="size-3.5" />
+                      <span>{tab.name}</span>
+                      {editorTabs.length > 1 && (
+                        <span
+                          className="ml-1 rounded p-0.5 hover:bg-destructive/15"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setEditorTabs((current) => {
+                              const nextTabs = current.filter((item) => item.id !== tab.id);
+                              if (tab.id === activeTabId && nextTabs[0]) {
+                                setActiveTabId(nextTabs[0].id);
+                              }
+                              return nextTabs.length ? nextTabs : current;
+                            });
+                          }}
+                        >
+                          <X className="size-3" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                <button className="inline-flex items-center rounded-md border border-dashed px-2 py-1 text-xs" onClick={addEditorTab} type="button">
+                  <Plus className="mr-1 size-3.5" /> Nouveau
+                </button>
+              </div>
+              <button className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px]" onClick={() => setShowMiniMap((current) => !current)} type="button">
+                <FileCode2 className="size-3.5" /> Mini-map {showMiniMap ? "ON" : "OFF"}
+              </button>
+            </div>
+            <div className={`grid min-h-[360px] ${showMiniMap ? "grid-cols-[1fr_120px]" : "grid-cols-1"}`}>
+              <div className={`${editorThemeClass} relative grid grid-cols-[52px_1fr]`}>
+                <div className="border-r border-border/30 bg-muted/30 px-1 py-2 text-right text-[11px]">
+                  {visibleLines.map((line) => {
+                    const fold = foldRanges.find((item) => item.start === line.lineNumber);
+                    const isFolded = foldedSet.has(line.lineNumber);
+                    const hiddenCount = fold ? fold.end - fold.start : 0;
+                    return (
+                      <div className={`group flex h-5 items-center justify-end gap-1 rounded px-1 ${activeLineNumber === line.lineNumber ? "bg-primary/15 text-primary" : ""}`} key={line.lineNumber}>
+                        {fold ? (
+                          <button className="opacity-0 transition group-hover:opacity-100" onClick={() => toggleFold(line.lineNumber)} type="button">
+                            {isFolded ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
+                          </button>
+                        ) : <span className="w-3" />}
+                        <button className="min-w-6 text-right" onClick={() => onLineNumberClick(line.lineNumber)} type="button">{line.lineNumber}</button>
+                        {isFolded && hiddenCount > 0 ? <span className="text-[10px] text-muted-foreground">+{hiddenCount}</span> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                <textarea
+                  className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 font-mono text-xs outline-none"
+                  onChange={(event) => setCode(event.target.value)}
+                  onClick={(event) => {
+                    const target = event.target as HTMLTextAreaElement;
+                    const before = target.value.slice(0, target.selectionStart);
+                    const line = before.split("\n").length;
+                    const column = before.split("\n").at(-1)?.length ?? 0;
+                    setActiveLineNumber(line);
+                    setCursorPosition({ line, column: column + 1 });
+                  }}
+                  onKeyUp={(event) => {
+                    const target = event.currentTarget;
+                    const before = target.value.slice(0, target.selectionStart);
+                    const line = before.split("\n").length;
+                    const column = before.split("\n").at(-1)?.length ?? 0;
+                    setActiveLineNumber(line);
+                    setCursorPosition({ line, column: column + 1 });
+                  }}
+                  value={code}
+                />
+              </div>
+              {showMiniMap && (
+                <div className="border-l border-border/40 bg-muted/20 p-2">
+                  <div className="max-h-[360px] overflow-auto rounded bg-background/60 p-1 font-mono text-[8px] leading-3">
+                    {lineList.map((line, index) => (
+                      <button className={`block w-full truncate text-left ${activeLineNumber === index + 1 ? "bg-primary/15 text-primary" : "text-muted-foreground"}`} key={`${index + 1}-${line}`} onClick={() => onLineNumberClick(index + 1)} type="button">
+                        {line || "·"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-border/40 bg-background/80 px-3 py-1 text-[11px]">
+              <span>Runtime: {runtimeLabels[runtime]}</span>
+              <span>Ligne {cursorPosition.line}, Col {cursorPosition.column}</span>
+              <span>Total lignes: {lineList.length}</span>
+              <span>UTF-8</span>
+              <span>{toUtf8Bytes(code)} octets</span>
+            </div>
+          </div>
           <div className="mt-3 space-y-2 rounded-xl border border-border/40 p-3">
             <p className="flex items-center gap-1 text-xs font-semibold"><FolderTree className="size-3.5" /> Arborescence fichiers (multi-fichiers)</p>
             <div className="flex gap-2">
@@ -808,7 +1069,7 @@ export default function InterpreterPage() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `generated-${runtime}.${runtime === "python" ? "py" : "txt"}`;
+                  a.download = `generated-${runtime}.${runtimeExtensions[runtime]}`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
