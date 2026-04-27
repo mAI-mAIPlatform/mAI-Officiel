@@ -19,6 +19,11 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
 import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
+import {
+  SPEAKY_PUBLIC_GALLERY_STORAGE_KEY,
+  type PublicSpeakyCreation,
+  type SpeakyGalleryCategory,
+} from "@/lib/speaky-gallery";
 import { addStatsEvent } from "@/lib/user-stats";
 
 type SpeakyResponse = {
@@ -776,6 +781,10 @@ export default function SpeakyPage() {
   const [recentImports, setRecentImports] = useLocalStorage<
     Array<{ fileName: string; extractedText: string; importedAt: string }>
   >("mai.speaky.recent-imports.v1", []);
+  const [, setPublicGalleryItems] = useLocalStorage<PublicSpeakyCreation[]>(
+    SPEAKY_PUBLIC_GALLERY_STORAGE_KEY,
+    []
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const editorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1131,6 +1140,47 @@ export default function SpeakyPage() {
     if (!file) return;
     await importDocument(file);
     event.target.value = "";
+  };
+
+  const publishHistoryItem = (item: { text: string; voice: string; url: string; createdAt: string }) => {
+    const title = window.prompt("Titre public de cette création ?");
+    if (!title) return;
+    const description =
+      window.prompt("Description courte (optionnelle) :") ?? "";
+    const categoryInput =
+      window.prompt(
+        "Catégorie (narration, education, entertainment, music, professional) :",
+        "narration"
+      ) ?? "narration";
+    const category = ([
+      "narration",
+      "education",
+      "entertainment",
+      "music",
+      "professional",
+    ] as const).includes(categoryInput as SpeakyGalleryCategory)
+      ? (categoryInput as SpeakyGalleryCategory)
+      : "narration";
+    const tag = window.prompt("Tag optionnel :") ?? "";
+    const creatorName = window.prompt("Pseudo créateur :") ?? "anonymous";
+
+    const creation: PublicSpeakyCreation = {
+      id: crypto.randomUUID(),
+      title,
+      description,
+      category,
+      tag,
+      language,
+      voice: item.voice,
+      creatorName,
+      createdAt: new Date().toISOString(),
+      durationSec: Math.max(8, Math.ceil(item.text.length / 12)),
+      listens: 0,
+      favorites: 0,
+      audioUrl: item.url,
+    };
+    setPublicGalleryItems((current) => [creation, ...current].slice(0, 200));
+    toast.success("Création publiée dans la Galerie Speaky.");
   };
 
   const generateBatchAudio = async () => {
@@ -2175,6 +2225,13 @@ export default function SpeakyPage() {
                         type="button"
                       >
                         Del
+                      </button>
+                      <button
+                        className="rounded border border-cyan-300 px-1 text-cyan-600"
+                        onClick={() => publishHistoryItem(item)}
+                        type="button"
+                      >
+                        Public
                       </button>
                     </div>
                   </div>

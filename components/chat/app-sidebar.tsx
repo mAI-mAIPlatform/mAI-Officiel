@@ -83,6 +83,7 @@ const APPLICATION_LINKS = [
   { href: "/translation", key: "translation", icon: LanguagesIcon },
   { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
   { href: "/speaky", key: "speaky", icon: Volume2Icon },
+  { href: "/speaky/gallery", key: "speaky", icon: AudioWaveformIcon },
   { href: "/humanizy", key: "humanizy", icon: FingerprintIcon },
   { href: "/cooker", key: "cooker", icon: CookingPotIcon },
   { href: "/health", key: "health", icon: HeartPulseIcon },
