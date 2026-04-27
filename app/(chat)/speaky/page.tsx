@@ -2,6 +2,7 @@
 
 import {
   Download,
+  CircleHelp,
   FileText,
   Gauge,
   LibraryBig,
@@ -253,6 +254,25 @@ const SAMPLE_TEXT_BY_LANGUAGE: Record<string, string> = {
   ja: "このプリセットのクイック音声プレビューです。",
   ko: "이 프리셋의 빠른 오디오 미리보기입니다.",
   zh: "这是此预设的快速音频预览。",
+};
+
+const ONBOARDING_TEXT_BY_LANGUAGE: Record<string, string> = {
+  fr: "Bienvenue dans Speaky. Ceci est votre première génération guidée !",
+  en: "Welcome to Speaky. This is your first guided generation!",
+  es: "Bienvenido a Speaky. ¡Esta es tu primera generación guiada!",
+  de: "Willkommen bei Speaky. Dies ist Ihre erste geführte Generierung!",
+  it: "Benvenuto in Speaky. Questa è la tua prima generazione guidata!",
+  pt: "Bem-vindo ao Speaky. Esta é sua primeira geração guiada!",
+  nl: "Welkom bij Speaky. Dit is je eerste begeleide generatie!",
+  pl: "Witamy w Speaky. To Twoja pierwsza generacja krok po kroku!",
+  tr: "Speaky'ye hoş geldiniz. Bu ilk rehberli üretiminiz!",
+  sv: "Välkommen till Speaky. Detta är din första guidade generering!",
+  ru: "Добро пожаловать в Speaky. Это ваша первая пошаговая генерация!",
+  ar: "مرحبًا بك في Speaky. هذا أول توليد إرشادي لك!",
+  hi: "Speaky में आपका स्वागत है। यह आपकी पहली मार्गदर्शित जनरेशन है।",
+  ja: "Speakyへようこそ。これは最初のガイド付き生成です。",
+  ko: "Speaky에 오신 것을 환영합니다. 첫 가이드 생성입니다.",
+  zh: "欢迎使用 Speaky，这是你的首次引导生成。",
 };
 
 const COMMUNITY_PRESETS: AudioPreset[] = [
@@ -919,6 +939,13 @@ export default function SpeakyPage() {
   const [language, setLanguage] = useState("fr");
   const [workspaceMode, setWorkspaceMode] =
     useState<SpeakyWorkspaceMode>("generator");
+  const [onboardingDone, setOnboardingDone] = useLocalStorage<boolean>(
+    "mai.speaky.onboarding.done.v1",
+    false
+  );
+  const [onboardingStep, setOnboardingStep] = useState<number>(0);
+  const [onboardingTourIndex, setOnboardingTourIndex] = useState(0);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [scriptEditorMode, setScriptEditorMode] =
     useState<ScriptEditorMode>("standard");
   const [pauseDurationMs, setPauseDurationMs] = useState(500);
@@ -1017,6 +1044,11 @@ export default function SpeakyPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const editorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceSelectRef = useRef<HTMLSelectElement | null>(null);
+  const styleSelectRef = useRef<HTMLSelectElement | null>(null);
+  const speedSliderRef = useRef<HTMLInputElement | null>(null);
+  const toneSliderRef = useRef<HTMLInputElement | null>(null);
+  const generateButtonRef = useRef<HTMLButtonElement | null>(null);
   const historyAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const historyImportInputRef = useRef<HTMLInputElement | null>(null);
   const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1256,6 +1288,14 @@ export default function SpeakyPage() {
       })
     );
   }, [history, language, rate, setHistory, tone, voiceGender, voiceStyle]);
+
+  useEffect(() => {
+    if (!onboardingDone) {
+      setOnboardingStep(1);
+      setOnboardingTourIndex(0);
+    }
+  }, [onboardingDone]);
+
 
   useEffect(() => {
     return () => {
@@ -2061,6 +2101,84 @@ export default function SpeakyPage() {
     toast.success("Audio ajouté à la bibliothèque.");
   };
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setShowShortcutsModal(true);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        generateBatchAudio();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!presetTitle.trim()) {
+          setPresetTitle("Favori rapide");
+        }
+        saveCurrentAsPreset();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        handleDownload();
+      }
+      if (event.key === "Escape") {
+        audioRef.current?.pause();
+        if (speechSupport) window.speechSynthesis.cancel();
+        setIsPlaying(false);
+      }
+      if (event.key === " " && audioRef.current) {
+        event.preventDefault();
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(() => undefined);
+        } else {
+          audioRef.current.pause();
+        }
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setRate((current) => Math.min(1.6, Number((current + 0.1).toFixed(2))));
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setRate((current) => Math.max(0.7, Number((current - 0.1).toFixed(2))));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [generateBatchAudio, handleDownload, presetTitle, saveCurrentAsPreset, speechSupport]);
+
+  const onboardingTargets = [
+    {
+      ref: editorTextAreaRef,
+      message: "Zone de texte : collez ou écrivez votre script ici.",
+    },
+    {
+      ref: voiceSelectRef,
+      message: "Choisissez votre voix ici.",
+    },
+    {
+      ref: styleSelectRef,
+      message: "Sélecteur de style vocal.",
+    },
+    {
+      ref: speedSliderRef,
+      message: "Ajustez la vitesse de lecture.",
+    },
+    {
+      ref: toneSliderRef,
+      message: "Ajustez le ton de la voix.",
+    },
+    {
+      ref: generateButtonRef,
+      message: "Cliquez pour générer l'audio cloud.",
+    },
+  ] as const;
+
+  const activeTourTarget =
+    onboardingStep === 2 ? onboardingTargets[onboardingTourIndex] : null;
+  const activeTourRect = activeTourTarget?.ref.current?.getBoundingClientRect();
+
   return (
     <div
       className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 transition-colors duration-300 md:p-8"
@@ -2076,23 +2194,33 @@ export default function SpeakyPage() {
             Génération par lot et podcast multi-voix.
           </p>
         </div>
-        <button
-          className="rounded-xl border px-3 py-2"
-          onClick={() => {
-            setIsDarkMode((current) => !current);
-            setThemeId((current) =>
-              current === "classic-light" || current === "classic-dark"
-                ? isDarkMode
-                  ? "classic-light"
-                  : "classic-dark"
-                : current
-            );
-          }}
-          style={{ borderColor: effectiveTheme.palette.accent }}
-          type="button"
-        >
-          {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded-xl border px-3 py-2"
+            onClick={() => setShowShortcutsModal(true)}
+            style={{ borderColor: effectiveTheme.palette.accent }}
+            type="button"
+          >
+            <CircleHelp className="size-4" />
+          </button>
+          <button
+            className="rounded-xl border px-3 py-2"
+            onClick={() => {
+              setIsDarkMode((current) => !current);
+              setThemeId((current) =>
+                current === "classic-light" || current === "classic-dark"
+                  ? isDarkMode
+                    ? "classic-light"
+                    : "classic-dark"
+                  : current
+              );
+            }}
+            style={{ borderColor: effectiveTheme.palette.accent }}
+            type="button"
+          >
+            {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+        </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
@@ -2180,6 +2308,17 @@ export default function SpeakyPage() {
                 </button>
               ))}
             </div>
+            <button
+              className="mt-2 rounded border px-2 py-1 text-[11px]"
+              onClick={() => {
+                setOnboardingDone(false);
+                setOnboardingStep(1);
+                setOnboardingTourIndex(0);
+              }}
+              type="button"
+            >
+              Relancer tutoriel interactif
+            </button>
           </div>
 
           {workspaceMode === "projects" ? (
@@ -2717,6 +2856,7 @@ export default function SpeakyPage() {
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
                 onChange={(event) => setVoice(event.target.value)}
+                ref={voiceSelectRef}
                 value={voice}
               >
                 {availableVoices.map((item) => (
@@ -2734,6 +2874,7 @@ export default function SpeakyPage() {
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
                 onChange={(event) => setVoiceStyle(event.target.value as VoiceStyle)}
+                ref={styleSelectRef}
                 value={voiceStyle}
               >
                 <option value="narratif">Narratif</option>
@@ -2773,6 +2914,7 @@ export default function SpeakyPage() {
                 max={1.6}
                 min={0.7}
                 onChange={(event) => setRate(Number(event.target.value))}
+                ref={speedSliderRef}
                 step={0.05}
                 type="range"
                 value={rate}
@@ -2786,6 +2928,7 @@ export default function SpeakyPage() {
                 max={6}
                 min={-6}
                 onChange={(event) => setTone(Number(event.target.value))}
+                ref={toneSliderRef}
                 step={1}
                 type="range"
                 value={tone}
@@ -2877,6 +3020,7 @@ export default function SpeakyPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs text-white disabled:opacity-60"
               disabled={isGenerating}
               onClick={generateBatchAudio}
+              ref={generateButtonRef}
               type="button"
             >
               {isGenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
@@ -3246,6 +3390,138 @@ export default function SpeakyPage() {
           </div>
         </aside>
       </div>
+
+      {showShortcutsModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-background p-4 shadow-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-semibold">Raccourcis clavier Speaky</p>
+              <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowShortcutsModal(false)} type="button">Fermer</button>
+            </div>
+            <ul className="space-y-1 text-sm">
+              <li><kbd>Ctrl+K</kbd> : ouvrir cette aide.</li>
+              <li><kbd>Ctrl+Entrée</kbd> : générer l'audio.</li>
+              <li><kbd>Espace</kbd> : play/pause.</li>
+              <li><kbd>Ctrl+S</kbd> : sauvegarder en favori rapide.</li>
+              <li><kbd>Échap</kbd> : stop.</li>
+              <li><kbd>↑ / ↓</kbd> : vitesse ±0,1.</li>
+              <li><kbd>Ctrl+D</kbd> : télécharger le dernier audio.</li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
+      {onboardingStep > 0 ? (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]">
+          <button
+            className="absolute right-4 top-4 rounded border bg-background px-3 py-1 text-xs"
+            onClick={() => {
+              setOnboardingDone(true);
+              setOnboardingStep(0);
+            }}
+            type="button"
+          >
+            Passer
+          </button>
+
+          {onboardingStep === 1 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Bienvenue dans Speaky</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choisissez votre langue principale pour démarrer.
+              </p>
+              <select
+                className="mt-3 w-full rounded border border-border/50 bg-background px-2 py-2"
+                onChange={(event) => setLanguage(event.target.value)}
+                value={language}
+              >
+                {LANGUAGE_OPTIONS.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <button className="mt-3 rounded border px-3 py-2" onClick={() => setOnboardingStep(2)} type="button">
+                Suivant
+              </button>
+            </div>
+          ) : null}
+
+          {onboardingStep === 2 && activeTourRect ? (
+            <div
+              className="absolute rounded-xl border bg-background/95 p-3 text-xs shadow-lg"
+              style={{
+                left: Math.max(12, activeTourRect.left),
+                top: Math.max(12, activeTourRect.top - 92),
+                width: 300,
+              }}
+            >
+              <p>{activeTourTarget?.message}</p>
+              <div className="mt-2 flex gap-1">
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => {
+                    if (onboardingTourIndex >= onboardingTargets.length - 1) {
+                      setOnboardingStep(3);
+                    } else {
+                      setOnboardingTourIndex((current) => current + 1);
+                    }
+                  }}
+                  type="button"
+                >
+                  {onboardingTourIndex >= onboardingTargets.length - 1 ? "Terminer visite" : "Suivant"}
+                </button>
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => setOnboardingStep(3)}
+                  type="button"
+                >
+                  Ignorer visite
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {onboardingStep === 3 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Première génération guidée</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pré-remplissez un texte exemple, générez, puis testez vitesse et ton.
+              </p>
+              <button
+                className="mt-3 rounded border px-3 py-2"
+                onClick={() => {
+                  setText(ONBOARDING_TEXT_BY_LANGUAGE[language] ?? ONBOARDING_TEXT_BY_LANGUAGE.fr);
+                  setMode("batch");
+                  setOnboardingStep(4);
+                }}
+                type="button"
+              >
+                Remplir texte exemple
+              </button>
+            </div>
+          ) : null}
+
+          {onboardingStep === 4 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Vous êtes prêt 🚀</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Explorez les favoris, l'historique, le mode batch et les fonctions avancées.
+              </p>
+              <button
+                className="mt-3 rounded border px-3 py-2"
+                onClick={() => {
+                  setOnboardingDone(true);
+                  setOnboardingStep(0);
+                }}
+                type="button"
+              >
+                Terminer
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
