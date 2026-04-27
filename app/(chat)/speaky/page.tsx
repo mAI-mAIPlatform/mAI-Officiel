@@ -2,6 +2,7 @@
 
 import {
   Download,
+  FileText,
   Gauge,
   LibraryBig,
   Loader2,
@@ -12,10 +13,12 @@ import {
   Upload,
   Volume,
   Waves,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
+import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
 import { addStatsEvent } from "@/lib/user-stats";
 
 type SpeakyResponse = {
@@ -62,6 +65,23 @@ type AudioPreset = {
   advanced: AdvancedVoiceProfile;
   category?: PresetCategory;
   community?: boolean;
+};
+
+type TemplateCategory =
+  | "education"
+  | "professional"
+  | "creative"
+  | "personal";
+
+type TextTemplate = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  level?: string;
+  text: string;
+  usageCount: number;
+  rating: number;
+  recommendedPreset: AudioPreset;
 };
 
 const LANGUAGE_OPTIONS = [
@@ -220,6 +240,90 @@ const COMMUNITY_PRESETS: AudioPreset[] = [
     category: "creative",
     community: true,
     advanced: { emphasisWords: ["doucement"], pauseSeconds: 0.5, volume: 0.85 },
+  },
+];
+
+const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  education: "Éducation",
+  professional: "Professionnel",
+  creative: "Créatif",
+  personal: "Personnel",
+};
+
+const TEMPLATE_LIBRARY: TextTemplate[] = [
+  {
+    id: "edu-course-primary",
+    title: "Mini cours niveau primaire",
+    category: "education",
+    level: "Primaire",
+    usageCount: 1894,
+    rating: 4.8,
+    text: "Bonjour [prénom], aujourd'hui nous allons découvrir [le sujet]. À la fin de ce cours, tu sauras expliquer [objectif].",
+    recommendedPreset: COMMUNITY_PRESETS[1]!,
+  },
+  {
+    id: "edu-summary-college",
+    title: "Résumé de leçon collège",
+    category: "education",
+    level: "Collège",
+    usageCount: 1421,
+    rating: 4.6,
+    text: "Résumé de la leçon sur [le sujet] : idée clé numéro un [idée 1], idée clé numéro deux [idée 2], et conclusion [conclusion].",
+    recommendedPreset: COMMUNITY_PRESETS[1]!,
+  },
+  {
+    id: "pro-pitch",
+    title: "Présentation commerciale",
+    category: "professional",
+    usageCount: 2210,
+    rating: 4.9,
+    text: "Bonjour [nom du client], je suis [votre nom] de [entreprise]. Aujourd'hui je vous présente [solution] pour répondre à [problème].",
+    recommendedPreset: COMMUNITY_PRESETS[3]!,
+  },
+  {
+    id: "pro-announcement",
+    title: "Annonce d'entreprise",
+    category: "professional",
+    usageCount: 972,
+    rating: 4.4,
+    text: "Message interne : à compter du [date], l'équipe [service] met en place [nouveauté]. Merci de contacter [contact] pour toute question.",
+    recommendedPreset: COMMUNITY_PRESETS[3]!,
+  },
+  {
+    id: "creative-youtube",
+    title: "Script intro YouTube",
+    category: "creative",
+    usageCount: 2554,
+    rating: 4.7,
+    text: "Salut la team, c'est [votre nom] ! Aujourd'hui on va parler de [le sujet] et je vais vous montrer [promesse]. Restez jusqu'à la fin !",
+    recommendedPreset: COMMUNITY_PRESETS[2]!,
+  },
+  {
+    id: "creative-podcast",
+    title: "Introduction podcast",
+    category: "creative",
+    usageCount: 1640,
+    rating: 4.8,
+    text: "Bienvenue dans [nom du podcast], l'émission où l'on explore [thème]. Je suis [votre nom] et aujourd'hui, notre épisode est consacré à [sujet].",
+    recommendedPreset: COMMUNITY_PRESETS[4]!,
+  },
+  {
+    id: "personal-voice-message",
+    title: "Message vocal personnel",
+    category: "personal",
+    usageCount: 884,
+    rating: 4.3,
+    text: "Bonjour [prénom], je voulais juste te dire [message principal]. N'hésite pas à me rappeler quand tu as un moment.",
+    recommendedPreset: COMMUNITY_PRESETS[0]!,
+  },
+  {
+    id: "personal-birthday",
+    title: "Souhait anniversaire",
+    category: "personal",
+    usageCount: 1302,
+    rating: 4.9,
+    text: "Joyeux anniversaire [prénom] ! Je te souhaite [souhait 1], [souhait 2] et une journée remplie de [émotion positive].",
+    recommendedPreset: COMMUNITY_PRESETS[0]!,
   },
 ];
 
@@ -452,6 +556,54 @@ function buildShareLinkFromPreset(preset: AudioPreset) {
   return `${window.location.origin}/speaky?preset=${payload}`;
 }
 
+function cleanExtractedText(raw: string) {
+  return raw
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+type SrtCue = {
+  startMs: number;
+  endMs: number;
+  text: string;
+};
+
+function parseTimestampToMs(value: string) {
+  const match = value.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+  if (!match) return 0;
+  const [, hh, mm, ss, ms] = match;
+  return (
+    Number(hh) * 3_600_000 +
+    Number(mm) * 60_000 +
+    Number(ss) * 1_000 +
+    Number(ms)
+  );
+}
+
+function parseSrtContent(content: string) {
+  const cues: SrtCue[] = [];
+  const blocks = content.replace(/\r\n/g, "\n").split(/\n\n+/);
+  for (const block of blocks) {
+    const lines = block
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) continue;
+    const timeLine = lines[1]?.includes("-->") ? lines[1] : lines[0];
+    if (!timeLine.includes("-->")) continue;
+    const [startRaw, endRaw] = timeLine.split("-->").map((item) => item.trim());
+    const textLines = lines.slice(timeLine === lines[1] ? 2 : 1).join(" ");
+    cues.push({
+      startMs: parseTimestampToMs(startRaw),
+      endMs: parseTimestampToMs(endRaw),
+      text: textLines.replace(/<[^>]+>/g, "").trim(),
+    });
+  }
+  return cues.filter((cue) => cue.text.length > 0);
+}
+
 export default function SpeakyPage() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState("fr");
@@ -475,7 +627,23 @@ export default function SpeakyPage() {
   const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
   const [presetTitle, setPresetTitle] = useState("");
+  const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
+  const [selectedTemplateCategory, setSelectedTemplateCategory] =
+    useState<TemplateCategory>("education");
   const [previewingPresetId, setPreviewingPresetId] = useState<string | null>(null);
+  const [previewingTemplateId, setPreviewingTemplateId] = useState<string | null>(
+    null
+  );
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [lastImportPreview, setLastImportPreview] = useState("");
+  const [lastImportMeta, setLastImportMeta] = useState<{
+    fileName: string;
+    chars: number;
+    segments: number;
+    isSrt: boolean;
+  } | null>(null);
+  const [applySrtTiming, setApplySrtTiming] = useState(false);
+  const [srtCues, setSrtCues] = useState<SrtCue[]>([]);
   const [advancedProfile, setAdvancedProfile] = useState<AdvancedVoiceProfile>({
     emphasisWords: [],
     pauseSeconds: 0,
@@ -494,6 +662,9 @@ export default function SpeakyPage() {
     "mai.speaky.presets.v1",
     []
   );
+  const [recentImports, setRecentImports] = useLocalStorage<
+    Array<{ fileName: string; extractedText: string; importedAt: string }>
+  >("mai.speaky.recent-imports.v1", []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -548,6 +719,20 @@ export default function SpeakyPage() {
       }
     );
   }, []);
+  const filteredTemplates = useMemo(
+    () =>
+      TEMPLATE_LIBRARY.filter(
+        (template) => template.category === selectedTemplateCategory
+      ),
+    [selectedTemplateCategory]
+  );
+  const featuredTemplates = useMemo(
+    () =>
+      [...TEMPLATE_LIBRARY]
+        .sort((a, b) => b.usageCount * b.rating - a.usageCount * a.rating)
+        .slice(0, 4),
+    []
+  );
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -707,6 +892,74 @@ export default function SpeakyPage() {
     }
   };
 
+  const applyTemplate = (template: TextTemplate) => {
+    setText(template.text);
+    applyPreset(template.recommendedPreset);
+    setIsTemplatePanelOpen(false);
+    toast.success(`Template appliqué: ${template.title}`);
+  };
+
+  const previewTemplate = async (template: TextTemplate) => {
+    try {
+      setPreviewingTemplateId(template.id);
+      await quickPreviewPreset(template.recommendedPreset);
+    } finally {
+      setPreviewingTemplateId(null);
+    }
+  };
+
+  const importDocument = async (file: File) => {
+    const error = validateFileBeforeUpload(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    const isSrt = file.name.toLowerCase().endsWith(".srt");
+    let extractedText = "";
+    let cues: SrtCue[] = [];
+
+    if (isSrt) {
+      const content = await file.text();
+      cues = parseSrtContent(content);
+      extractedText = cues.map((cue) => cue.text).join("\n");
+    } else {
+      const parsed = await parseFileForAi(file);
+      extractedText = parsed.extractedText;
+    }
+
+    const cleaned = cleanExtractedText(extractedText);
+    if (!cleaned) {
+      toast.error("Aucun texte exploitable détecté dans ce document.");
+      return;
+    }
+
+    setText(cleaned);
+    setLastImportPreview(cleaned.slice(0, 1200));
+    setLastImportMeta({
+      fileName: file.name,
+      chars: cleaned.length,
+      segments: splitTextIntoSmartSegments(cleaned).length,
+      isSrt,
+    });
+    setApplySrtTiming(isSrt && cues.length > 0);
+    setSrtCues(cues);
+    setRecentImports((current) =>
+      [
+        { fileName: file.name, extractedText: cleaned, importedAt: new Date().toISOString() },
+        ...current,
+      ].slice(0, 8)
+    );
+    toast.success(`Document importé: ${file.name}`);
+  };
+
+  const onDocumentInput = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importDocument(file);
+    event.target.value = "";
+  };
+
   const generateBatchAudio = async () => {
     if (!text.trim()) {
       toast.error("Ajoutez un texte avant de générer l'audio.");
@@ -718,17 +971,31 @@ export default function SpeakyPage() {
       return;
     }
 
+    const unitsForGeneration: BatchUnit[] =
+      mode === "batch" && applySrtTiming && srtCues.length > 0
+        ? srtCues.map((cue, index) => {
+            const next = srtCues[index + 1];
+            const gapMs = next ? Math.max(0, next.startMs - cue.endMs) : 0;
+            const extraPause = "… ".repeat(Math.min(5, Math.round(gapMs / 400)));
+            return {
+              text: `${cue.text}${extraPause ? ` ${extraPause}` : ""}`.trim(),
+              voice,
+              label: `SRT ${index + 1}`,
+            };
+          })
+        : activeUnits;
+
     setIsGenerating(true);
     setIsPaused(false);
     pausedRef.current = false;
-    setProgress({ completed: 0, total: activeUnits.length, percent: 0, etaSec: 0 });
+    setProgress({ completed: 0, total: unitsForGeneration.length, percent: 0, etaSec: 0 });
 
     const startedAt = Date.now();
     const mp3Chunks: Uint8Array[] = [];
     let totalDuration = 0;
 
     try {
-      for (const [index, unit] of activeUnits.entries()) {
+      for (const [index, unit] of unitsForGeneration.entries()) {
         await waitIfPaused();
         const transformedText = applyAdvancedProfileToText(
           unit.text,
@@ -763,12 +1030,12 @@ export default function SpeakyPage() {
         const completed = index + 1;
         const elapsed = Math.max(1, (Date.now() - startedAt) / 1000);
         const average = elapsed / completed;
-        const remaining = Math.max(0, activeUnits.length - completed);
+        const remaining = Math.max(0, unitsForGeneration.length - completed);
 
         setProgress({
           completed,
-          total: activeUnits.length,
-          percent: Math.round((completed / activeUnits.length) * 100),
+          total: unitsForGeneration.length,
+          percent: Math.round((completed / unitsForGeneration.length) * 100),
           etaSec: Math.round(average * remaining),
         });
       }
@@ -915,14 +1182,6 @@ export default function SpeakyPage() {
     toast.success("Audio ajouté à la bibliothèque.");
   };
 
-  const importTextFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const value = await file.text();
-    setText(value);
-    event.target.value = "";
-  };
-
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -935,7 +1194,25 @@ export default function SpeakyPage() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-        <section className="liquid-panel space-y-3 rounded-2xl p-4">
+        <section
+          className={`liquid-panel space-y-3 rounded-2xl p-4 ${isDraggingFile ? "ring-2 ring-cyan-500" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+          }}
+          onDrop={async (event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+            const file = event.dataTransfer.files?.[0];
+            if (file) {
+              await importDocument(file);
+            }
+          }}
+        >
           <div className="flex flex-wrap gap-2">
             <button
               className={`rounded-xl px-3 py-2 text-xs ${mode === "batch" ? "bg-black text-white" : "border"}`}
@@ -951,7 +1228,94 @@ export default function SpeakyPage() {
             >
               Podcast multi-voix
             </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
+              onClick={() => setIsTemplatePanelOpen((current) => !current)}
+              type="button"
+            >
+              <Wand2 className="size-3.5" />
+              Templates texte
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs">
+              <FileText className="size-3.5" />
+              Import document
+              <input
+                accept=".pdf,.docx,.txt,.srt,.md,.json,.csv"
+                className="hidden"
+                onChange={onDocumentInput}
+                type="file"
+              />
+            </label>
           </div>
+
+          {isTemplatePanelOpen ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                Bibliothèque de templates prêts à l'emploi
+              </p>
+              <div className="mb-2 flex flex-wrap gap-1">
+                {(Object.keys(TEMPLATE_CATEGORY_LABELS) as TemplateCategory[]).map(
+                  (category) => (
+                    <button
+                      className={`rounded-lg px-2 py-1 text-[11px] ${
+                        selectedTemplateCategory === category
+                          ? "bg-black text-white"
+                          : "border"
+                      }`}
+                      key={category}
+                      onClick={() => setSelectedTemplateCategory(category)}
+                      type="button"
+                    >
+                      {TEMPLATE_CATEGORY_LABELS[category]}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <p className="mb-1 text-[11px] font-medium text-foreground">
+                Tendances communauté
+              </p>
+              <div className="mb-3 grid gap-2 md:grid-cols-2">
+                {featuredTemplates.map((template) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={template.id}>
+                    <p className="font-medium text-foreground">{template.title}</p>
+                    <p className="text-[11px]">
+                      ⭐ {template.rating.toFixed(1)} · {template.usageCount.toLocaleString("fr-FR")} usages
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="max-h-56 space-y-2 overflow-auto">
+                {filteredTemplates.map((template) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={template.id}>
+                    <p className="font-medium text-foreground">{template.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {template.level ? `${template.level} · ` : ""}
+                      ⭐ {template.rating.toFixed(1)} · {template.usageCount.toLocaleString("fr-FR")} usages
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-[11px]">{template.text}</p>
+                    <div className="mt-2 flex gap-1">
+                      <button
+                        className="rounded border px-2 py-1 text-[11px]"
+                        onClick={() => applyTemplate(template)}
+                        type="button"
+                      >
+                        Utiliser
+                      </button>
+                      <button
+                        className="rounded border px-2 py-1 text-[11px]"
+                        onClick={() => previewTemplate(template)}
+                        type="button"
+                      >
+                        {previewingTemplateId === template.id ? "..." : "Prévisualiser"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {mode === "podcast" ? (
             <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
@@ -1013,11 +1377,63 @@ export default function SpeakyPage() {
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs">
                   <Upload className="size-3.5" />
                   Importer un fichier texte
-                  <input accept=".txt,.md,.csv,.json" className="hidden" onChange={importTextFile} type="file" />
+                  <input accept=".txt,.md,.csv,.json,.docx,.pdf,.srt" className="hidden" onChange={onDocumentInput} type="file" />
                 </label>
               </div>
             </>
           )}
+
+          {lastImportMeta ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+              <p className="font-medium text-foreground">
+                Aperçu import: {lastImportMeta.fileName}
+              </p>
+              <p>
+                {lastImportMeta.chars} caractères · {lastImportMeta.segments} segments
+              </p>
+              {lastImportMeta.isSrt ? (
+                <label className="mt-1 inline-flex items-center gap-2">
+                  <input
+                    checked={applySrtTiming}
+                    onChange={(event) => setApplySrtTiming(event.target.checked)}
+                    type="checkbox"
+                  />
+                  Utiliser les timecodes SRT pour synchroniser les pauses
+                </label>
+              ) : null}
+              <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-muted-foreground">
+                {lastImportPreview}
+              </p>
+            </div>
+          ) : null}
+
+          {recentImports.length > 0 ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+              <p className="mb-1 font-medium text-foreground">Imports récents</p>
+              <div className="max-h-24 space-y-1 overflow-auto">
+                {recentImports.map((entry) => (
+                  <button
+                    className="block w-full rounded border border-border/40 px-2 py-1 text-left"
+                    key={`${entry.fileName}-${entry.importedAt}`}
+                    onClick={() => {
+                      setText(entry.extractedText);
+                      setLastImportPreview(entry.extractedText.slice(0, 1200));
+                      setLastImportMeta({
+                        fileName: entry.fileName,
+                        chars: entry.extractedText.length,
+                        segments: splitTextIntoSmartSegments(entry.extractedText).length,
+                        isSrt: entry.fileName.toLowerCase().endsWith(".srt"),
+                      });
+                    }}
+                    type="button"
+                  >
+                    {entry.fileName} ·{" "}
+                    {new Date(entry.importedAt).toLocaleTimeString("fr-FR")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <p className="text-[11px] text-muted-foreground">
             Compteur cloud 500 caractères: {Math.min(cloudTextLength, 500)}/500 · Total texte: {cloudTextLength} · Segments: {activeUnits.length}
