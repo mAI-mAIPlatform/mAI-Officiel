@@ -2,14 +2,45 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   deleteProjectByUser,
   getProjectById,
   updateProjectByUser,
 } from "@/lib/db/queries";
+import type { Project } from "@/lib/db/schema";
+import { requireProjectRole } from "@/lib/projects/permissions";
+
+const DEFAULT_PROJECT_NOTIFICATION_SETTINGS = {
+  deadlineReminders: true,
+  taskAssignment: true,
+  commentAdded: true,
+  taskCompleted: true,
+};
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(5000).optional(),
   instructions: z.string().trim().max(5000).optional(),
+  startDate: z.coerce.date().nullable().optional(),
+  endDate: z.coerce.date().nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(30).optional(),
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
+  icon: z.string().trim().max(50).nullable().optional(),
+  aiModel: z.string().trim().max(120).nullable().optional(),
+  systemInstructions: z.string().trim().max(10000).nullable().optional(),
+  notificationSettings: z
+    .object({
+      deadlineReminders: z.boolean().optional(),
+      taskAssignment: z.boolean().optional(),
+      commentAdded: z.boolean().optional(),
+      taskCompleted: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export async function GET(
@@ -23,9 +54,13 @@ export async function GET(
   }
 
   const { id } = await context.params;
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
+  }
   const item = await getProjectById(id);
 
-  if (!item || item.userId !== session.user.id) {
+  if (!item) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -33,6 +68,13 @@ export async function GET(
 }
 
 export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PATCH(request, context);
+}
+
+export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
@@ -53,11 +95,51 @@ export async function PUT(
   }
 
   const { id } = await context.params;
-  const [updated] = await updateProjectByUser(id, session.user.id, parsed.data);
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
+  }
+  const existing = await getProjectById(id);
+
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const { notificationSettings, ...restData } = parsed.data;
+  const data: Partial<Project> = { ...restData };
+
+  if (notificationSettings) {
+    const mergedSettings = {
+      ...DEFAULT_PROJECT_NOTIFICATION_SETTINGS,
+      ...(existing.notificationSettings ?? {}),
+      ...notificationSettings,
+    };
+
+    data.notificationSettings = {
+      deadlineReminders: mergedSettings.deadlineReminders,
+      taskAssignment: mergedSettings.taskAssignment,
+      commentAdded: mergedSettings.commentAdded,
+      taskCompleted: mergedSettings.taskCompleted,
+    };
+  }
+
+  const [updated] = await updateProjectByUser(id, session.user.id, data);
 
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "project_updated",
+    targetType: "project",
+    targetId: id,
+    metadata: {
+      updatedFields: Object.keys(data),
+      projectName: updated.name,
+    },
+  });
 
   return NextResponse.json(updated);
 }
@@ -73,6 +155,10 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
+  const permission = await requireProjectRole(id, session.user.id, "owner");
+  if (permission.response) {
+    return permission.response;
+  }
   await deleteProjectByUser(id, session.user.id);
 
   return NextResponse.json({ success: true });

@@ -29,6 +29,7 @@ import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 
 type ActiveChatContextValue = {
   chatId: string;
+  activeProjectId: string | null;
   messages: ChatMessage[];
   setMessages: UseChatHelpers<ChatMessage>["setMessages"];
   sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
@@ -302,6 +303,7 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ActiveChatContextValue>(
     () => ({
       chatId,
+      activeProjectId: projectId ?? (chatData?.projectId ?? null),
       messages,
       setMessages,
       sendMessage,
@@ -322,6 +324,8 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     }),
     [
       chatId,
+      projectId,
+      chatData?.projectId,
       messages,
       setMessages,
       sendMessage,

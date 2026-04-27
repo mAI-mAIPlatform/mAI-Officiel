@@ -1,211 +1,169 @@
 "use client";
 
+import { format, formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import {
   Bell,
   CheckCheck,
-  Circle,
-  Copy,
-  Pin,
-  PinOff,
-  Trash2,
+  CheckCircle2,
+  Clock3,
+  MessageCircle,
+  Target,
+  UserRoundPlus,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  type AppNotification,
-  clearNotifications,
-  deleteNotification,
-  getNotificationHistory,
-  markAllNotificationsRead,
-  markNotificationRead,
-  pinNotification,
-  subscribeNotifications,
-} from "@/lib/notifications";
-import { cn } from "@/lib/utils";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
-function levelBadge(level: AppNotification["level"]) {
-  if (level === "error") {
-    return "bg-rose-500/15 text-rose-700";
-  }
-  if (level === "warning") {
-    return "bg-amber-500/15 text-amber-700";
-  }
-  if (level === "success") {
-    return "bg-emerald-500/15 text-emerald-700";
-  }
-  return "bg-sky-500/15 text-sky-700";
-}
+type NotificationItem = {
+  id: string;
+  projectId: string | null;
+  taskId: string | null;
+  type:
+    | "task_due"
+    | "task_assigned"
+    | "comment_added"
+    | "project_deadline"
+    | "task_completed"
+    | "mention";
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
+const iconMap = {
+  task_due: Clock3,
+  task_assigned: UserRoundPlus,
+  comment_added: MessageCircle,
+  project_deadline: Target,
+  task_completed: CheckCircle2,
+  mention: Bell,
+} as const;
 
 export function NotificationCenter() {
-  const [items, setItems] = useState<AppNotification[]>([]);
-  const [activeItem, setActiveItem] = useState<AppNotification | null>(null);
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const load = async () => {
+    const response = await fetch("/api/notifications?limit=100&offset=0");
+    if (!response.ok) return;
+    const data = (await response.json()) as {
+      items: NotificationItem[];
+      unreadCount: number;
+    };
+    setItems(data.items);
+    setUnreadCount(data.unreadCount);
+  };
 
   useEffect(() => {
-    setItems(getNotificationHistory());
-    return subscribeNotifications(() => {
-      setItems(getNotificationHistory());
-    });
+    load();
   }, []);
 
-  const sortedItems = useMemo(
-    () =>
-      [...items].sort(
-        (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
-      ),
-    [items]
-  );
+  const grouped = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        const key = format(new Date(item.createdAt), "yyyy-MM-dd");
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {} as Record<string, NotificationItem[]>
+    );
+  }, [items]);
 
-  const unreadCount = useMemo(
-    () => items.filter((item) => !item.read).length,
-    [items]
-  );
+  const markAllRead = async () => {
+    await fetch("/api/notifications", { method: "POST" });
+    await load();
+  };
+
+  const markOneRead = async (id: string) => {
+    await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+    await load();
+  };
 
   return (
-    <div className="liquid-panel mx-2 mt-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/20 p-2 group-data-[collapsible=icon]:hidden">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground/90">
-          <Bell className="size-3.5" />
-          Notifications
-          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">
+    <div className="fixed top-3 right-3 z-[96]">
+      <button
+        className="relative rounded-full border border-sidebar-border/45 bg-sidebar/90 p-2 text-sidebar-foreground shadow-sm backdrop-blur-md"
+        onClick={() => setOpen((previous) => !previous)}
+        type="button"
+      >
+        <Bell className="size-4" />
+        {unreadCount > 0 ? (
+          <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
             {unreadCount}
           </span>
-        </p>
-        <div className="flex items-center gap-1">
-          <Button
-            className="h-6 px-2 text-[10px]"
-            onClick={() => markAllNotificationsRead(true)}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <CheckCheck className="size-3" />
-          </Button>
-          <Button
-            className="h-6 px-2 text-[10px]"
-            onClick={clearNotifications}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <Trash2 className="size-3" />
-          </Button>
-        </div>
-      </div>
-      <div className="max-h-52 space-y-1 overflow-auto pr-1">
-        {items.length === 0 ? (
-          <p className="text-[11px] text-sidebar-foreground/60">
-            Aucune notification.
-          </p>
-        ) : (
-          sortedItems.map((item) => (
-            <button
-              className={cn(
-                "w-full rounded-lg border px-2 py-1.5 text-left",
-                item.read
-                  ? "border-sidebar-border/40 bg-sidebar/20 opacity-75"
-                  : "border-sidebar-border/70 bg-sidebar/50"
-              )}
-              key={item.id}
-              onClick={() => {
-                setActiveItem(item);
-                if (!item.read) {
-                  markNotificationRead(item.id, true);
-                }
-              }}
-              type="button"
-            >
-              <p className="flex items-center gap-1 text-[11px] font-medium text-sidebar-foreground">
-                <Circle className="size-2.5 fill-current" />
-                {item.title}
-                {item.pinned ? <Pin className="size-2.5" /> : null}
-                <span className={cn("rounded px-1", levelBadge(item.level))}>
-                  {item.level}
-                </span>
-              </p>
-              <p className="line-clamp-2 text-[10px] text-sidebar-foreground/70">
-                {item.message}
-              </p>
-            </button>
-          ))
-        )}
-      </div>
+        ) : null}
+      </button>
 
-      <Dialog
-        onOpenChange={(open) => !open && setActiveItem(null)}
-        open={Boolean(activeItem)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{activeItem?.title}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{activeItem?.message}</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              onClick={() => {
-                if (!activeItem) {
-                  return;
-                }
-                navigator.clipboard.writeText(activeItem.message);
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Copy className="mr-1 size-4" /> Copier
-            </Button>
-            <Button
-              onClick={() => {
-                if (!activeItem) {
-                  return;
-                }
-                markNotificationRead(activeItem.id, !activeItem.read);
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <CheckCheck className="mr-1 size-4" />
-              {activeItem?.read ? "Marquer non lu" : "Marquer lu"}
-            </Button>
-            <Button
-              onClick={() => {
-                if (!activeItem) {
-                  return;
-                }
-                pinNotification(activeItem.id, !activeItem.pinned);
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              {activeItem?.pinned ? (
-                <>
-                  <PinOff className="mr-1 size-4" /> Désépingler
-                </>
-              ) : (
-                <>
-                  <Pin className="mr-1 size-4" /> Épingler
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={() => {
-                if (!activeItem) {
-                  return;
-                }
-                deleteNotification(activeItem.id);
-                setActiveItem(null);
-              }}
-              size="sm"
-              type="button"
-              variant="destructive"
-            >
-              <Trash2 className="mr-1 size-4" /> Supprimer
-            </Button>
+      {open ? (
+        <div className="liquid-panel mt-2 w-[360px] rounded-2xl border border-white/30 bg-white/85 p-3 text-black shadow-2xl backdrop-blur-2xl">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold">Notifications</p>
+            <button className="text-xs underline" onClick={markAllRead} type="button">
+              Tout marquer comme lu
+            </button>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+            {Object.entries(grouped).map(([day, notifications]) => (
+              <div key={day}>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-black/55">
+                  {format(new Date(day), "EEEE d MMMM", { locale: fr })}
+                </p>
+                <div className="space-y-1.5">
+                  {notifications.map((item) => {
+                    const Icon = iconMap[item.type] ?? Bell;
+                    const href = item.projectId
+                      ? `/projects/${item.projectId}`
+                      : "/projects";
+
+                    return (
+                      <div
+                        className={`rounded-xl border p-2 ${
+                          item.isRead ? "border-black/10 bg-white/70" : "border-cyan-300/50 bg-cyan-100/45"
+                        }`}
+                        key={item.id}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Icon className="mt-0.5 size-4 text-black/65" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-black">{item.title}</p>
+                            <p className="line-clamp-2 text-xs text-black/70">{item.message}</p>
+                            <p className="mt-1 text-[11px] text-black/55">
+                              {formatDistanceToNow(new Date(item.createdAt), {
+                                addSuffix: true,
+                                locale: fr,
+                              })}
+                            </p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <Link className="text-xs underline" href={href}>
+                                Ouvrir
+                              </Link>
+                              {!item.isRead ? (
+                                <button
+                                  className="inline-flex items-center gap-1 text-xs underline"
+                                  onClick={() => markOneRead(item.id)}
+                                  type="button"
+                                >
+                                  <CheckCheck className="size-3" /> Lu
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

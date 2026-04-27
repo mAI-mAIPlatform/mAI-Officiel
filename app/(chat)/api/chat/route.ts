@@ -39,6 +39,7 @@ import {
   deleteChatById,
   getChatById,
   getMessageCountByUserId,
+  getProjectAccess,
   getMessagesByChatId,
   getProjectById,
   getSubscriptionPlan,
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
       return new ChatbotError("unauthorized:chat").toResponse();
     }
 
-    const chatModel =
+    const requestedModel =
       selectedChatModel.startsWith("agent-") ||
       !allowedModelIds.has(selectedChatModel)
         ? DEFAULT_CHAT_MODEL
@@ -151,6 +152,24 @@ export async function POST(request: Request) {
     const isToolApprovalFlow = Boolean(messages);
 
     const chat = isGhostMode ? null : await getChatById({ id });
+    const linkedProjectId = projectId ?? chat?.projectId ?? null;
+    let linkedProject = null;
+
+    if (linkedProjectId) {
+      linkedProject = await getProjectById(linkedProjectId);
+      const linkedProjectAccess = await getProjectAccess(
+        linkedProjectId,
+        session.user.id
+      );
+      if (!linkedProject || !linkedProjectAccess) {
+        return new ChatbotError("forbidden:chat").toResponse();
+      }
+    }
+
+    const chatModel =
+      linkedProject?.aiModel && allowedModelIds.has(linkedProject.aiModel)
+        ? linkedProject.aiModel
+        : requestedModel;
     let messagesFromDb: DBMessage[] = [];
     let titlePromise: Promise<string> | null = null;
 
@@ -160,19 +179,13 @@ export async function POST(request: Request) {
       }
       messagesFromDb = await getMessagesByChatId({ id });
     } else if (message?.role === "user" && !isGhostMode) {
-      if (projectId) {
-        const selectedProject = await getProjectById(projectId);
-        if (!selectedProject || selectedProject.userId !== session.user.id) {
-          return new ChatbotError("forbidden:chat").toResponse();
-        }
-      }
       const provisionalTitle = buildFallbackTitleFromMessage(message as ChatMessage);
       await saveChat({
         id,
         userId: session.user.id,
         title: provisionalTitle,
         visibility: selectedVisibilityType,
-        projectId,
+        projectId: linkedProjectId ?? undefined,
       });
       titlePromise = generateTitleFromUserMessage({ message });
     }
@@ -277,12 +290,18 @@ export async function POST(request: Request) {
           ? `\n\n[Plugins actifs hors prompt utilisateur]\nPlugins activés: ${enabledPlugins.join(", ")}.`
           : "";
 
+    const mergedSystemPrompt = [
+      linkedProject?.systemInstructions?.trim(),
+      customSystemPrompt?.trim(),
+      pluginContextInstruction.trim(),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     const computedSystemPrompt = systemPrompt({
       requestHints,
       supportsTools,
-      agentPrompt: customSystemPrompt
-        ? `${customSystemPrompt}${pluginContextInstruction}`
-        : pluginContextInstruction || undefined,
+      agentPrompt: mergedSystemPrompt || undefined,
       userMemory: persistentMemory,
       isLearningEnabled: contextualActions?.isLearningEnabled,
       reasoningLevel:

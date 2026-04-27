@@ -11,10 +11,21 @@ import {
 
 const updateSubtaskSchema = z.object({
   title: z.string().trim().min(1).max(180).optional(),
+  description: z.string().trim().max(1000).optional().nullable(),
   status: z.enum(["todo", "done"]).optional(),
+  sortOrder: z.number().int().optional(),
 });
 
 export async function PUT(
+  request: Request,
+  context: {
+    params: Promise<{ id: string; taskId: string; subtaskId: string }>;
+  }
+) {
+  return PATCH(request, context);
+}
+
+export async function PATCH(
   request: Request,
   context: {
     params: Promise<{ id: string; taskId: string; subtaskId: string }>;

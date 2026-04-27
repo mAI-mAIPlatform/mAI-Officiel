@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/chat/app-sidebar";
 import { DataStreamProvider } from "@/components/chat/data-stream-provider";
+import { NotificationCenter } from "@/components/chat/notification-center";
+import { GlobalCommandPalette } from "@/components/chat/global-command-palette";
 import {
   SidebarInset,
   SidebarProvider,
@@ -31,6 +33,8 @@ async function SidebarShell({ children }: { children: React.ReactNode }) {
         <div className="fixed top-3 left-3 z-[95] flex justify-start">
           <SidebarTrigger className="rounded-full border border-sidebar-border/45 bg-sidebar/90 text-sidebar-foreground shadow-sm backdrop-blur-md hover:bg-sidebar" />
         </div>
+        <NotificationCenter />
+        <GlobalCommandPalette />
         <Toaster
           position="top-right"
           theme="system"

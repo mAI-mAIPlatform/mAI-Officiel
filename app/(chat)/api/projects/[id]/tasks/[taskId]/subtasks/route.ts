@@ -5,7 +5,9 @@ import { createSubtask, getProjectById, getTaskById } from "@/lib/db/queries";
 
 const subtaskSchema = z.object({
   title: z.string().trim().min(1).max(180),
+  description: z.string().trim().max(1000).optional().nullable(),
   status: z.enum(["todo", "done"]).optional(),
+  sortOrder: z.number().int().optional(),
 });
 
 export async function POST(
@@ -39,7 +41,9 @@ export async function POST(
   const [created] = await createSubtask({
     taskId,
     title: parsed.data.title,
+    description: parsed.data.description,
     status: parsed.data.status,
+    sortOrder: parsed.data.sortOrder,
   });
 
   return NextResponse.json(created, { status: 201 });
