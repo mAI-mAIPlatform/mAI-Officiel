@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { finishQuiz } from "@/lib/quizzly/actions";
+import { finishQuiz, getQuizzlyInventory, getQuizzlyProfile, spendHintDiamonds } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { CheckCircle, Clock3, Download, Share2, XCircle } from "lucide-react";
+import { BookOpen, CheckCircle, Clock3, Download, Heart, Lightbulb, Shield, Share2, Snowflake, Star, Sword, Trophy, XCircle } from "lucide-react";
 import { chatModels, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 type QuizQuestion = {
@@ -42,6 +42,24 @@ type LocalQuiz = {
   questions: QuizQuestion[];
   score: number;
 };
+type DuelOpponent = {
+  pseudo: string;
+  emoji: string;
+  elo: number;
+  level: number;
+  streak: number;
+};
+type HintType = "fifty" | "first_letter" | "contextual";
+type ExplanationCard = {
+  title: string;
+  explanationCard: string;
+  whyOthersWrong: string;
+  deepDive: string;
+  question: string;
+  questionIndex: number;
+  subject: string;
+  createdAt: string;
+};
 
 const FAVORITES_KEY = "mai.quizzly.favorites.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
@@ -52,8 +70,28 @@ const DIFFICULTY_OPTIONS = ["Facile", "Moyen", "Difficile", "Expert"] as const;
 const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20] as const;
 const QUESTION_TYPE_OPTIONS = ["qcm", "vrai_faux", "association", "completer", "inverse"] as const;
 const REVIEW_QUEUE_KEY = "mai.quizzly.review.v1";
+const ERROR_ANALYTICS_KEY = "mai.quizzly.error-analytics.v1";
+const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
 const REVIEW_INTERVALS_DAYS = [1, 3, 7, 30] as const;
 type ReviewCard = { question: QuizQuestion; stage: number; dueAt: string };
+type ErrorAnalyticsItem = {
+  subject: string;
+  subTheme: string;
+  questionType: string;
+  difficulty: string;
+  isCorrect: boolean;
+  createdAt: string;
+};
+type DuelHistoryEntry = {
+  id: string;
+  playedAt: string;
+  subject: string;
+  playerA: string;
+  playerB: string;
+  scoreA: number;
+  scoreB: number;
+  winner: string | "égalité";
+};
 const SUBJECT_COEFFICIENTS: Record<string, number> = {
   "Mathématiques": 2,
   Français: 2,
@@ -68,7 +106,8 @@ const SUBJECT_COEFFICIENTS: Record<string, number> = {
 export default function QuizzlyPlayPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<"setup" | "playing" | "loading" | "result">("setup");
+  const [step, setStep] = useState<"setup" | "playing" | "loading" | "result" | "matchmaking" | "duel" | "duelResult" | "survival" | "survivalResult">("setup");
+  const [gameMode, setGameMode] = useState<"classic" | "duel" | "survival">("classic");
   const [grade, setGrade] = useState("3ème");
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
@@ -91,8 +130,49 @@ export default function QuizzlyPlayPage() {
   const [reviewCards, setReviewCards] = useState<ReviewCard[]>([]);
   const [strictScore, setStrictScore] = useState(0);
   const [customQuestions, setCustomQuestions] = useState<CustomDraftQuestion[]>([]);
+  const [profile, setProfile] = useState<{ pseudo: string; emoji: string; level: number; streak: number; diamonds: number } | null>(null);
+  const [eloScore, setEloScore] = useState(1000);
+  const [matchmakingSeconds, setMatchmakingSeconds] = useState(0);
+  const [duelOpponent, setDuelOpponent] = useState<DuelOpponent | null>(null);
+  const [duelPlayerAnswers, setDuelPlayerAnswers] = useState<(number | null)[]>([]);
+  const [duelOpponentAnswers, setDuelOpponentAnswers] = useState<(number | null)[]>([]);
+  const [duelIndex, setDuelIndex] = useState(0);
+  const [duelSelected, setDuelSelected] = useState<number | null>(null);
+  const [duelStartedAt, setDuelStartedAt] = useState<number | null>(null);
+  const [survivalLives, setSurvivalLives] = useState(3);
+  const [survivalStage, setSurvivalStage] = useState(1);
+  const [survivalScore, setSurvivalScore] = useState(0);
+  const [survivalStartedAt, setSurvivalStartedAt] = useState<number | null>(null);
+  const [survivalLeaderboard, setSurvivalLeaderboard] = useState<Array<{ pseudo: string; score: number; stage: number; duration: number }>>([]);
+  const [survivalFreezeSeconds, setSurvivalFreezeSeconds] = useState(0);
+  const [survivalBonusLives, setSurvivalBonusLives] = useState(0);
+  const [usedHintsByQuestion, setUsedHintsByQuestion] = useState<Record<number, HintType[]>>({});
+  const [disabledOptionsByQuestion, setDisabledOptionsByQuestion] = useState<Record<number, number[]>>({});
+  const [contextHintByQuestion, setContextHintByQuestion] = useState<Record<number, string>>({});
+  const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  const [hintBusy, setHintBusy] = useState<HintType | null>(null);
+  const [answerInput, setAnswerInput] = useState("");
+  const [hintedQuestions, setHintedQuestions] = useState<number[]>([]);
+  const [explanationsByQuestion, setExplanationsByQuestion] = useState<Record<number, ExplanationCard>>({});
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [favoriteSheets, setFavoriteSheets] = useState<ExplanationCard[]>([]);
 
   const current = questions[index];
+  const duelCurrent = questions[duelIndex];
+  const survivalCurrent = questions[index];
+
+  const computeSimplifiedElo = (successRate: number, levelValue: number, streakValue: number) =>
+    Math.round(700 + successRate * 300 + levelValue * 12 + Math.min(streakValue, 30) * 4);
+
+  const inferDifficultyFromStage = (stage: number): "Facile" | "Moyen" | "Difficile" | "Expert" => {
+    if (stage <= 5) return "Facile";
+    if (stage <= 10) return "Moyen";
+    if (stage <= 15) return "Difficile";
+    return "Expert";
+  };
+
+  const survivalSubjectPool = SUBJECT_OPTIONS;
 
   useEffect(() => {
     try {
@@ -110,10 +190,30 @@ export default function QuizzlyPlayPage() {
           )
         : [];
       setReviewCards(sanitized);
+      setFavoriteSheets(JSON.parse(localStorage.getItem("mai.quizzly.fiches.v1") ?? "[]"));
     } catch {
       setFavorites([]);
       setLocalQuizzes([]);
       setReviewCards([]);
+      setFavoriteSheets([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]).then(([p, inv]) => {
+      const asProfile = p as { pseudo: string; emoji: string; level: number; streak: number; diamonds: number };
+      setProfile(asProfile);
+      const stats = inv as Array<{ itemKey: string; quantity: number }>;
+      const totalCorrect = stats.find((item) => item.itemKey === "stats:total-correct")?.quantity ?? 0;
+      const totalPlayed = stats.find((item) => item.itemKey === "stats:quiz-played")?.quantity ?? 1;
+      const successRate = Math.min(1, totalCorrect / Math.max(1, totalPlayed * 10));
+      setEloScore(computeSimplifiedElo(successRate, asProfile.level, asProfile.streak));
+    }).catch(() => undefined);
+
+    try {
+      setSurvivalLeaderboard(JSON.parse(localStorage.getItem("mai.quizzly.survival.lb.v1") ?? "[]"));
+    } catch {
+      setSurvivalLeaderboard([]);
     }
   }, []);
 
@@ -156,6 +256,30 @@ export default function QuizzlyPlayPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (step !== "matchmaking") return;
+    const timer = setInterval(() => setMatchmakingSeconds((prev) => prev + 1), 1000);
+    const lock = setTimeout(() => {
+      const opponentLevel = Math.max(1, (profile?.level ?? 8) + Math.floor((Math.random() - 0.5) * 4));
+      const opponentStreak = Math.max(0, (profile?.streak ?? 4) + Math.floor((Math.random() - 0.5) * 6));
+      const opponentElo = eloScore + Math.floor((Math.random() - 0.5) * 90);
+      setDuelOpponent({
+        pseudo: ["Nova", "Kira", "Atlas", "Milo", "Lina"][Math.floor(Math.random() * 5)] ?? "Rival",
+        emoji: ["⚡", "🦊", "🚀", "🧠", "🔥"][Math.floor(Math.random() * 5)] ?? "⚔️",
+        elo: opponentElo,
+        level: opponentLevel,
+        streak: opponentStreak,
+      });
+      setStep("loading");
+      startDuelQuiz();
+    }, 2600 + Math.floor(Math.random() * 2000));
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(lock);
+    };
+  }, [step, eloScore, profile]);
+
+  useEffect(() => {
     if (step !== "playing" || !chronoEnabled || selected !== null) return;
     setRemainingSeconds(chronoSeconds);
     const timer = setInterval(() => {
@@ -191,6 +315,15 @@ export default function QuizzlyPlayPage() {
   };
 
   const startQuiz = async () => {
+    if (gameMode === "duel") {
+      setMatchmakingSeconds(0);
+      setStep("matchmaking");
+      return;
+    }
+    if (gameMode === "survival") {
+      await startSurvivalMode();
+      return;
+    }
     if (examMode) {
       setChronoEnabled(true);
     }
@@ -209,6 +342,13 @@ export default function QuizzlyPlayPage() {
         setSelected(null);
         setCorrect(0);
         setStrictScore(0);
+        setUsedHintsByQuestion({});
+        setDisabledOptionsByQuestion({});
+        setContextHintByQuestion({});
+        setHintedQuestions([]);
+        setExplanationsByQuestion({});
+        setDeepDiveOpen(false);
+        setAnswerInput("");
         setQuizStartedAt(Date.now());
         setStep("playing");
         return;
@@ -230,12 +370,76 @@ export default function QuizzlyPlayPage() {
       setSelected(null);
       setCorrect(0);
       setStrictScore(0);
+      setUsedHintsByQuestion({});
+      setDisabledOptionsByQuestion({});
+      setContextHintByQuestion({});
+      setHintedQuestions([]);
+      setExplanationsByQuestion({});
+      setDeepDiveOpen(false);
+      setAnswerInput("");
       setQuizStartedAt(Date.now());
       setStep("playing");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur inattendue");
       setStep("setup");
     }
+  };
+
+  const startDuelQuiz = async () => {
+    try {
+      const duelCount = Math.max(5, Math.min(10, count));
+      const res = await fetch("/api/quizzly/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grade, subject, difficulty, count: duelCount, chapter, themePrompt, modelId, questionTypes }),
+      });
+      const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
+      if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error(data.error ?? "Génération duel impossible");
+      }
+      setQuestions(data.questions);
+      setDuelPlayerAnswers(new Array(data.questions.length).fill(null));
+      setDuelOpponentAnswers(new Array(data.questions.length).fill(null));
+      setDuelIndex(0);
+      setDuelSelected(null);
+      setDuelStartedAt(Date.now());
+      setStep("duel");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur duel inattendue");
+      setStep("setup");
+    }
+  };
+
+  const startSurvivalMode = async () => {
+    setStep("loading");
+    setSurvivalLives(3);
+    setSurvivalStage(1);
+    setSurvivalScore(0);
+    setIndex(0);
+    setSelected(null);
+    setSurvivalFreezeSeconds(0);
+    setSurvivalStartedAt(Date.now());
+    await loadNextSurvivalBatch(1);
+    setStep("survival");
+  };
+
+  const loadNextSurvivalBatch = async (stageValue: number) => {
+    const nextDifficulty = inferDifficultyFromStage(stageValue);
+    const nextSubject = survivalSubjectPool[Math.floor(Math.random() * survivalSubjectPool.length)] ?? subject;
+    const res = await fetch("/api/quizzly/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grade, subject: nextSubject, difficulty: nextDifficulty, count: 5, chapter: "", themePrompt: `Palier ${stageValue} en mode survie`, modelId, questionTypes: ["qcm"] }),
+    });
+    const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
+    if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
+      throw new Error(data.error ?? "Impossible de charger des questions de survie");
+    }
+    setSubject(nextSubject);
+    setDifficulty(nextDifficulty);
+    setQuestions(data.questions);
+    setIndex(0);
+    setSelected(null);
   };
 
   const saveFavorite = () => {
@@ -302,7 +506,226 @@ export default function QuizzlyPlayPage() {
     }
     setIndex((prev) => prev + 1);
     setSelected(null);
+    setHintPanelOpen(false);
+    setDeepDiveOpen(false);
+    setAnswerInput("");
   };
+
+  const hintCosts = [5, 10, 15] as const;
+  const hintsForCurrentQuestion = usedHintsByQuestion[index] ?? [];
+  const hintCountForCurrentQuestion = hintsForCurrentQuestion.length;
+  const canUseHint = hintCountForCurrentQuestion < 2;
+
+  const registerHintUsage = (hintType: HintType) => {
+    setUsedHintsByQuestion((prev) => ({
+      ...prev,
+      [index]: [...(prev[index] ?? []), hintType],
+    }));
+    setHintedQuestions((prev) => (prev.includes(index) ? prev : [...prev, index]));
+  };
+
+  const consumeHint = async (hintType: HintType) => {
+    if (!current || selected !== null) return;
+    if (!canUseHint) {
+      toast.error("Maximum 2 indices atteint pour cette question.");
+      return;
+    }
+    if (hintsForCurrentQuestion.includes(hintType)) {
+      toast.error("Cet indice est déjà utilisé pour cette question.");
+      return;
+    }
+    const cost = hintCosts[Math.min(hintCosts.length - 1, hintCountForCurrentQuestion)] ?? 15;
+    setHintBusy(hintType);
+    try {
+      const usage = await spendHintDiamonds(cost, hintType);
+      setProfile((prev) => (prev ? { ...prev, diamonds: usage.diamondsLeft } : prev));
+
+      if (hintType === "fifty") {
+        const wrongIndexes = current.options
+          .map((_, optionIndex) => optionIndex)
+          .filter((optionIndex) => optionIndex !== current.correctAnswerIndex);
+        const shuffled = wrongIndexes.sort(() => Math.random() - 0.5);
+        const disabled = shuffled.slice(0, 2);
+        setDisabledOptionsByQuestion((prev) => ({
+          ...prev,
+          [index]: Array.from(new Set([...(prev[index] ?? []), ...disabled])),
+        }));
+      } else if (hintType === "first_letter") {
+        const firstLetter = (current.options[current.correctAnswerIndex] ?? "").trim().charAt(0);
+        if (firstLetter) {
+          setAnswerInput(firstLetter.toUpperCase());
+        }
+      } else if (hintType === "contextual") {
+        const res = await fetch("/api/quizzly/hint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: current.question,
+            options: current.options,
+            explanation: current.explanation,
+            subject,
+            difficulty,
+            modelId,
+          }),
+        });
+        const data = (await res.json()) as { hint?: string; error?: string };
+        if (!res.ok || !data.hint) {
+          throw new Error(data.error ?? "Impossible de générer un indice IA");
+        }
+        setContextHintByQuestion((prev) => ({ ...prev, [index]: data.hint ?? "" }));
+      }
+      registerHintUsage(hintType);
+      toast.success(`Indice utilisé (-${cost}💎)`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Utilisation de l'indice impossible");
+    } finally {
+      setHintBusy(null);
+    }
+  };
+
+  const generateExplanationCard = async (selectedAnswerIndex: number) => {
+    if (!current) return;
+    setExplanationLoading(true);
+    try {
+      const response = await fetch("/api/quizzly/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: current.question,
+          options: current.options,
+          correctAnswerIndex: current.correctAnswerIndex,
+          selectedAnswerIndex,
+          explanation: current.explanation,
+          subject,
+          difficulty,
+          modelId,
+        }),
+      });
+      const payload = (await response.json()) as {
+        title?: string;
+        explanationCard?: string;
+        whyOthersWrong?: string;
+        deepDive?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.title || !payload.explanationCard || !payload.deepDive || !payload.whyOthersWrong) {
+        throw new Error(payload.error ?? "Impossible de générer l'explication détaillée.");
+      }
+      const card: ExplanationCard = {
+        title: payload.title,
+        explanationCard: payload.explanationCard,
+        whyOthersWrong: payload.whyOthersWrong,
+        deepDive: payload.deepDive,
+        question: current.question,
+        questionIndex: index,
+        subject,
+        createdAt: new Date().toISOString(),
+      };
+      setExplanationsByQuestion((prev) => ({ ...prev, [index]: card }));
+    } catch (error) {
+      const fallback: ExplanationCard = {
+        title: `Comprendre: ${subject}`,
+        explanationCard: current.explanation,
+        whyOthersWrong: "Analyse des distracteurs indisponible pour le moment. Relis les mots-clés de chaque option pour détecter les pièges classiques.",
+        deepDive: "Mini-cours indisponible en ligne. Rejoue ce chapitre et compare plusieurs variantes de questions pour consolider le raisonnement, la méthode et le vocabulaire attendu.",
+        question: current.question,
+        questionIndex: index,
+        subject,
+        createdAt: new Date().toISOString(),
+      };
+      setExplanationsByQuestion((prev) => ({ ...prev, [index]: fallback }));
+      toast.error(error instanceof Error ? error.message : "Explication indisponible");
+    } finally {
+      setExplanationLoading(false);
+    }
+  };
+
+  const saveExplanationAsFavorite = (card: ExplanationCard) => {
+    const next = [card, ...favoriteSheets.filter((item) => !(item.questionIndex === card.questionIndex && item.question === card.question))].slice(0, 100);
+    setFavoriteSheets(next);
+    localStorage.setItem("mai.quizzly.fiches.v1", JSON.stringify(next));
+    toast.success("Fiche ajoutée à Mes fiches sauvegardées.");
+  };
+
+  const trackErrorAnalytics = (selectedAnswerIndex: number) => {
+    if (!current) return;
+    const item: ErrorAnalyticsItem = {
+      subject,
+      subTheme: chapter.trim() || themePrompt.trim() || current.question.split(" ").slice(0, 4).join(" "),
+      questionType: questionTypes[0] ?? "qcm",
+      difficulty,
+      isCorrect: selectedAnswerIndex === current.correctAnswerIndex,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      const existing = JSON.parse(localStorage.getItem(ERROR_ANALYTICS_KEY) ?? "[]") as ErrorAnalyticsItem[];
+      const next = [item, ...existing].slice(0, 4000);
+      localStorage.setItem(ERROR_ANALYTICS_KEY, JSON.stringify(next));
+    } catch {
+      localStorage.setItem(ERROR_ANALYTICS_KEY, JSON.stringify([item]));
+    }
+  };
+
+  const finalizeDuel = async () => {
+    const playerCorrect = duelPlayerAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const opponentCorrect = duelOpponentAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const winnerMultiplier = playerCorrect >= opponentCorrect ? 2 : 1;
+    const participation = playerCorrect >= opponentCorrect ? playerCorrect * 2 : Math.max(1, Math.floor(playerCorrect * 0.75));
+    await finishQuiz(participation * winnerMultiplier, null, duelStartedAt ? Math.floor((Date.now() - duelStartedAt) / 1000) : undefined);
+    try {
+      const me = profile?.pseudo ?? "Moi";
+      const rival = duelOpponent?.pseudo ?? "Adversaire";
+      const entry: DuelHistoryEntry = {
+        id: crypto.randomUUID(),
+        playedAt: new Date().toISOString(),
+        subject,
+        playerA: me,
+        playerB: rival,
+        scoreA: playerCorrect,
+        scoreB: opponentCorrect,
+        winner: playerCorrect === opponentCorrect ? "égalité" : playerCorrect > opponentCorrect ? me : rival,
+      };
+      const existing = JSON.parse(localStorage.getItem(DUEL_HISTORY_KEY) ?? "[]") as DuelHistoryEntry[];
+      localStorage.setItem(DUEL_HISTORY_KEY, JSON.stringify([entry, ...existing].slice(0, 3000)));
+    } catch {
+      // noop
+    }
+    setStep("duelResult");
+  };
+
+  const finalizeSurvival = async () => {
+    const duration = survivalStartedAt ? Math.floor((Date.now() - survivalStartedAt) / 1000) : 0;
+    await finishQuiz(Math.max(1, survivalScore), null, duration);
+    const entry = { pseudo: profile?.pseudo ?? "Anonyme", score: survivalScore, stage: survivalStage, duration };
+    const nextLb = [entry, ...survivalLeaderboard].sort((a, b) => b.score - a.score || b.stage - a.stage || a.duration - b.duration).slice(0, 20);
+    setSurvivalLeaderboard(nextLb);
+    localStorage.setItem("mai.quizzly.survival.lb.v1", JSON.stringify(nextLb));
+    setStep("survivalResult");
+  };
+
+  useEffect(() => {
+    if (step !== "duel" || questions.length === 0) return;
+    const unansweredIndex = duelOpponentAnswers.findIndex((answer) => answer === null);
+    if (unansweredIndex === -1) return;
+    const timer = setTimeout(() => {
+      const q = questions[unansweredIndex];
+      if (!q) return;
+      const isGood = Math.random() > 0.35;
+      const answer = isGood ? q.correctAnswerIndex : Math.floor(Math.random() * q.options.length);
+      setDuelOpponentAnswers((prev) => {
+        const next = [...prev];
+        next[unansweredIndex] = answer;
+        return next;
+      });
+    }, 1200 + Math.floor(Math.random() * 1500));
+    return () => clearTimeout(timer);
+  }, [duelOpponentAnswers, questions, step]);
+
+  useEffect(() => {
+    if (step === "duel" && duelOpponentAnswers.every((answer) => answer !== null) && duelPlayerAnswers.every((answer) => answer !== null)) {
+      finalizeDuel();
+    }
+  }, [duelOpponentAnswers, duelPlayerAnswers, step]);
 
   const downloadQuiz = () => {
     const content = questions
@@ -357,6 +780,13 @@ export default function QuizzlyPlayPage() {
     setSelected(null);
     setCorrect(0);
     setStrictScore(0);
+    setUsedHintsByQuestion({});
+    setDisabledOptionsByQuestion({});
+    setContextHintByQuestion({});
+    setHintedQuestions([]);
+    setExplanationsByQuestion({});
+    setDeepDiveOpen(false);
+    setAnswerInput("");
     setStep("playing");
     setExamMode(false);
   };
@@ -376,12 +806,189 @@ export default function QuizzlyPlayPage() {
           <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
           <button className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Rejouer</button>
         </div>
+        <div className="rounded-2xl bg-slate-50 p-4 text-left">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-500">Récapitulatif des questions</p>
+          <div className="space-y-2 text-xs text-slate-700">
+            {questions.map((question, questionIndex) => (
+              <div key={`result-${questionIndex}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2">
+                <span>Q{questionIndex + 1} · {question.question.slice(0, 52)}{question.question.length > 52 ? "…" : ""}</span>
+                {hintedQuestions.includes(questionIndex) ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-700">Indice utilisé</span>
+                ) : (
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 font-bold text-emerald-700">Sans aide</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "matchmaking") {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <h2 className="text-3xl font-black text-slate-800">Recherche d'adversaire…</h2>
+        <div className="mx-auto h-24 w-24 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
+        <p className="text-sm text-slate-500">Matchmaking ELO simplifié: {eloScore} · {matchmakingSeconds}s</p>
+        <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700" onClick={() => setStep("setup")} type="button">
+          Annuler la recherche
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "duel" && duelCurrent) {
+    const playerProgress = (duelPlayerAnswers.filter((a) => a !== null).length / questions.length) * 100;
+    const opponentProgress = (duelOpponentAnswers.filter((a) => a !== null).length / questions.length) * 100;
+    return (
+      <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-[1fr_220px]">
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="font-bold text-slate-700">Duel • Question {duelIndex + 1}/{questions.length}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-2xl font-black text-slate-800">{duelCurrent.question}</h2>
+            <div className="space-y-2">
+              {duelCurrent.options.map((opt, i) => (
+                <button
+                  key={opt}
+                  className={`flex w-full rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${duelSelected === i ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:border-violet-300"}`}
+                  disabled={duelSelected !== null}
+                  onClick={() => {
+                    setDuelSelected(i);
+                    setDuelPlayerAnswers((prev) => {
+                      const next = [...prev];
+                      next[duelIndex] = i;
+                      return next;
+                    });
+                    setTimeout(() => {
+                      if (duelIndex >= questions.length - 1) return;
+                      setDuelIndex((prev) => prev + 1);
+                      setDuelSelected(null);
+                    }, 350);
+                  }}
+                  type="button"
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <aside className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-black text-slate-700">Progression en temps réel</p>
+          <p className="text-xs text-slate-500">Toi</p>
+          <div className="mb-3 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-violet-600" style={{ width: `${playerProgress}%` }} /></div>
+          <p className="text-xs text-slate-500">{duelOpponent?.pseudo ?? "Adversaire"} {duelOpponent?.emoji ?? "⚔️"}</p>
+          <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-emerald-500" style={{ width: `${opponentProgress}%` }} /></div>
+          <p className="mt-4 text-xs text-slate-500">Aucune réponse adverse n'est révélée pendant la partie.</p>
+        </aside>
+      </div>
+    );
+  }
+
+  if (step === "duelResult") {
+    const playerCorrect = duelPlayerAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const opponentCorrect = duelOpponentAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const playerAvg = ((duelStartedAt ? (Date.now() - duelStartedAt) / 1000 : 0) / Math.max(1, questions.length)).toFixed(1);
+    const opponentAvg = (Number(playerAvg) + (Math.random() * 4 - 2)).toFixed(1);
+    const isWinner = playerCorrect >= opponentCorrect;
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <h2 className="text-center text-3xl font-black text-slate-800">{isWinner ? "🏆 Victoire !" : "🤝 Duel terminé"}</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl bg-violet-50 p-4 text-sm"><p className="font-bold">Toi ({profile?.pseudo ?? "Moi"})</p><p>Score: {playerCorrect}/{questions.length}</p><p>Temps moyen/question: {playerAvg}s</p><p>Bonnes réponses: {playerCorrect}</p></div>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm"><p className="font-bold">{duelOpponent?.pseudo ?? "Adversaire"} {duelOpponent?.emoji ?? "⚔️"}</p><p>Score: {opponentCorrect}/{questions.length}</p><p>Temps moyen/question: {opponentAvg}s</p><p>Bonnes réponses: {opponentCorrect}</p></div>
+        </div>
+        <div className={`rounded-2xl p-4 text-sm font-bold ${isWinner ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"}`}>
+          {isWinner ? "Récompenses vainqueur: XP x2 + diamants x2 ✨" : "Récompenses de participation obtenues pour ton fair-play 💙"}
+        </div>
+        <div className="flex justify-center gap-2">
+          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Nouveau duel</button>
+          <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={() => router.push("/quizzly")} type="button">Retour</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "survival" && survivalCurrent) {
+    const canFreeze = survivalFreezeSeconds <= 0;
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <p className="font-bold text-slate-700">Mode Survie • Palier {survivalStage}</p>
+              <p className="text-xs text-slate-500">{subject} · {difficulty}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Heart key={`life-${i}`} className={`h-5 w-5 ${i < survivalLives ? "fill-red-500 text-red-500 animate-pulse" : "text-slate-300"}`} />)}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-2xl font-black text-slate-800">{survivalCurrent.question}</h2>
+          <div className="space-y-2">
+            {survivalCurrent.options.map((opt, i) => (
+              <button key={opt} className="w-full rounded-xl border border-slate-200 px-3 py-3 text-left text-sm font-medium hover:border-violet-300" onClick={async () => {
+                const isCorrect = i === survivalCurrent.correctAnswerIndex;
+                if (isCorrect) {
+                  setSurvivalScore((prev) => prev + 1);
+                } else {
+                  setSurvivalLives((prev) => prev - 1);
+                  navigator.vibrate?.(100);
+                }
+                if (!isCorrect && survivalLives <= 1) {
+                  await finalizeSurvival();
+                  return;
+                }
+                if (index >= questions.length - 1) {
+                  const nextStage = survivalStage + 1;
+                  setSurvivalStage(nextStage);
+                  await loadNextSurvivalBatch(nextStage);
+                  return;
+                }
+                setIndex((prev) => prev + 1);
+              }} type="button">{opt}</button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 disabled:opacity-40" disabled={survivalBonusLives <= 0 || survivalLives >= 3} onClick={() => { setSurvivalLives((prev) => Math.min(3, prev + 1)); setSurvivalBonusLives((prev) => Math.max(0, prev - 1)); }} type="button"><Shield className="mr-1 inline h-4 w-4" /> Booster +1 vie</button>
+            <button className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 disabled:opacity-40" disabled={!canFreeze} onClick={() => { setSurvivalFreezeSeconds(8); setTimeout(() => setSurvivalFreezeSeconds(0), 8000); }} type="button"><Snowflake className="mr-1 inline h-4 w-4" /> Geler chrono</button>
+            <p className="text-xs text-slate-500">Score: {survivalScore}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "survivalResult") {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <h2 className="text-center text-3xl font-black text-slate-800">Fin du mode Survie</h2>
+        <p className="text-center text-sm text-slate-600">Score: {survivalScore} • Palier atteint: {survivalStage}</p>
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="mb-2 text-sm font-bold text-slate-700">Classement mondial Survie (local)</p>
+          <div className="space-y-1 text-xs text-slate-600">
+            {survivalLeaderboard.slice(0, 10).map((entry, idx) => (
+              <p key={`${entry.pseudo}-${entry.score}-${idx}`}>#{idx + 1} {entry.pseudo} — {entry.score} pts · palier {entry.stage} · {entry.duration}s</p>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-center gap-2">
+          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={startSurvivalMode} type="button">Rejouer</button>
+          <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={() => setStep("setup")} type="button">Configurer</button>
+        </div>
       </div>
     );
   }
 
   if (step === "playing" && current) {
     const ratio = chronoEnabled ? (remainingSeconds / chronoSeconds) * 100 : 100;
+    const eliminatedOptions = disabledOptionsByQuestion[index] ?? [];
+    const contextualHint = contextHintByQuestion[index];
+    const isOpenQuestionMode = questionTypes.includes("completer");
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -401,16 +1008,28 @@ export default function QuizzlyPlayPage() {
         </div>
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-2xl font-black text-slate-800">{current.question}</h2>
+          {isOpenQuestionMode && (
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="text-xs font-bold text-slate-600">Réponse libre</label>
+              <input
+                className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${answerInput ? "border-amber-300 bg-amber-50 ring-2 ring-amber-200" : "border-slate-200 bg-white"}`}
+                onChange={(e) => setAnswerInput(e.target.value)}
+                placeholder="Écris ta réponse (optionnel)"
+                value={answerInput}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             {current.options.map((opt, i) => {
               const isCorrect = i === current.correctAnswerIndex;
               const isSelected = selected === i;
               const showState = selected !== null;
+              const isEliminated = eliminatedOptions.includes(i);
               return (
                 <button
                   key={opt}
-                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${showState ? isCorrect ? "border-green-500 bg-green-50" : isSelected ? "border-red-500 bg-red-50" : "opacity-60" : "border-slate-200 hover:border-violet-300"}`}
-                  disabled={selected !== null}
+                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${isEliminated ? "border-slate-200 bg-slate-100 text-slate-400 opacity-60 line-through animate-pulse" : showState ? isCorrect ? "border-green-500 bg-green-50" : isSelected ? "border-red-500 bg-red-50" : "opacity-60" : "border-slate-200 hover:border-violet-300"}`}
+                  disabled={selected !== null || isEliminated}
                   onClick={() => {
                     setSelected(i);
                     if (isCorrect) {
@@ -437,6 +1056,8 @@ export default function QuizzlyPlayPage() {
                         return [next, ...prev.filter((item) => item.question.question !== current.question)].slice(0, 200);
                       });
                     }
+                    trackErrorAnalytics(i);
+                    generateExplanationCard(i);
                   }}
                   type="button"
                 >
@@ -447,9 +1068,39 @@ export default function QuizzlyPlayPage() {
               );
             })}
           </div>
+          <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+            <p className="font-bold">Indices utilisés sur cette question: {hintCountForCurrentQuestion}/2</p>
+            {answerInput ? <p className="mt-1">Première lettre révélée: <span className="rounded bg-white px-2 py-0.5 font-black text-amber-700">{answerInput}</span></p> : null}
+            {contextualHint ? <p className="mt-2 whitespace-pre-wrap">{contextualHint}</p> : null}
+          </div>
           {selected !== null && (
-            <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
-              <strong>Explication:</strong> {current.explanation}
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+              {explanationLoading ? (
+                <p className="animate-pulse font-semibold">Génération de l'explication détaillée par l'IA…</p>
+              ) : (
+                <>
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-blue-500">Carte d'explication IA</p>
+                      <h3 className="text-base font-black">{explanationsByQuestion[index]?.title ?? `Comprendre la question #${index + 1}`}</h3>
+                    </div>
+                    {explanationsByQuestion[index] ? (
+                      <button className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-amber-700" onClick={() => saveExplanationAsFavorite(explanationsByQuestion[index] as ExplanationCard)} type="button">
+                        <Star className="mr-1 inline h-4 w-4" /> Favori
+                      </button>
+                    ) : null}
+                  </div>
+                  <p>{explanationsByQuestion[index]?.explanationCard ?? current.explanation}</p>
+                  {selected !== current.correctAnswerIndex ? (
+                    <p className="mt-2 rounded-xl bg-white/70 p-2 text-xs"><strong>Pourquoi les autres réponses étaient incorrectes:</strong> {explanationsByQuestion[index]?.whyOthersWrong}</p>
+                  ) : (
+                    <p className="mt-2 rounded-xl bg-white/70 p-2 text-xs"><strong>Pièges fréquents:</strong> {explanationsByQuestion[index]?.whyOthersWrong}</p>
+                  )}
+                  <button className="mt-3 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white" onClick={() => setDeepDiveOpen(true)} type="button">
+                    <BookOpen className="mr-1 inline h-4 w-4" /> En savoir plus
+                  </button>
+                </>
+              )}
             </div>
           )}
           {selected !== null && (
@@ -460,6 +1111,37 @@ export default function QuizzlyPlayPage() {
             </div>
           )}
         </div>
+        <div className="fixed bottom-6 right-6 z-20">
+          <button
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-xl transition hover:scale-105"
+            onClick={() => setHintPanelOpen((prev) => !prev)}
+            type="button"
+          >
+            <Lightbulb className="h-6 w-6" />
+          </button>
+          {hintPanelOpen && (
+            <div className="mt-3 w-72 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-2xl">
+              <p className="font-bold text-slate-700">Indices ({hintCountForCurrentQuestion}/2)</p>
+              <p className="text-slate-500">Coût prochain indice: {hintCosts[Math.min(hintCosts.length - 1, hintCountForCurrentQuestion)]} 💎</p>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("fifty")} onClick={() => consumeHint("fifty")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">50/50 (QCM) — élimine 2 mauvaises réponses</button>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("first_letter")} onClick={() => consumeHint("first_letter")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">Première lettre (compléter/libre)</button>
+              <button disabled={!canUseHint || hintBusy !== null || hintsForCurrentQuestion.includes("contextual")} onClick={() => consumeHint("contextual")} type="button" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left disabled:opacity-40">Indice contextuel IA</button>
+              <p className="text-[11px] text-slate-400">Les indices guident sans donner la réponse exacte.</p>
+            </div>
+          )}
+        </div>
+        {deepDiveOpen && explanationsByQuestion[index] ? (
+          <div className="fixed inset-0 z-30 flex justify-end bg-slate-900/30">
+            <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-800">Mini-cours approfondi</h3>
+                <button className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold" onClick={() => setDeepDiveOpen(false)} type="button">Fermer</button>
+              </div>
+              <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{explanationsByQuestion[index]?.subject}</p>
+              <p className="whitespace-pre-wrap text-sm text-slate-700">{explanationsByQuestion[index]?.deepDive}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -475,10 +1157,34 @@ export default function QuizzlyPlayPage() {
         <button className="rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700" onClick={shareQuizConfig} type="button">🔗 Partager</button>
         </div>
       </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "classic" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("classic")} type="button">
+          <p className="font-bold">🎯 Classique</p><p className="text-xs text-slate-500">Quiz solo configurable.</p>
+        </button>
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "duel" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("duel")} type="button">
+          <p className="font-bold flex items-center gap-2"><Sword className="h-4 w-4" /> Duel temps réel</p><p className="text-xs text-slate-500">Matchmaking auto ELO ({eloScore}).</p>
+        </button>
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "survival" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("survival")} type="button">
+          <p className="font-bold flex items-center gap-2"><Trophy className="h-4 w-4" /> Survie infinie</p><p className="text-xs text-slate-500">3 vies, paliers progressifs, leaderboard.</p>
+        </button>
+      </div>
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
         Répétition espacée (1/3/7/30j) — cartes dues: {reviewCards.filter((item) => new Date(item.dueAt).getTime() <= Date.now()).length}
         <button className="ml-3 rounded-lg bg-sky-600 px-3 py-1 text-xs font-bold text-white" onClick={startReviewSession} type="button">Mode Révision</button>
       </div>
+      {favoriteSheets.length > 0 && (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
+          <p className="mb-2 text-xs font-bold uppercase text-amber-700">Mes fiches sauvegardées</p>
+          <div className="space-y-2">
+            {favoriteSheets.slice(0, 6).map((sheet, sheetIndex) => (
+              <div key={`${sheet.question}-${sheetIndex}`} className="rounded-xl bg-white px-3 py-2 text-xs text-slate-700">
+                <p className="font-bold text-slate-800">{sheet.title}</p>
+                <p className="mt-1">{sheet.explanationCard.slice(0, 180)}{sheet.explanationCard.length > 180 ? "…" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {favorites.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

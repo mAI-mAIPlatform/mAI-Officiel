@@ -7,12 +7,15 @@ import {
   claimComebackReward,
   getWeeklyLeaderboard,
   getQuizzlyInventory,
+  migrateLocalQuizzlyProgress,
+  registerReferralFromCode,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp } from "lucide-react";
+import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp, AlertTriangle, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
+import { QuizzlyOnboardingTour } from "@/components/quizzly/onboarding-tour";
 
 type Profile = {
   bio: string;
@@ -41,13 +44,23 @@ export default function QuizzlyDashboardPage() {
   const [leaderboard, setLeaderboard] = useState<Array<{ userId: string; pseudo: string; emoji: string; weeklyXp: number }>>([]);
   const [weekKey, setWeekKey] = useState("");
   const [highlights, setHighlights] = useState({ bestScore: 0, fastestQuiz: 0, longestStreak: 0 });
+  const [monthlyWidget, setMonthlyWidget] = useState({ streak: 0, claimed: 0, monthKey: "" });
+  const [inventoryKeys, setInventoryKeys] = useState<string[]>([]);
+  const [migrationSummary, setMigrationSummary] = useState<{ level: number; diamonds: number; quizzesPlayed: number; badgesCount: number } | null>(null);
+
+  const refreshProfile = async () => {
+    const p = await getQuizzlyProfile();
+    setProfile(p as Profile);
+  };
 
   useEffect(() => {
     Promise.all([getQuizzlyProfile(), getWeeklyLeaderboard("global"), getQuizzlyInventory()]).then(([p, lb, inventory]) => {
       setProfile(p as Profile);
       setLeaderboard(lb.entries);
       setWeekKey(lb.weekKey);
-      const getQty = (key: string) => (inventory as Array<{ itemKey: string; quantity: number }>).find((item) => item.itemKey === key)?.quantity ?? 0;
+      const inventoryList = inventory as Array<{ itemKey: string; quantity: number }>;
+      setInventoryKeys(inventoryList.filter((item) => item.quantity > 0).map((item) => item.itemKey));
+      const getQty = (key: string) => inventoryList.find((item) => item.itemKey === key)?.quantity ?? 0;
       setHighlights({
         bestScore: getQty("stats:best-score"),
         fastestQuiz: getQty("stats:fastest-quiz-sec"),
@@ -58,11 +71,60 @@ export default function QuizzlyDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (inventoryKeys.includes("migration:local-to-cloud:done")) return;
+    try {
+      const localProfile = JSON.parse(localStorage.getItem("mai.quizzly.profile.local.v1") ?? "{}") as { level?: number; diamonds?: number };
+      const localQuizzes = JSON.parse(localStorage.getItem("mai.quizzly.local-quizzes.v1") ?? "[]") as unknown[];
+      const localBadges = JSON.parse(localStorage.getItem("mai.quizzly.badges.pinned.v1") ?? "[]") as unknown[];
+      const summary = {
+        level: Number(localProfile.level ?? 0),
+        diamonds: Number(localProfile.diamonds ?? 0),
+        quizzesPlayed: localQuizzes.length,
+        badgesCount: localBadges.length,
+      };
+      if (summary.level > 0 || summary.diamonds > 0 || summary.quizzesPlayed > 0 || summary.badgesCount > 0) {
+        setMigrationSummary(summary);
+      }
+    } catch {
+      setMigrationSummary(null);
+    }
+  }, [inventoryKeys]);
+
+  useEffect(() => {
+    const pendingCode = localStorage.getItem("mai.quizzly.referral.code.v1");
+    if (!pendingCode) return;
+    registerReferralFromCode(pendingCode)
+      .then((result) => {
+        if (result.success) {
+          toast.success("Code de parrainage enregistré. Termine ton premier quiz pour débloquer les récompenses.");
+        }
+        localStorage.removeItem("mai.quizzly.referral.code.v1");
+      })
+      .catch(() => {
+        // noop
+      });
+  }, []);
+
+  useEffect(() => {
     getWeeklyLeaderboard(leaderboardView).then((lb) => {
       setLeaderboard(lb.entries);
       setWeekKey(lb.weekKey);
     });
   }, [leaderboardView]);
+
+  useEffect(() => {
+    const monthKey = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
+    try {
+      const parsed = JSON.parse(localStorage.getItem("mai.quizzly.monthly-calendar.v1") ?? "{}") as { monthKey?: string; streak?: number; claimedDays?: number[] };
+      if (parsed.monthKey === monthKey) {
+        setMonthlyWidget({ streak: parsed.streak ?? 0, claimed: parsed.claimedDays?.length ?? 0, monthKey });
+      } else {
+        setMonthlyWidget({ streak: 0, claimed: 0, monthKey });
+      }
+    } catch {
+      setMonthlyWidget({ streak: 0, claimed: 0, monthKey });
+    }
+  }, []);
 
   const welcomeTitle = useMemo(() => {
     if (!profile) return "Bienvenue sur Quizzly";
@@ -138,17 +200,17 @@ export default function QuizzlyDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-level className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Trophy className="w-8 h-8 text-yellow-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Niveau</span>
           <span className="text-3xl font-black text-slate-800">{profile.level}</span>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-streak className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Flame className="w-8 h-8 text-orange-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Streak</span>
           <span className="text-3xl font-black text-slate-800">{profile.streak} <span className="text-lg">J</span></span>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+        <div data-onboarding-diamonds className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
           <Diamond className="w-8 h-8 text-cyan-500 mb-2" />
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Diamants</span>
           <span className="text-3xl font-black text-slate-800">{profile.diamonds}</span>
@@ -191,6 +253,14 @@ export default function QuizzlyDashboardPage() {
           <p className="text-slate-500 text-sm mt-1">20 récompenses à débloquer avec ton XP.</p>
         </Link>
       </div>
+      <Link href="/quizzly/stats" className="block rounded-2xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-900 shadow-sm hover:shadow-md transition">
+        <p className="font-black flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-rose-600" /> Tableau de bord des erreurs récurrentes</p>
+        <p className="mt-1 text-rose-700">Analyse tes points faibles par matière, sous-thème, type et difficulté puis lance « Mes points faibles ».</p>
+      </Link>
+      <Link href="/quizzly/calendar" className="block rounded-2xl border border-violet-100 bg-violet-50 p-5 text-sm text-violet-900 shadow-sm hover:shadow-md transition">
+        <p className="font-black flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> Calendrier mensuel fidélité</p>
+        <p className="mt-1 text-violet-700">Streak mensuelle: {monthlyWidget.streak} jours · {monthlyWidget.claimed} jours validés sur {monthlyWidget.monthKey}.</p>
+      </Link>
 
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
@@ -248,6 +318,35 @@ export default function QuizzlyDashboardPage() {
           Lancer une partie
         </Link>
       </div>
+      <QuizzlyOnboardingTour inventoryKeys={inventoryKeys} onProfileRefresh={refreshProfile} profile={{ pseudo: profile.pseudo, emoji: profile.emoji }} />
+      {migrationSummary && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-800">Migration locale vers le cloud</h3>
+            <p className="mt-1 text-sm text-slate-600">Des données locales ont été détectées. Confirmer le transfert vers votre compte :</p>
+            <ul className="mt-3 space-y-1 text-sm text-slate-700">
+              <li>Niveau actuel: <span className="font-bold">{migrationSummary.level}</span></li>
+              <li>Diamants: <span className="font-bold">{migrationSummary.diamonds}</span></li>
+              <li>Quiz joués: <span className="font-bold">{migrationSummary.quizzesPlayed}</span></li>
+              <li>Badges obtenus: <span className="font-bold">{migrationSummary.badgesCount}</span></li>
+            </ul>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700" onClick={() => setMigrationSummary(null)} type="button">Ignorer</button>
+              <button
+                className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white"
+                onClick={async () => {
+                  await migrateLocalQuizzlyProgress(migrationSummary);
+                  toast.success("Migration cloud terminée.");
+                  setMigrationSummary(null);
+                }}
+                type="button"
+              >
+                Migrer maintenant
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

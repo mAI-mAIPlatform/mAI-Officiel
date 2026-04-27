@@ -10,6 +10,7 @@ import {
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Star, Zap, Shield, Diamond, Gift } from "lucide-react";
+import { getActiveThemes, QUIZZLY_UNLOCKED_THEMES_KEY, type QuizzlyThemeId } from "@/lib/quizzly/themes";
 
 const SHOP_ITEMS = [
   { key: "star_1", name: "1 Étoile", icon: Star, color: "text-yellow-400 bg-yellow-50", price: 50, type: "star", amount: 1 },
@@ -47,6 +48,7 @@ export default function QuizzlyShopPage() {
   const [spinning, setSpinning] = useState(false);
   const [lastWheelResult, setLastWheelResult] = useState<number | null>(null);
   const [wheelFxLevel, setWheelFxLevel] = useState<"idle" | "normal" | "jackpot">("idle");
+  const [unlockedThemeIds, setUnlockedThemeIds] = useState<QuizzlyThemeId[]>(["classic-light", "classic-dark"]);
 
   const loadData = async () => {
     const [p, inv] = await Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]);
@@ -57,6 +59,12 @@ export default function QuizzlyShopPage() {
 
   useEffect(() => {
     loadData();
+    try {
+      const parsed = JSON.parse(localStorage.getItem(QUIZZLY_UNLOCKED_THEMES_KEY) ?? "[]") as QuizzlyThemeId[];
+      if (parsed.length > 0) setUnlockedThemeIds((prev) => Array.from(new Set([...prev, ...parsed])) as QuizzlyThemeId[]);
+    } catch {
+      // noop
+    }
   }, []);
 
   const canClaimDaily = useMemo(() => {
@@ -95,6 +103,12 @@ export default function QuizzlyShopPage() {
     try {
       await buyItem(itemKey, price, amount);
       toast.success("Achat réussi !");
+      if (itemKey.startsWith("theme:")) {
+        const themeId = itemKey.replace("theme:", "") as QuizzlyThemeId;
+        const next = Array.from(new Set([...unlockedThemeIds, themeId])) as QuizzlyThemeId[];
+        setUnlockedThemeIds(next);
+        localStorage.setItem(QUIZZLY_UNLOCKED_THEMES_KEY, JSON.stringify(next));
+      }
       await loadData();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
@@ -214,6 +228,33 @@ export default function QuizzlyShopPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-2xl font-black text-slate-800">Thèmes premium</h2>
+        <p className="text-sm text-slate-500">Déblocables ici en diamants ou via Quizzly Pass quand une récompense thème est gagnée.</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {getActiveThemes()
+            .filter((theme) => theme.premium)
+            .map((theme) => {
+              const alreadyOwned = unlockedThemeIds.includes(theme.id);
+              return (
+                <div key={theme.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 h-20 rounded-xl" style={{ background: `linear-gradient(135deg, ${theme.vars.bg}, ${theme.vars.card}, ${theme.vars.accent})` }} />
+                  <p className="font-black text-slate-800">{theme.name}</p>
+                  <p className="text-xs text-slate-500">{theme.seasonal ? "Saisonnier" : "Permanent"} • {theme.priceDiamonds}💎</p>
+                  <button
+                    className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                    disabled={alreadyOwned || profile.diamonds < (theme.priceDiamonds ?? 0)}
+                    onClick={() => handleBuy(theme.shopItemKey, theme.priceDiamonds ?? 0, 1)}
+                    type="button"
+                  >
+                    {alreadyOwned ? "Débloqué" : `Acheter (${theme.priceDiamonds}💎)`}
+                  </button>
+                </div>
+              );
+            })}
+        </div>
       </div>
     </div>
   );
