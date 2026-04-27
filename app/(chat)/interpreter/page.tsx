@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  Cog,
   EllipsisVertical,
   FileCode2,
   FunctionSquare,
@@ -109,6 +110,20 @@ type SnippetPlaceholder = { end: number; start: number };
 type SnippetSession = { index: number; placeholders: SnippetPlaceholder[] } | null;
 type AssistantMode = "explain" | "fix" | "optimize";
 type GenerationHistoryEntry = { createdAt: string; prompt: string; runtime: Runtime };
+type EditorPreferences = {
+  autoClearOutputBeforeRun: boolean;
+  autoSaveSnippetOnRun: boolean;
+  confirmBeforeResetOutput: boolean;
+  fontFamily: string;
+  fontLigatures: boolean;
+  fontSize: number;
+  indentSize: number;
+  minimapEnabled: boolean;
+  outputPanelPosition: "bottom" | "right";
+  showInvisibleChars: boolean;
+  tabMode: "spaces" | "tabs";
+  wordWrap: boolean;
+};
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -206,6 +221,21 @@ const builtInThemes: EditorThemeConfig[] = [
   { id: "vitesse-light", label: "Vitesse Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f8f8f8", gutterBg: "#f0f0f0", text: "#393a34", keyword: "#1f6feb", string: "#ab5959", comment: "#a0ada0", function: "#2993a3", number: "#b75501", cursor: "#393a34" } },
   { id: "palenight-light", label: "Palenight Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f7f7ff", gutterBg: "#ececff", text: "#403f53", keyword: "#7c4dff", string: "#43a047", comment: "#9ea0b3", function: "#1565c0", number: "#ff7043", cursor: "#403f53" } },
 ];
+
+const defaultEditorPreferences: EditorPreferences = {
+  autoClearOutputBeforeRun: true,
+  autoSaveSnippetOnRun: false,
+  confirmBeforeResetOutput: true,
+  fontFamily: "Fira Code",
+  fontLigatures: true,
+  fontSize: 12,
+  indentSize: 2,
+  minimapEnabled: true,
+  outputPanelPosition: "right",
+  showInvisibleChars: false,
+  tabMode: "spaces",
+  wordWrap: false,
+};
 
 const runtimeExtensions: Record<Runtime, string> = {
   python: "py",
@@ -385,7 +415,7 @@ export default function InterpreterPage() {
   const [foldedStarts, setFoldedStarts] = useState<Record<string, number[]>>({});
   const [cursorPosition, setCursorPosition] = useState({ column: 1, line: 1 });
   const [activeLineNumber, setActiveLineNumber] = useState(1);
-  const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showEditorPreferences, setShowEditorPreferences] = useState(false);
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
   const [autocompleteItems, setAutocompleteItems] = useState<AutoSuggestion[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
@@ -465,6 +495,10 @@ export default function InterpreterPage() {
     "mai.interpreter.generation-history.v1",
     []
   );
+  const [editorPreferences, setEditorPreferences] = useLocalStorage<EditorPreferences>(
+    "mai.interpreter.preferences.v1",
+    defaultEditorPreferences
+  );
   const activeTab = editorTabs.find((tab) => tab.id === activeTabId) ?? editorTabs[0];
   const runtime = activeTab?.runtime ?? "python";
   const code = activeTab?.content ?? "";
@@ -515,7 +549,9 @@ export default function InterpreterPage() {
 
   const onRun = async () => {
     setIsRunning(true);
-    setResult(null);
+    if (editorPreferences.autoClearOutputBeforeRun) {
+      setResult(null);
+    }
 
     try {
       const uploadedFiles = await Promise.all(files.map(toRuntimeFile));
@@ -547,6 +583,17 @@ export default function InterpreterPage() {
         nextEntry,
         ...current,
       ].slice(0, 50));
+      if (editorPreferences.autoSaveSnippetOnRun) {
+        setSavedSnippets((current) => [
+          {
+            id: crypto.randomUUID(),
+            name: `Auto ${runtimeLabels[runtime]} ${new Date().toLocaleTimeString("fr-FR")}`,
+            runtime,
+            sourceCode: code,
+          },
+          ...current,
+        ].slice(0, 50));
+      }
       if (payload.error) {
         const lineMatch = payload.error.match(/line\s+(\d+)/i) ?? payload.error.match(/:(\d+):\d+/);
         const parsedLine = lineMatch?.[1] ? Number(lineMatch[1]) : null;
@@ -1134,6 +1181,9 @@ export default function InterpreterPage() {
                 </div>
               )}
             </span>
+            <button className="ml-1 inline-flex items-center rounded border px-1.5 py-1" onClick={() => setShowEditorPreferences((current) => !current)} type="button">
+              <Cog className="size-3.5" />
+            </button>
           </label>
         </div>
       </div>
@@ -1235,9 +1285,62 @@ export default function InterpreterPage() {
           </div>
         </section>
       )}
+      {showEditorPreferences && (
+        <section className="rounded-xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Préférences de l’éditeur</h3>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowEditorPreferences(false)} type="button">Fermer</button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2 rounded border border-border/40 p-2">
+              <p className="text-xs font-semibold">Typographie</p>
+              <label className="text-xs">Police
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, fontFamily: event.target.value }))} value={editorPreferences.fontFamily}>
+                  {["Fira Code", "JetBrains Mono", "Source Code Pro", "Cascadia Code", "Menlo", "Monaco"].map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs">Taille police: {editorPreferences.fontSize}px
+                <input className="mt-1 w-full" max={24} min={10} onChange={(event) => setEditorPreferences((current) => ({ ...current, fontSize: Number(event.target.value) }))} type="range" value={editorPreferences.fontSize} />
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.fontLigatures} onChange={(event) => setEditorPreferences((current) => ({ ...current, fontLigatures: event.target.checked }))} type="checkbox" /> Ligatures typographiques</label>
+            </div>
+            <div className="space-y-2 rounded border border-border/40 p-2">
+              <p className="text-xs font-semibold">Édition</p>
+              <label className="text-xs">Indentation ({editorPreferences.indentSize})
+                <input className="mt-1 w-full" max={8} min={2} onChange={(event) => setEditorPreferences((current) => ({ ...current, indentSize: Number(event.target.value) }))} type="range" value={editorPreferences.indentSize} />
+              </label>
+              <label className="text-xs">Mode indentation
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, tabMode: event.target.value as "spaces" | "tabs" }))} value={editorPreferences.tabMode}>
+                  <option value="spaces">Espaces</option>
+                  <option value="tabs">Tabulations</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.showInvisibleChars} onChange={(event) => setEditorPreferences((current) => ({ ...current, showInvisibleChars: event.target.checked }))} type="checkbox" /> Afficher caractères invisibles</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.wordWrap} onChange={(event) => setEditorPreferences((current) => ({ ...current, wordWrap: event.target.checked }))} type="checkbox" /> Retour à la ligne automatique</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.minimapEnabled} onChange={(event) => setEditorPreferences((current) => ({ ...current, minimapEnabled: event.target.checked }))} type="checkbox" /> Mini-map</label>
+            </div>
+            <div className="space-y-2 rounded border border-border/40 p-2 md:col-span-2">
+              <p className="text-xs font-semibold">Comportement</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.autoSaveSnippetOnRun} onChange={(event) => setEditorPreferences((current) => ({ ...current, autoSaveSnippetOnRun: event.target.checked }))} type="checkbox" /> Sauvegarde auto des snippets au run</label>
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.autoClearOutputBeforeRun} onChange={(event) => setEditorPreferences((current) => ({ ...current, autoClearOutputBeforeRun: event.target.checked }))} type="checkbox" /> Effacer sortie avant exécution</label>
+                <label className="flex items-center gap-2 text-xs"><input checked={editorPreferences.confirmBeforeResetOutput} onChange={(event) => setEditorPreferences((current) => ({ ...current, confirmBeforeResetOutput: event.target.checked }))} type="checkbox" /> Confirmer avant reset sortie</label>
+                <label className="text-xs">Position panneau sortie
+                  <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setEditorPreferences((current) => ({ ...current, outputPanelPosition: event.target.value as "bottom" | "right" }))} value={editorPreferences.outputPanelPosition}>
+                    <option value="right">Droite</option>
+                    <option value="bottom">Bas</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
-        <section className="liquid-panel rounded-2xl p-4 lg:order-2">
+      <div className={`grid gap-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:grid-cols-[1.3fr_1fr]" : "grid-cols-1"}`}>
+        <section className={`liquid-panel rounded-2xl p-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:order-1" : "order-1"}`}>
           <div className="mb-3 space-y-2 rounded-xl border border-border/50 bg-background/50 p-2">
             <div className="flex items-center gap-2">
               <button
@@ -1365,12 +1468,12 @@ export default function InterpreterPage() {
                   <Plus className="mr-1 size-3.5" /> Nouveau
                 </button>
               </div>
-              <button className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px]" onClick={() => setShowMiniMap((current) => !current)} type="button">
-                <FileCode2 className="size-3.5" /> Mini-map {showMiniMap ? "ON" : "OFF"}
+              <button className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px]" onClick={() => setEditorPreferences((current) => ({ ...current, minimapEnabled: !current.minimapEnabled }))} type="button">
+                <FileCode2 className="size-3.5" /> Mini-map {editorPreferences.minimapEnabled ? "ON" : "OFF"}
               </button>
             </div>
-            <div className={`grid min-h-[360px] ${showMiniMap ? "grid-cols-[1fr_120px]" : "grid-cols-1"}`}>
-              <div className="relative grid grid-cols-[52px_1fr]" style={{ background: activeTheme.colors.editorBg, color: activeTheme.colors.text }}>
+            <div className={`grid min-h-[360px] ${editorPreferences.minimapEnabled ? "grid-cols-[1fr_120px]" : "grid-cols-1"}`}>
+              <div className="relative grid grid-cols-[52px_1fr]" style={{ background: activeTheme.colors.editorBg, color: activeTheme.colors.text, fontFamily: editorPreferences.fontFamily, fontSize: `${editorPreferences.fontSize}px`, fontVariantLigatures: editorPreferences.fontLigatures ? "normal" : "none" }}>
                 <div className="border-r border-border/30 px-1 py-2 text-right text-[11px]" style={{ background: activeTheme.colors.gutterBg }}>
                   {visibleLines.map((line) => {
                     const fold = foldRanges.find((item) => item.start === line.lineNumber);
@@ -1398,8 +1501,9 @@ export default function InterpreterPage() {
                   })}
                 </div>
                 <textarea
-                  className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 font-mono text-xs outline-none"
+                  className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 outline-none"
                   style={{ caretColor: activeTheme.colors.cursor, color: activeTheme.colors.text }}
+                  wrap={editorPreferences.wordWrap ? "soft" : "off"}
                   ref={editorTextareaRef}
                   onChange={(event) => {
                     setCode(event.target.value);
@@ -1450,6 +1554,22 @@ export default function InterpreterPage() {
                       }
                       if (event.key === "Tab" && tryExpandSnippet()) {
                         event.preventDefault();
+                        return;
+                      }
+                      if (event.key === "Tab") {
+                        event.preventDefault();
+                        const target = event.currentTarget;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const indentation = editorPreferences.tabMode === "tabs" ? "\t" : " ".repeat(editorPreferences.indentSize);
+                        const nextValue = `${target.value.slice(0, start)}${indentation}${target.value.slice(end)}`;
+                        setCode(nextValue);
+                        const nextCursor = start + indentation.length;
+                        setTimeout(() => {
+                          target.selectionStart = nextCursor;
+                          target.selectionEnd = nextCursor;
+                          setCursorOffset(nextCursor);
+                        }, 0);
                       }
                     }
                   }}
@@ -1513,12 +1633,12 @@ export default function InterpreterPage() {
                   </div>
                 )}
               </div>
-              {showMiniMap && (
+              {editorPreferences.minimapEnabled && (
                 <div className="border-l border-border/40 bg-muted/20 p-2">
                   <div className="max-h-[360px] overflow-auto rounded bg-background/60 p-1 font-mono text-[8px] leading-3">
                     {lineList.map((line, index) => (
                       <button className={`block w-full truncate text-left ${activeLineNumber === index + 1 ? "bg-primary/15 text-primary" : "text-muted-foreground"}`} key={`${index + 1}-${line}`} onClick={() => onLineNumberClick(index + 1)} type="button">
-                        {line || "·"}
+                        {(editorPreferences.showInvisibleChars ? line.replace(/\t/g, "→\t").replace(/ /g, "·") : line) || "·"}
                       </button>
                     ))}
                   </div>
@@ -1667,6 +1787,10 @@ export default function InterpreterPage() {
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm"
               onClick={() => {
+                if (editorPreferences.confirmBeforeResetOutput) {
+                  const confirmed = window.confirm("Confirmer la réinitialisation de la sortie ?");
+                  if (!confirmed) return;
+                }
                 setFiles([]);
                 setResult(null);
               }}
@@ -1677,7 +1801,7 @@ export default function InterpreterPage() {
           </div>
         </section>
 
-        <section className="liquid-panel rounded-2xl p-4 lg:order-1">
+        <section className={`liquid-panel rounded-2xl p-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:order-2" : "order-2"}`}>
           <h2 className="mb-2 text-sm font-medium">Output</h2>
           <div className="space-y-2 text-xs">
             {result?.logs?.length ? (
