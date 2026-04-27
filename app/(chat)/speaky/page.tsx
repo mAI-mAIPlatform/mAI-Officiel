@@ -5,13 +5,15 @@ import {
   Gauge,
   LibraryBig,
   Loader2,
+  Pause,
   Play,
   Sparkles,
   Square,
+  Upload,
   Volume,
   Waves,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
 import { addStatsEvent } from "@/lib/user-stats";
@@ -26,6 +28,14 @@ type SpeakyResponse = {
 };
 
 type VoiceStyle = "narratif" | "conversationnel" | "énergique";
+type GenerationMode = "batch" | "podcast";
+type OutputFormat = "mp3" | "wav";
+
+type BatchUnit = {
+  text: string;
+  voice: string;
+  label: string;
+};
 
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
@@ -65,12 +75,227 @@ const VOICES_BY_LANGUAGE: Record<string, string[]> = {
   zh: ["Zhiyu"],
 };
 
+const PODCAST_TEMPLATES = [
+  {
+    label: "Interview à deux voix",
+    value:
+      "[Lea]\nBonjour Mathieu, merci d'être avec nous aujourd'hui.\n\n[Mathieu]\nMerci Lea, je suis ravi de partager cette discussion avec vous.",
+  },
+  {
+    label: "Narration + commentateur",
+    value:
+      "[Lea]\nBienvenue dans notre épisode hebdomadaire consacré à l'innovation.\n\n[Mathieu]\nPoint clé du jour : les assistants IA deviennent multimodaux et collaboratifs.",
+  },
+  {
+    label: "Dialogue éducatif",
+    value:
+      "[Lea]\nAujourd'hui, on apprend comment fonctionne la photosynthèse.\n\n[Mathieu]\nExcellente idée. Les plantes utilisent la lumière pour transformer l'eau et le CO₂ en énergie.",
+  },
+] as const;
+
+const VOICE_COLORS = [
+  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
+  "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+];
+
 function generateWaveBars(seed = 24) {
   return Array.from({ length: seed }, (_, index) => index);
 }
 
 function getEffectiveRate(rate: number, tone: number) {
   return Math.max(0.6, Math.min(2, rate * 2 ** (tone / 12)));
+}
+
+function splitLongSentence(sentence: string, maxChars = 500) {
+  const chunks: string[] = [];
+  let remaining = sentence.trim();
+
+  while (remaining.length > maxChars) {
+    const pivot = remaining.slice(0, maxChars + 1);
+    const breakAt = Math.max(
+      pivot.lastIndexOf(","),
+      pivot.lastIndexOf(";"),
+      pivot.lastIndexOf(":"),
+      pivot.lastIndexOf(" ")
+    );
+    const index = breakAt > 0 ? breakAt : maxChars;
+    chunks.push(remaining.slice(0, index).trim());
+    remaining = remaining.slice(index).trim();
+  }
+
+  if (remaining) {
+    chunks.push(remaining);
+  }
+
+  return chunks.filter(Boolean);
+}
+
+function splitTextIntoSmartSegments(input: string, maxChars = 500) {
+  const text = input.replace(/\r\n/g, "\n").trim();
+  if (!text) return [];
+
+  const sentenceCandidates = text
+    .split(/(?<=[.!?…])\s+|\n{2,}/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const segments: string[] = [];
+  let current = "";
+
+  for (const candidate of sentenceCandidates) {
+    const pieces =
+      candidate.length > maxChars
+        ? splitLongSentence(candidate, maxChars)
+        : [candidate];
+
+    for (const piece of pieces) {
+      if (!current) {
+        current = piece;
+        continue;
+      }
+
+      if (`${current} ${piece}`.length <= maxChars) {
+        current = `${current} ${piece}`;
+      } else {
+        segments.push(current.trim());
+        current = piece;
+      }
+    }
+  }
+
+  if (current.trim()) {
+    segments.push(current.trim());
+  }
+
+  return segments;
+}
+
+function parsePodcastScript(script: string, fallbackVoice: string, maxChars = 500) {
+  const blocks = script
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const units: BatchUnit[] = [];
+  let activeVoice = fallbackVoice;
+
+  for (const block of blocks) {
+    const match = block.match(/^\[([^\]]+)\]\s*/);
+    const voiceMarker = match?.[1]?.trim();
+    const content = block.replace(/^\[[^\]]+\]\s*/, "").trim();
+
+    if (voiceMarker) {
+      activeVoice = voiceMarker;
+    }
+
+    if (!content) continue;
+
+    const segments = splitTextIntoSmartSegments(content, maxChars);
+    for (const [index, segment] of segments.entries()) {
+      units.push({
+        text: segment,
+        voice: activeVoice,
+        label:
+          segments.length > 1
+            ? `${activeVoice} · bloc ${index + 1}/${segments.length}`
+            : activeVoice,
+      });
+    }
+  }
+
+  return units;
+}
+
+function concatUint8Arrays(chunks: Uint8Array[]) {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return merged;
+}
+
+function encodeWavFromAudioBuffer(buffer: AudioBuffer) {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const samples = buffer.length;
+  const bytesPerSample = 2;
+  const dataSize = samples * channels * bytesPerSample;
+  const wavBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(wavBuffer);
+
+  const writeString = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let sample = 0; sample < samples; sample += 1) {
+    for (let channel = 0; channel < channels; channel += 1) {
+      const channelData = buffer.getChannelData(channel);
+      const value = Math.max(-1, Math.min(1, channelData[sample] || 0));
+      view.setInt16(offset, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return wavBuffer;
+}
+
+async function decodeAndConcatToWav(chunks: Uint8Array[]) {
+  const context = new AudioContext();
+  try {
+    const decoded = await Promise.all(
+      chunks.map((chunk) =>
+        context.decodeAudioData(Uint8Array.from(chunk).buffer)
+      )
+    );
+    const sampleRate = decoded[0]?.sampleRate ?? 22050;
+    const numberOfChannels = Math.max(
+      1,
+      ...decoded.map((buffer) => buffer.numberOfChannels)
+    );
+    const totalLength = decoded.reduce((sum, buffer) => sum + buffer.length, 0);
+    const output = context.createBuffer(numberOfChannels, totalLength, sampleRate);
+
+    let writeOffset = 0;
+    for (const buffer of decoded) {
+      for (let channel = 0; channel < numberOfChannels; channel += 1) {
+        const target = output.getChannelData(channel);
+        const source =
+          buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
+        target.set(source, writeOffset);
+      }
+      writeOffset += buffer.length;
+    }
+
+    return encodeWavFromAudioBuffer(output);
+  } finally {
+    await context.close();
+  }
 }
 
 export default function SpeakyPage() {
@@ -81,12 +306,19 @@ export default function SpeakyPage() {
   const [tone, setTone] = useState(0);
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("narratif");
   const [voiceGender, setVoiceGender] = useState<"homme" | "femme">("femme");
+  const [mode, setMode] = useState<GenerationMode>("batch");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>("mp3");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [progress, setProgress] = useState({
+    completed: 0,
+    total: 0,
+    percent: 0,
+    etaSec: 0,
+  });
   const [audioUrl, setAudioUrl] = useState("");
-  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(
-    null
-  );
+  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
   const [history, setHistory] = useLocalStorage<
     Array<{
@@ -104,21 +336,40 @@ export default function SpeakyPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
+  const pauseResolverRef = useRef<(() => void) | null>(null);
+  const pausedRef = useRef(false);
   const bars = useMemo(() => generateWaveBars(), []);
   const cloudTextLength = text.trim().length;
-  const cloudUsagePercent = Math.min((cloudTextLength / 500) * 100, 100);
   const availableVoices = useMemo(
     () => VOICES_BY_LANGUAGE[language] ?? VOICES_BY_LANGUAGE.fr,
     [language]
   );
-  const effectiveRate = useMemo(
-    () => getEffectiveRate(rate, tone),
-    [rate, tone]
-  );
+  const effectiveRate = useMemo(() => getEffectiveRate(rate, tone), [rate, tone]);
   const speechSupport =
     typeof window !== "undefined" &&
     "speechSynthesis" in window &&
     "SpeechSynthesisUtterance" in window;
+
+  const batchSegments = useMemo(() => splitTextIntoSmartSegments(text), [text]);
+  const podcastUnits = useMemo(
+    () => parsePodcastScript(text, voice),
+    [text, voice]
+  );
+  const activeUnits = mode === "podcast" ? podcastUnits : batchSegments.map((segment, index) => ({
+    text: segment,
+    voice,
+    label: `Segment ${index + 1}`,
+  }));
+
+  const voicesInPodcast = useMemo(() => {
+    const seen = new Set<string>();
+    for (const unit of podcastUnits) {
+      seen.add(unit.voice);
+    }
+    return Array.from(seen);
+  }, [podcastUnits]);
+
+  const cloudUsagePercent = Math.min((Math.min(cloudTextLength, 500) / 500) * 100, 100);
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -135,68 +386,130 @@ export default function SpeakyPage() {
     audioRef.current.preservesPitch = false;
   }, [effectiveRate]);
 
-  const generateCloudAudio = async () => {
+  useEffect(() => {
+    return () => {
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+      }
+    };
+  }, []);
+
+  const waitIfPaused = async () => {
+    if (!pausedRef.current) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      pauseResolverRef.current = resolve;
+    });
+  };
+
+  const togglePause = () => {
+    setIsPaused((current) => {
+      const next = !current;
+      pausedRef.current = next;
+      if (!next && pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+      return next;
+    });
+  };
+
+  const generateBatchAudio = async () => {
     if (!text.trim()) {
       toast.error("Ajoutez un texte avant de générer l'audio.");
       return;
     }
 
-    if (cloudTextLength > 500) {
-      toast.error("Mode cloud limité à 500 caractères par génération.");
+    if (!activeUnits.length) {
+      toast.error("Impossible de découper ce texte en segments exploitables.");
       return;
     }
 
     setIsGenerating(true);
+    setIsPaused(false);
+    pausedRef.current = false;
+    setProgress({ completed: 0, total: activeUnits.length, percent: 0, etaSec: 0 });
+
+    const startedAt = Date.now();
+    const mp3Chunks: Uint8Array[] = [];
+    let totalDuration = 0;
 
     try {
-      const response = await fetch("/api/speaky", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          language,
-          voice,
-          voiceStyle,
-          voiceGender,
-        }),
-      });
+      for (const [index, unit] of activeUnits.entries()) {
+        await waitIfPaused();
 
-      const payload = (await response.json()) as SpeakyResponse & {
-        error?: string;
-      };
-      if (!response.ok || !payload.audioBase64) {
-        throw new Error(payload.error ?? "Génération audio impossible");
+        const response = await fetch("/api/speaky", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: unit.text,
+            language,
+            voice: unit.voice,
+            voiceStyle,
+            voiceGender,
+          }),
+        });
+
+        const payload = (await response.json()) as SpeakyResponse & { error?: string };
+        if (!response.ok || !payload.audioBase64) {
+          throw new Error(payload.error ?? `Génération impossible sur ${unit.label}`);
+        }
+
+        addStatsEvent("api_call", 1);
+
+        const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
+          char.charCodeAt(0)
+        );
+        mp3Chunks.push(bytes);
+        totalDuration += payload.durationEstimateSec;
+
+        const completed = index + 1;
+        const elapsed = Math.max(1, (Date.now() - startedAt) / 1000);
+        const average = elapsed / completed;
+        const remaining = Math.max(0, activeUnits.length - completed);
+
+        setProgress({
+          completed,
+          total: activeUnits.length,
+          percent: Math.round((completed / activeUnits.length) * 100),
+          etaSec: Math.round(average * remaining),
+        });
       }
 
-      addStatsEvent("api_call", 1);
+      const outputBlob =
+        outputFormat === "wav"
+          ? new Blob([await decodeAndConcatToWav(mp3Chunks)], { type: "audio/wav" })
+          : new Blob([concatUint8Arrays(mp3Chunks)], { type: "audio/mpeg" });
 
-      const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
-        char.charCodeAt(0)
-      );
-      const blob = new Blob([bytes], {
-        type: payload.contentType || "audio/mpeg",
-      });
-      const nextUrl = URL.createObjectURL(blob);
-
+      const nextUrl = URL.createObjectURL(outputBlob);
       if (currentAudioUrlRef.current) {
         URL.revokeObjectURL(currentAudioUrlRef.current);
       }
       currentAudioUrlRef.current = nextUrl;
 
       setAudioUrl(nextUrl);
-      setEstimatedDuration(payload.durationEstimateSec);
-      setProvider(payload.provider);
+      setEstimatedDuration(totalDuration);
+      setProvider("streamelements + batch");
       setHistory(
         [
-          { createdAt: new Date().toISOString(), pinned: false, text, voice, url: nextUrl },
+          {
+            createdAt: new Date().toISOString(),
+            pinned: false,
+            text,
+            voice,
+            url: nextUrl,
+          },
           ...history,
         ].slice(0, 20)
       );
-      if (payload.selectedVoice) {
-        setVoice(payload.selectedVoice);
-      }
 
-      toast.success("Audio cloud généré avec succès.");
+      toast.success(
+        mode === "podcast"
+          ? "Podcast multi-voix généré avec succès."
+          : "Audio par lot généré avec succès."
+      );
 
       setTimeout(() => {
         audioRef.current?.play().catch(() => {
@@ -204,11 +517,12 @@ export default function SpeakyPage() {
         });
       }, 10);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur de génération audio"
-      );
+      toast.error(error instanceof Error ? error.message : "Erreur de génération audio");
     } finally {
       setIsGenerating(false);
+      setIsPaused(false);
+      pausedRef.current = false;
+      setProgress((current) => ({ ...current, etaSec: 0 }));
     }
   };
 
@@ -231,18 +545,12 @@ export default function SpeakyPage() {
     utterance.volume = 1;
 
     const styleBoost =
-      voiceStyle === "énergique"
-        ? 0.12
-        : voiceStyle === "conversationnel"
-          ? 0.04
-          : 0;
+      voiceStyle === "énergique" ? 0.12 : voiceStyle === "conversationnel" ? 0.04 : 0;
     utterance.rate = Math.max(0.5, Math.min(2, utterance.rate + styleBoost));
 
     const selectedVoice = window.speechSynthesis
       .getVoices()
-      .find((candidate) =>
-        candidate.lang.toLowerCase().startsWith(language.toLowerCase())
-      );
+      .find((candidate) => candidate.lang.toLowerCase().startsWith(language.toLowerCase()));
     if (selectedVoice) {
       utterance.voice = selectedVoice;
     }
@@ -277,7 +585,7 @@ export default function SpeakyPage() {
 
     const link = document.createElement("a");
     link.href = audioUrl;
-    link.download = `speaky-${Date.now()}.mp3`;
+    link.download = `speaky-${Date.now()}.${outputFormat}`;
     document.body.append(link);
     link.click();
     link.remove();
@@ -291,8 +599,8 @@ export default function SpeakyPage() {
 
     const response = await fetch(audioUrl);
     const blob = await response.blob();
-    const file = new File([blob], `speaky-${Date.now()}.mp3`, {
-      type: "audio/mpeg",
+    const file = new File([blob], `speaky-${Date.now()}.${outputFormat}`, {
+      type: outputFormat === "wav" ? "audio/wav" : "audio/mpeg",
     });
 
     const formData = new FormData();
@@ -312,28 +620,112 @@ export default function SpeakyPage() {
     toast.success("Audio ajouté à la bibliothèque.");
   };
 
+  const importTextFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const value = await file.text();
+    setText(value);
+    event.target.value = "";
+  };
+
   return (
     <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Speaky</h1>
           <p className="text-sm text-muted-foreground">
-            Faire des sons d'exceptions.
+            Génération par lot et podcast multi-voix.
           </p>
         </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
         <section className="liquid-panel space-y-3 rounded-2xl p-4">
-          <textarea
-            className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
-            onChange={(event) => setText(event.target.value)}
-            placeholder="Collez le texte à transformer en audio..."
-            value={text}
-          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`rounded-xl px-3 py-2 text-xs ${mode === "batch" ? "bg-black text-white" : "border"}`}
+              onClick={() => setMode("batch")}
+              type="button"
+            >
+              Batch long texte
+            </button>
+            <button
+              className={`rounded-xl px-3 py-2 text-xs ${mode === "podcast" ? "bg-black text-white" : "border"}`}
+              onClick={() => setMode("podcast")}
+              type="button"
+            >
+              Podcast multi-voix
+            </button>
+          </div>
+
+          {mode === "podcast" ? (
+            <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+              <div className="space-y-2">
+                <textarea
+                  className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="[Lea] Bonjour et bienvenue...\n\n[Mathieu] Merci Lea..."
+                  value={text}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {PODCAST_TEMPLATES.map((template) => (
+                    <button
+                      className="rounded-lg border px-2 py-1 text-[11px]"
+                      key={template.label}
+                      onClick={() => setText(template.value)}
+                      type="button"
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <aside className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+                <p className="mb-2 font-semibold text-foreground">Voix utilisées</p>
+                <div className="space-y-1">
+                  {(voicesInPodcast.length ? voicesInPodcast : [voice]).map((voiceName, index) => (
+                    <p
+                      className={`rounded px-2 py-1 ${VOICE_COLORS[index % VOICE_COLORS.length]}`}
+                      key={voiceName}
+                    >
+                      {voiceName}
+                    </p>
+                  ))}
+                </div>
+                <p className="mt-3 mb-1 font-semibold text-foreground">Aperçu alternances</p>
+                <div className="max-h-40 space-y-1 overflow-auto">
+                  {podcastUnits.slice(0, 12).map((unit, index) => (
+                    <p
+                      className={`rounded px-2 py-1 ${VOICE_COLORS[index % VOICE_COLORS.length]}`}
+                      key={`${unit.label}-${index}`}
+                    >
+                      [{unit.voice}] {unit.text.slice(0, 80)}
+                      {unit.text.length > 80 ? "…" : ""}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <>
+              <textarea
+                className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Collez ou importez un texte long à transformer en audio..."
+                value={text}
+              />
+              <div>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs">
+                  <Upload className="size-3.5" />
+                  Importer un fichier texte
+                  <input accept=".txt,.md,.csv,.json" className="hidden" onChange={importTextFile} type="file" />
+                </label>
+              </div>
+            </>
+          )}
 
           <p className="text-[11px] text-muted-foreground">
-            Limite cloud: 500 caractères ({cloudTextLength}/500).
+            Compteur cloud 500 caractères: {Math.min(cloudTextLength, 500)}/500 · Total texte: {cloudTextLength} · Segments: {activeUnits.length}
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
@@ -359,7 +751,7 @@ export default function SpeakyPage() {
             </label>
 
             <label className="text-xs">
-              Voix
+              Voix par défaut
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
                 onChange={(event) => setVoice(event.target.value)}
@@ -379,9 +771,7 @@ export default function SpeakyPage() {
               Style
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
-                onChange={(event) =>
-                  setVoiceStyle(event.target.value as VoiceStyle)
-                }
+                onChange={(event) => setVoiceStyle(event.target.value as VoiceStyle)}
                 value={voiceStyle}
               >
                 <option value="narratif">Narratif</option>
@@ -393,9 +783,7 @@ export default function SpeakyPage() {
               Variante
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
-                onChange={(event) =>
-                  setVoiceGender(event.target.value as "homme" | "femme")
-                }
+                onChange={(event) => setVoiceGender(event.target.value as "homme" | "femme")}
                 value={voiceGender}
               >
                 <option value="femme">Femme</option>
@@ -404,8 +792,19 @@ export default function SpeakyPage() {
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs">
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="text-xs md:col-span-1">
+              Format final
+              <select
+                className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                onChange={(event) => setOutputFormat(event.target.value as OutputFormat)}
+                value={outputFormat}
+              >
+                <option value="mp3">MP3</option>
+                <option value="wav">WAV</option>
+              </select>
+            </label>
+            <label className="text-xs md:col-span-1">
               Vitesse ({rate.toFixed(2)}x)
               <input
                 className="mt-1 w-full"
@@ -418,7 +817,7 @@ export default function SpeakyPage() {
               />
             </label>
 
-            <label className="text-xs">
+            <label className="text-xs md:col-span-1">
               Ton ({tone > 0 ? `+${tone}` : tone})
               <input
                 className="mt-1 w-full"
@@ -433,23 +832,39 @@ export default function SpeakyPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Vitesse/ton appliqués au playback (taux effectif:{" "}
-            {effectiveRate.toFixed(2)}x).
+            Vitesse/ton appliqués au playback (taux effectif: {effectiveRate.toFixed(2)}x).
           </p>
+
+          {isGenerating ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-xs">
+              <p>
+                Segment {progress.completed}/{progress.total} · {progress.percent}%
+              </p>
+              <p className="text-[11px] text-muted-foreground">Temps restant estimé: ~{progress.etaSec}s</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress.percent}%` }} />
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs text-white disabled:opacity-60"
               disabled={isGenerating}
-              onClick={generateCloudAudio}
+              onClick={generateBatchAudio}
               type="button"
             >
-              {isGenerating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Play className="size-3.5" />
-              )}
-              Générer audio cloud
+              {isGenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+              {mode === "podcast" ? "Générer podcast" : "Générer par lot"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs disabled:opacity-50"
+              disabled={!isGenerating}
+              onClick={togglePause}
+              type="button"
+            >
+              {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+              {isPaused ? "Reprendre" : "Pause"}
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
@@ -479,9 +894,7 @@ export default function SpeakyPage() {
               type="button"
             >
               <Sparkles className="size-3.5" />
-              {favoriteVoices.includes(voice)
-                ? "Voix retirée des favoris"
-                : "Ajouter voix favorite"}
+              {favoriteVoices.includes(voice) ? "Voix retirée des favoris" : "Ajouter voix favorite"}
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
@@ -519,34 +932,15 @@ export default function SpeakyPage() {
               <span
                 className={`w-1.5 rounded-full bg-cyan-500/70 ${isPlaying || isGenerating ? "animate-pulse" : "opacity-40"}`}
                 key={bar}
-                style={{
-                  height: `${25 + ((bar * 17) % 65)}%`,
-                  animationDelay: `${bar * 45}ms`,
-                }}
+                style={{ height: `${25 + ((bar * 17) % 65)}%`, animationDelay: `${bar * 45}ms` }}
               />
             ))}
           </div>
 
-          <p>
-            {isGenerating
-              ? "Génération en cours..."
-              : isPlaying
-                ? "Lecture en cours"
-                : "Prêt"}
-          </p>
-          {estimatedDuration ? (
-            <p className="mt-1 text-[11px]">
-              Durée estimée : ~{estimatedDuration}s
-            </p>
-          ) : null}
-          {provider ? (
-            <p className="mt-1 text-[11px]">Provider: {provider}</p>
-          ) : null}
-          {favoriteVoices.length > 0 ? (
-            <p className="mt-1 text-[11px]">
-              Voix favorites: {favoriteVoices.join(", ")}
-            </p>
-          ) : null}
+          <p>{isGenerating ? (isPaused ? "En pause" : "Génération en cours...") : isPlaying ? "Lecture en cours" : "Prêt"}</p>
+          {estimatedDuration ? <p className="mt-1 text-[11px]">Durée estimée : ~{estimatedDuration}s</p> : null}
+          {provider ? <p className="mt-1 text-[11px]">Provider: {provider}</p> : null}
+          {favoriteVoices.length > 0 ? <p className="mt-1 text-[11px]">Voix favorites: {favoriteVoices.join(", ")}</p> : null}
 
           {audioUrl ? (
             <>
@@ -576,7 +970,7 @@ export default function SpeakyPage() {
                   type="button"
                 >
                   <Download className="size-3.5" />
-                  Télécharger MP3
+                  Télécharger {outputFormat.toUpperCase()}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2"
@@ -595,18 +989,13 @@ export default function SpeakyPage() {
           )}
 
           <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-2">
-            <p className="mb-2 text-xs font-semibold text-foreground">
-              Historique des générations
-            </p>
+            <p className="mb-2 text-xs font-semibold text-foreground">Historique des générations</p>
             <div className="max-h-28 space-y-1 overflow-auto">
               {history
                 .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
                 .slice(0, 8)
                 .map((item) => (
-                  <div
-                    className="rounded-md border border-border/40 px-2 py-1 text-[11px]"
-                    key={`${item.createdAt}-${item.voice}`}
-                  >
+                  <div className="rounded-md border border-border/40 px-2 py-1 text-[11px]" key={`${item.createdAt}-${item.voice}`}>
                     <button
                       className="block w-full text-left"
                       onClick={() => {
@@ -616,8 +1005,7 @@ export default function SpeakyPage() {
                       }}
                       type="button"
                     >
-                      {item.voice} ·{" "}
-                      {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
+                      {item.voice} · {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
                     </button>
                     <div className="mt-1 flex gap-1">
                       <button
@@ -637,9 +1025,7 @@ export default function SpeakyPage() {
                         onClick={() =>
                           setHistory((prev) =>
                             prev.map((row) =>
-                              row.createdAt === item.createdAt
-                                ? { ...row, pinned: !row.pinned }
-                                : row
+                              row.createdAt === item.createdAt ? { ...row, pinned: !row.pinned } : row
                             )
                           )
                         }
@@ -650,9 +1036,7 @@ export default function SpeakyPage() {
                       <button
                         className="rounded border border-red-300 px-1 text-red-500"
                         onClick={() =>
-                          setHistory((prev) =>
-                            prev.filter((row) => row.createdAt !== item.createdAt)
-                          )
+                          setHistory((prev) => prev.filter((row) => row.createdAt !== item.createdAt))
                         }
                         type="button"
                       >
