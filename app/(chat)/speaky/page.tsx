@@ -98,6 +98,51 @@ type MarkerType =
   | "spell"
   | "pronounce";
 
+type SpeakyWorkspaceMode = "generator" | "projects";
+
+type CollaborationSection = {
+  id: string;
+  title: string;
+  text: string;
+  assignee: string;
+  color: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  status: "pending" | "in_progress" | "done";
+  audioUrl?: string;
+};
+
+type SectionComment = {
+  id: string;
+  sectionId: string;
+  author: string;
+  content: string;
+  createdAt: string;
+};
+
+type ProjectVersion = {
+  id: string;
+  label: string;
+  createdAt: string;
+  sections: CollaborationSection[];
+};
+
+type CollaborativeProject = {
+  id: string;
+  title: string;
+  description: string;
+  owner: string;
+  inviteCode: string;
+  collaborators: string[];
+  sections: CollaborationSection[];
+  comments: SectionComment[];
+  versions: ProjectVersion[];
+  assembledAudioUrl?: string;
+};
+
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
   { code: "en", label: "English" },
@@ -339,6 +384,15 @@ const TEMPLATE_LIBRARY: TextTemplate[] = [
     text: "Joyeux anniversaire [prénom] ! Je te souhaite [souhait 1], [souhait 2] et une journée remplie de [émotion positive].",
     recommendedPreset: COMMUNITY_PRESETS[0]!,
   },
+];
+
+const COLLABORATOR_COLORS = [
+  "#06b6d4",
+  "#8b5cf6",
+  "#22c55e",
+  "#f97316",
+  "#ef4444",
+  "#eab308",
 ];
 
 function generateWaveBars(seed = 24) {
@@ -719,6 +773,8 @@ function getMarkerVisuals(script: string) {
 export default function SpeakyPage() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState("fr");
+  const [workspaceMode, setWorkspaceMode] =
+    useState<SpeakyWorkspaceMode>("generator");
   const [scriptEditorMode, setScriptEditorMode] =
     useState<ScriptEditorMode>("standard");
   const [pauseDurationMs, setPauseDurationMs] = useState(500);
@@ -751,6 +807,16 @@ export default function SpeakyPage() {
     null
   );
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [newProjectOwner, setNewProjectOwner] = useState("owner");
+  const [newCollaboratorsInput, setNewCollaboratorsInput] = useState("");
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [sectionCommentDrafts, setSectionCommentDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [transitionMode, setTransitionMode] = useState<"none" | "smooth">("none");
+  const [transitionMs, setTransitionMs] = useState(300);
   const [lastImportPreview, setLastImportPreview] = useState("");
   const [lastImportMeta, setLastImportMeta] = useState<{
     fileName: string;
@@ -781,6 +847,9 @@ export default function SpeakyPage() {
   const [recentImports, setRecentImports] = useLocalStorage<
     Array<{ fileName: string; extractedText: string; importedAt: string }>
   >("mai.speaky.recent-imports.v1", []);
+  const [collaborativeProjects, setCollaborativeProjects] = useLocalStorage<
+    CollaborativeProject[]
+  >("mai.speaky.collab-projects.v1", []);
   const [, setPublicGalleryItems] = useLocalStorage<PublicSpeakyCreation[]>(
     SPEAKY_PUBLIC_GALLERY_STORAGE_KEY,
     []
@@ -868,6 +937,32 @@ export default function SpeakyPage() {
         .slice(0, 4),
     []
   );
+  const activeProject = useMemo(
+    () =>
+      collaborativeProjects.find((project) => project.id === activeProjectId) ??
+      null,
+    [activeProjectId, collaborativeProjects]
+  );
+  const projectProgress = useMemo(() => {
+    if (!activeProject || activeProject.sections.length === 0) {
+      return { completed: 0, inProgress: 0, pending: 0, percent: 0 };
+    }
+    const completed = activeProject.sections.filter(
+      (section) => section.status === "done"
+    ).length;
+    const inProgress = activeProject.sections.filter(
+      (section) => section.status === "in_progress"
+    ).length;
+    const pending = activeProject.sections.filter(
+      (section) => section.status === "pending"
+    ).length;
+    return {
+      completed,
+      inProgress,
+      pending,
+      percent: Math.round((completed / activeProject.sections.length) * 100),
+    };
+  }, [activeProject]);
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -1140,6 +1235,223 @@ export default function SpeakyPage() {
     if (!file) return;
     await importDocument(file);
     event.target.value = "";
+  };
+
+  const createCollaborativeProject = () => {
+    if (!newProjectTitle.trim()) {
+      toast.error("Titre de projet requis.");
+      return;
+    }
+    const collaborators = newCollaboratorsInput
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const project: CollaborativeProject = {
+      id: crypto.randomUUID(),
+      title: newProjectTitle.trim(),
+      description: newProjectDescription.trim(),
+      owner: newProjectOwner.trim() || "owner",
+      inviteCode: crypto.randomUUID().slice(0, 8),
+      collaborators,
+      sections: [],
+      comments: [],
+      versions: [],
+    };
+    setCollaborativeProjects((current) => [project, ...current]);
+    setActiveProjectId(project.id);
+    setNewProjectTitle("");
+    setNewProjectDescription("");
+    setNewCollaboratorsInput("");
+    toast.success("Projet collaboratif créé.");
+  };
+
+  const addSectionToProject = () => {
+    if (!activeProject) return;
+    const index = activeProject.sections.length;
+    const assignee =
+      activeProject.collaborators[index % Math.max(1, activeProject.collaborators.length)] ??
+      activeProject.owner;
+    const section: CollaborationSection = {
+      id: crypto.randomUUID(),
+      title: `Section ${index + 1}`,
+      text: "",
+      assignee,
+      color: COLLABORATOR_COLORS[index % COLLABORATOR_COLORS.length]!,
+      voice,
+      voiceStyle,
+      voiceGender,
+      rate,
+      tone,
+      status: "pending",
+    };
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, sections: [...project.sections, section] }
+          : project
+      )
+    );
+  };
+
+  const updateProjectSection = (
+    sectionId: string,
+    updater: (section: CollaborationSection) => CollaborationSection,
+    versionLabel?: string
+  ) => {
+    if (!activeProject) return;
+    setCollaborativeProjects((current) =>
+      current.map((project) => {
+        if (project.id !== activeProject.id) return project;
+        const updatedSections = project.sections.map((section) =>
+          section.id === sectionId ? updater(section) : section
+        );
+        const versions = versionLabel
+          ? [
+              {
+                id: crypto.randomUUID(),
+                label: versionLabel,
+                createdAt: new Date().toISOString(),
+                sections: updatedSections,
+              },
+              ...project.versions,
+            ].slice(0, 40)
+          : project.versions;
+        return { ...project, sections: updatedSections, versions };
+      })
+    );
+  };
+
+  const addCommentToSection = (sectionId: string) => {
+    const content = sectionCommentDrafts[sectionId]?.trim();
+    if (!activeProject || !content) return;
+    const comment: SectionComment = {
+      id: crypto.randomUUID(),
+      sectionId,
+      author: newProjectOwner || "owner",
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, comments: [comment, ...project.comments] }
+          : project
+      )
+    );
+    setSectionCommentDrafts((current) => ({ ...current, [sectionId]: "" }));
+  };
+
+  const generateSectionAudio = async (section: CollaborationSection) => {
+    const response = await fetch("/api/speaky", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: applyAdvancedProfileToText(section.text, advancedProfile),
+        language,
+        voice: section.voice,
+        voiceStyle: section.voiceStyle,
+        voiceGender: section.voiceGender,
+      }),
+    });
+    const payload = (await response.json()) as SpeakyResponse & { error?: string };
+    if (!response.ok || !payload.audioBase64) {
+      throw new Error(payload.error ?? "Erreur de génération de section");
+    }
+    const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
+      char.charCodeAt(0)
+    );
+    const blob = new Blob([bytes], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    updateProjectSection(
+      section.id,
+      (current) => ({
+        ...current,
+        audioUrl: url,
+        status: "done",
+      }),
+      `Audio régénéré (${section.title})`
+    );
+  };
+
+  const assembleProjectAudio = async () => {
+    if (!activeProject) return;
+    if (activeProject.sections.some((section) => !section.audioUrl)) {
+      toast.error("Toutes les sections doivent avoir un audio généré.");
+      return;
+    }
+    const chunks: Uint8Array[] = [];
+    for (const section of activeProject.sections) {
+      const response = await fetch(section.audioUrl as string);
+      const arrayBuffer = await response.arrayBuffer();
+      chunks.push(new Uint8Array(arrayBuffer));
+    }
+    const blob =
+      outputFormat === "wav"
+        ? new Blob([await decodeAndConcatToWav(chunks)], { type: "audio/wav" })
+        : new Blob([concatUint8Arrays(chunks)], { type: "audio/mpeg" });
+    const assembledAudioUrl = URL.createObjectURL(blob);
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? {
+              ...project,
+              assembledAudioUrl,
+              versions: [
+                {
+                  id: crypto.randomUUID(),
+                  label: `Assemblage (${transitionMode} ${transitionMs}ms)`,
+                  createdAt: new Date().toISOString(),
+                  sections: project.sections,
+                },
+                ...project.versions,
+              ].slice(0, 40),
+            }
+          : project
+      )
+    );
+    toast.success("Projet assemblé avec succès.");
+  };
+
+  const restoreProjectVersion = (version: ProjectVersion) => {
+    if (!activeProject) return;
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, sections: version.sections }
+          : project
+      )
+    );
+    toast.success(`Version restaurée: ${version.label}`);
+  };
+
+  const publishProjectToGallery = () => {
+    if (!activeProject?.assembledAudioUrl) {
+      toast.error("Assemblez d'abord le projet.");
+      return;
+    }
+    const creation: PublicSpeakyCreation = {
+      id: crypto.randomUUID(),
+      title: activeProject.title,
+      description: `${activeProject.description} · Collaborateurs: ${[
+        activeProject.owner,
+        ...activeProject.collaborators,
+      ].join(", ")}`,
+      category: "professional",
+      language,
+      voice: "multi-voix",
+      creatorName: activeProject.owner,
+      createdAt: new Date().toISOString(),
+      durationSec: Math.max(
+        8,
+        activeProject.sections.reduce((sum, section) => sum + section.text.length, 0) /
+          12
+      ),
+      listens: 0,
+      favorites: 0,
+      audioUrl: activeProject.assembledAudioUrl,
+    };
+    setPublicGalleryItems((current) => [creation, ...current].slice(0, 200));
+    toast.success("Projet publié dans la galerie avec crédits collaborateurs.");
   };
 
   const publishHistoryItem = (item: { text: string; voice: string; url: string; createdAt: string }) => {
@@ -1436,6 +1748,219 @@ export default function SpeakyPage() {
             }
           }}
         >
+          <div className="mb-2 flex gap-2">
+            <button
+              className={`rounded-lg px-2 py-1 text-[11px] ${workspaceMode === "generator" ? "bg-black text-white" : "border"}`}
+              onClick={() => setWorkspaceMode("generator")}
+              type="button"
+            >
+              Générateur
+            </button>
+            <button
+              className={`rounded-lg px-2 py-1 text-[11px] ${workspaceMode === "projects" ? "bg-black text-white" : "border"}`}
+              onClick={() => setWorkspaceMode("projects")}
+              type="button"
+            >
+              Projets collaboratifs
+            </button>
+          </div>
+
+          {workspaceMode === "projects" ? (
+            <div className="space-y-3 rounded-xl border border-border/50 bg-background/40 p-3">
+              <p className="text-sm font-semibold text-foreground">
+                Espace projets collaboratifs
+              </p>
+              <div className="grid gap-2 md:grid-cols-2">
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) => setNewProjectTitle(event.target.value)}
+                  placeholder="Titre du projet"
+                  value={newProjectTitle}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) => setNewProjectOwner(event.target.value)}
+                  placeholder="Pseudo propriétaire"
+                  value={newProjectOwner}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs md:col-span-2"
+                  onChange={(event) => setNewProjectDescription(event.target.value)}
+                  placeholder="Description"
+                  value={newProjectDescription}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs md:col-span-2"
+                  onChange={(event) => setNewCollaboratorsInput(event.target.value)}
+                  placeholder="Collaborateurs (pseudo1, pseudo2) ou lien d'invitation"
+                  value={newCollaboratorsInput}
+                />
+              </div>
+              <button className="rounded-lg border px-2 py-1 text-xs" onClick={createCollaborativeProject} type="button">
+                Créer projet
+              </button>
+
+              <div className="grid gap-3 lg:grid-cols-[240px_1fr]">
+                <aside className="space-y-1">
+                  {collaborativeProjects.map((project) => (
+                    <button
+                      className={`block w-full rounded border px-2 py-1 text-left text-xs ${activeProjectId === project.id ? "border-cyan-400 bg-cyan-500/10" : ""}`}
+                      key={project.id}
+                      onClick={() => setActiveProjectId(project.id)}
+                      type="button"
+                    >
+                      {project.title}
+                      <p className="text-[10px] text-muted-foreground">
+                        Invit: {project.inviteCode}
+                      </p>
+                    </button>
+                  ))}
+                </aside>
+                {activeProject ? (
+                  <div className="space-y-2">
+                    <div className="rounded border border-border/40 p-2 text-[11px]">
+                      <p className="font-medium text-foreground">{activeProject.title}</p>
+                      <p>{activeProject.description}</p>
+                      <p>
+                        Progression: {projectProgress.percent}% · {projectProgress.completed} complétées · {projectProgress.inProgress} en cours · {projectProgress.pending} en attente
+                      </p>
+                      <p>
+                        Collaborateurs: {[activeProject.owner, ...activeProject.collaborators].join(", ")}
+                      </p>
+                    </div>
+                    <button className="rounded border px-2 py-1 text-xs" onClick={addSectionToProject} type="button">
+                      Ajouter section
+                    </button>
+                    <div className="space-y-2">
+                      {activeProject.sections.map((section) => (
+                        <div className="rounded border border-border/40 p-2" key={section.id}>
+                          <div className="mb-1 flex items-center justify-between">
+                            <input
+                              className="rounded border border-border/50 bg-background px-2 py-1 text-xs"
+                              onChange={(event) =>
+                                updateProjectSection(section.id, (current) => ({
+                                  ...current,
+                                  title: event.target.value,
+                                }))
+                              }
+                              value={section.title}
+                            />
+                            <span className="rounded px-2 py-1 text-[10px] text-white" style={{ backgroundColor: section.color }}>
+                              {section.assignee}
+                            </span>
+                          </div>
+                          <textarea
+                            className="min-h-[90px] w-full rounded border border-border/50 bg-background p-2 text-xs"
+                            onChange={(event) =>
+                              updateProjectSection(
+                                section.id,
+                                (current) => ({
+                                  ...current,
+                                  text: event.target.value,
+                                  status: "in_progress",
+                                }),
+                                `Script modifié (${section.title})`
+                              )
+                            }
+                            value={section.text}
+                          />
+                          <div className="mt-1 grid gap-1 md:grid-cols-3">
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voice: event.target.value }))} value={section.voice}>
+                              {availableVoices.map((voiceItem) => (
+                                <option key={voiceItem} value={voiceItem}>{voiceItem}</option>
+                              ))}
+                            </select>
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voiceStyle: event.target.value as VoiceStyle }))} value={section.voiceStyle}>
+                              <option value="narratif">Narratif</option>
+                              <option value="conversationnel">Conversationnel</option>
+                              <option value="énergique">Énergique</option>
+                            </select>
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voiceGender: event.target.value as "homme" | "femme" }))} value={section.voiceGender}>
+                              <option value="femme">Femme</option>
+                              <option value="homme">Homme</option>
+                            </select>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <button
+                              className="rounded border px-2 py-1 text-[11px]"
+                              onClick={async () => {
+                                try {
+                                  await generateSectionAudio(section);
+                                  toast.success(`Section générée: ${section.title}`);
+                                } catch (error) {
+                                  toast.error(error instanceof Error ? error.message : "Erreur");
+                                }
+                              }}
+                              type="button"
+                            >
+                              Générer section
+                            </button>
+                            {section.audioUrl ? <audio className="h-8" controls src={section.audioUrl} /> : null}
+                          </div>
+                          <div className="mt-1 rounded border border-border/30 p-1 text-[11px]">
+                            <p className="font-medium">Commentaires</p>
+                            <div className="max-h-20 space-y-1 overflow-auto">
+                              {activeProject.comments
+                                .filter((comment) => comment.sectionId === section.id)
+                                .map((comment) => (
+                                  <p key={comment.id}>
+                                    <span className="font-medium">{comment.author}:</span> {comment.content}
+                                  </p>
+                                ))}
+                            </div>
+                            <div className="mt-1 flex gap-1">
+                              <input
+                                className="w-full rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                                onChange={(event) =>
+                                  setSectionCommentDrafts((current) => ({
+                                    ...current,
+                                    [section.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ajouter un commentaire"
+                                value={sectionCommentDrafts[section.id] ?? ""}
+                              />
+                              <button className="rounded border px-2" onClick={() => addCommentToSection(section.id)} type="button">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded border border-border/40 p-2 text-xs">
+                      <p className="mb-1 font-medium">Assemblage final</p>
+                      <div className="mb-1 flex gap-1">
+                        <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => setTransitionMode(event.target.value as "none" | "smooth")} value={transitionMode}>
+                          <option value="none">Sans transition</option>
+                          <option value="smooth">Transition douce</option>
+                        </select>
+                        <input className="w-20 rounded border border-border/50 bg-background px-1 py-1 text-xs" max={2000} min={0} onChange={(event) => setTransitionMs(Number(event.target.value))} step={100} type="number" value={transitionMs} />
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <button className="rounded border px-2 py-1" onClick={assembleProjectAudio} type="button">Assembler</button>
+                        <button className="rounded border px-2 py-1" onClick={publishProjectToGallery} type="button">Publier galerie</button>
+                        {activeProject.assembledAudioUrl ? <audio className="h-8" controls src={activeProject.assembledAudioUrl} /> : null}
+                      </div>
+                    </div>
+                    <div className="rounded border border-border/40 p-2 text-[11px]">
+                      <p className="font-medium">Historique versions</p>
+                      <div className="max-h-24 space-y-1 overflow-auto">
+                        {activeProject.versions.map((version) => (
+                          <button className="block w-full rounded border px-2 py-1 text-left" key={version.id} onClick={() => restoreProjectVersion(version)} type="button">
+                            {version.label} · {new Date(version.createdAt).toLocaleTimeString("fr-FR")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Sélectionnez ou créez un projet pour démarrer la collaboration.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             <button
               className={`rounded-xl px-3 py-2 text-xs ${mode === "batch" ? "bg-black text-white" : "border"}`}
