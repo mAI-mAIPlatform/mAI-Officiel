@@ -84,6 +84,15 @@ type TextTemplate = {
   recommendedPreset: AudioPreset;
 };
 
+type ScriptEditorMode = "standard" | "advanced";
+
+type MarkerType =
+  | "pause"
+  | "emphasis"
+  | "whisper"
+  | "spell"
+  | "pronounce";
+
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
   { code: "en", label: "English" },
@@ -604,9 +613,111 @@ function parseSrtContent(content: string) {
   return cues.filter((cue) => cue.text.length > 0);
 }
 
+function extractMarkerCount(source: string) {
+  const regex =
+    /\[(pause:\d{2,4}ms|emphasis:[^\]]+|whisper:[^\]]+|spell:[^\]]+|pronounce:[^|\]]+\|[^\]]+)\]/g;
+  return (source.match(regex) ?? []).length;
+}
+
+function extractPlainTextFromScript(source: string) {
+  return source
+    .replace(/\[pause:(\d{2,4})ms\]/g, " ")
+    .replace(/\[emphasis:([^\]]+)\]/g, "$1")
+    .replace(/\[whisper:([^\]]+)\]/g, "$1")
+    .replace(/\[spell:([^\]]+)\]/g, (_, word) =>
+      String(word)
+        .split("")
+        .join(" ")
+    )
+    .replace(/\[pronounce:([^|\]]+)\|([^\]]+)\]/g, "$1");
+}
+
+function scriptToSsml(source: string) {
+  const escaped = source
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const body = escaped
+    .replace(/\[pause:(\d{2,4})ms\]/g, '<break time="$1ms" />')
+    .replace(
+      /\[emphasis:([^\]]+)\]/g,
+      '<emphasis level="strong">$1</emphasis>'
+    )
+    .replace(
+      /\[whisper:([^\]]+)\]/g,
+      '<prosody volume="x-soft" rate="85%">$1</prosody>'
+    )
+    .replace(
+      /\[spell:([^\]]+)\]/g,
+      '<say-as interpret-as="characters">$1</say-as>'
+    )
+    .replace(
+      /\[pronounce:([^|\]]+)\|([^\]]+)\]/g,
+      '<phoneme alphabet="ipa" ph="$2">$1</phoneme>'
+    );
+
+  return `<speak>${body}</speak>`;
+}
+
+function getMarkerVisuals(script: string) {
+  const markers: Array<{ icon: string; color: string; label: string; detail: string }> = [];
+  const patterns: Array<{
+    type: MarkerType;
+    regex: RegExp;
+    mapper: (...parts: string[]) => { label: string; detail: string };
+  }> = [
+    {
+      type: "pause",
+      regex: /\[pause:(\d{2,4})ms\]/g,
+      mapper: (duration) => ({ label: "Pause", detail: `${duration} ms` }),
+    },
+    {
+      type: "emphasis",
+      regex: /\[emphasis:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Emphase", detail: text }),
+    },
+    {
+      type: "whisper",
+      regex: /\[whisper:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Murmure", detail: text }),
+    },
+    {
+      type: "spell",
+      regex: /\[spell:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Épeler", detail: text }),
+    },
+    {
+      type: "pronounce",
+      regex: /\[pronounce:([^|\]]+)\|([^\]]+)\]/g,
+      mapper: (word, ipa) => ({ label: "Prononciation", detail: `${word} → ${ipa}` }),
+    },
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of script.matchAll(pattern.regex)) {
+      const mapped = pattern.mapper(...match.slice(1));
+      const visuals: Record<MarkerType, { icon: string; color: string }> = {
+        pause: { icon: "⏸️", color: "bg-blue-500/15 text-blue-700" },
+        emphasis: { icon: "🔥", color: "bg-orange-500/15 text-orange-700" },
+        whisper: { icon: "🤫", color: "bg-violet-500/15 text-violet-700" },
+        spell: { icon: "🔤", color: "bg-emerald-500/15 text-emerald-700" },
+        pronounce: { icon: "🗣️", color: "bg-cyan-500/15 text-cyan-700" },
+      };
+      markers.push({ ...visuals[pattern.type], ...mapped });
+    }
+  }
+
+  return markers;
+}
+
 export default function SpeakyPage() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState("fr");
+  const [scriptEditorMode, setScriptEditorMode] =
+    useState<ScriptEditorMode>("standard");
+  const [pauseDurationMs, setPauseDurationMs] = useState(500);
+  const [pronunciationIpa, setPronunciationIpa] = useState("");
   const [voice, setVoice] = useState("Lea");
   const [rate, setRate] = useState(1);
   const [tone, setTone] = useState(0);
@@ -667,12 +778,12 @@ export default function SpeakyPage() {
   >("mai.speaky.recent-imports.v1", []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const editorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
   const pauseResolverRef = useRef<(() => void) | null>(null);
   const pausedRef = useRef(false);
   const bars = useMemo(() => generateWaveBars(), []);
-  const cloudTextLength = text.trim().length;
   const availableVoices = useMemo(
     () => VOICES_BY_LANGUAGE[language] ?? VOICES_BY_LANGUAGE.fr,
     [language]
@@ -682,11 +793,26 @@ export default function SpeakyPage() {
     typeof window !== "undefined" &&
     "speechSynthesis" in window &&
     "SpeechSynthesisUtterance" in window;
+  const markerCount = useMemo(() => extractMarkerCount(text), [text]);
+  const plainTextForGeneration = useMemo(
+    () =>
+      scriptEditorMode === "advanced" ? extractPlainTextFromScript(text) : text,
+    [scriptEditorMode, text]
+  );
+  const ssmlPreview = useMemo(
+    () => scriptToSsml(text),
+    [text]
+  );
+  const markerVisuals = useMemo(() => getMarkerVisuals(text), [text]);
+  const rawTextLength = plainTextForGeneration.trim().length;
 
-  const batchSegments = useMemo(() => splitTextIntoSmartSegments(text), [text]);
+  const batchSegments = useMemo(
+    () => splitTextIntoSmartSegments(plainTextForGeneration),
+    [plainTextForGeneration]
+  );
   const podcastUnits = useMemo(
-    () => parsePodcastScript(text, voice),
-    [text, voice]
+    () => parsePodcastScript(plainTextForGeneration, voice),
+    [plainTextForGeneration, voice]
   );
   const activeUnits = mode === "podcast" ? podcastUnits : batchSegments.map((segment, index) => ({
     text: segment,
@@ -702,7 +828,7 @@ export default function SpeakyPage() {
     return Array.from(seen);
   }, [podcastUnits]);
 
-  const cloudUsagePercent = Math.min((Math.min(cloudTextLength, 500) / 500) * 100, 100);
+  const cloudUsagePercent = Math.min((Math.min(rawTextLength, 500) / 500) * 100, 100);
   const communityPresetsByCategory = useMemo(() => {
     return COMMUNITY_PRESETS.reduce<Record<PresetCategory, AudioPreset[]>>(
       (acc, preset) => {
@@ -899,6 +1025,53 @@ export default function SpeakyPage() {
     toast.success(`Template appliqué: ${template.title}`);
   };
 
+  const insertMarker = (type: MarkerType) => {
+    if (scriptEditorMode !== "advanced") {
+      toast.error("Passez en mode avancé pour insérer des marqueurs.");
+      return;
+    }
+    const textarea = editorTextAreaRef.current;
+    if (!textarea) return;
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const selected = text.slice(selectionStart, selectionEnd).trim();
+    const before = text.slice(0, selectionStart);
+    const after = text.slice(selectionEnd);
+
+    let marker = "";
+    switch (type) {
+      case "pause":
+        marker = `[pause:${pauseDurationMs}ms]`;
+        break;
+      case "emphasis":
+        marker = `[emphasis:${selected || "mot clé"}]`;
+        break;
+      case "whisper":
+        marker = `[whisper:${selected || "texte chuchoté"}]`;
+        break;
+      case "spell":
+        marker = `[spell:${selected || "IA"}]`;
+        break;
+      case "pronounce":
+        marker = `[pronounce:${selected || "mot"}|${pronunciationIpa || "mə"}]`;
+        break;
+      default:
+        marker = "";
+    }
+
+    setText(`${before}${marker}${after}`);
+    setTimeout(() => {
+      const cursor = before.length + marker.length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    }, 0);
+  };
+
+  const resetAllMarkers = () => {
+    setText(extractPlainTextFromScript(text));
+  };
+
   const previewTemplate = async (template: TextTemplate) => {
     try {
       setPreviewingTemplateId(template.id);
@@ -961,7 +1134,7 @@ export default function SpeakyPage() {
   };
 
   const generateBatchAudio = async () => {
-    if (!text.trim()) {
+    if (!plainTextForGeneration.trim()) {
       toast.error("Ajoutez un texte avant de générer l'audio.");
       return;
     }
@@ -1059,7 +1232,7 @@ export default function SpeakyPage() {
           {
             createdAt: new Date().toISOString(),
             pinned: false,
-            text,
+            text: plainTextForGeneration,
             voice,
             url: nextUrl,
           },
@@ -1089,7 +1262,7 @@ export default function SpeakyPage() {
   };
 
   const previewWithBrowserSpeech = () => {
-    if (!text.trim()) {
+    if (!plainTextForGeneration.trim()) {
       toast.error("Ajoutez du texte pour la prévisualisation.");
       return;
     }
@@ -1100,7 +1273,7 @@ export default function SpeakyPage() {
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(plainTextForGeneration);
     utterance.rate = Math.max(0.5, Math.min(1.8, rate));
     utterance.pitch = Math.max(0, Math.min(2, 1 + tone / 10));
     utterance.lang = `${language}-${language.toUpperCase()}`;
@@ -1317,6 +1490,90 @@ export default function SpeakyPage() {
             </div>
           ) : null}
 
+          <div className="rounded-xl border border-border/50 bg-background/40 p-2">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-medium text-foreground">Mode éditeur</span>
+              <button
+                className={`rounded-lg px-2 py-1 text-[11px] ${scriptEditorMode === "standard" ? "bg-black text-white" : "border"}`}
+                onClick={() => setScriptEditorMode("standard")}
+                type="button"
+              >
+                Standard
+              </button>
+              <button
+                className={`rounded-lg px-2 py-1 text-[11px] ${scriptEditorMode === "advanced" ? "bg-black text-white" : "border"}`}
+                onClick={() => setScriptEditorMode("advanced")}
+                type="button"
+              >
+                Avancé
+              </button>
+            </div>
+            {scriptEditorMode === "advanced" ? (
+              <>
+                <div className="mb-2 flex flex-wrap items-center gap-1">
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("pause")} type="button">
+                    Pause
+                  </button>
+                  <input
+                    className="w-20 rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                    max={3000}
+                    min={100}
+                    onChange={(event) => setPauseDurationMs(Number(event.target.value))}
+                    step={100}
+                    type="number"
+                    value={pauseDurationMs}
+                  />
+                  <span className="text-[11px] text-muted-foreground">ms</span>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("emphasis")} type="button">
+                    Emphase
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("whisper")} type="button">
+                    Murmure
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("spell")} type="button">
+                    Épeler
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("pronounce")} type="button">
+                    Prononciation
+                  </button>
+                  <input
+                    className="w-28 rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                    onChange={(event) => setPronunciationIpa(event.target.value)}
+                    placeholder="IPA simplifié"
+                    value={pronunciationIpa}
+                  />
+                  <button className="rounded border border-red-300 px-2 py-1 text-[11px] text-red-600" onClick={resetAllMarkers} type="button">
+                    Réinitialiser marqueurs
+                  </button>
+                </div>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  {markerVisuals.slice(0, 12).map((marker, index) => (
+                    <span
+                      className={`rounded px-2 py-1 text-[10px] ${marker.color}`}
+                      key={`${marker.label}-${index}`}
+                      title={`${marker.label}: ${marker.detail}`}
+                    >
+                      {marker.icon} {marker.label}
+                    </span>
+                  ))}
+                  {markerVisuals.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      Aucun marqueur inséré.
+                    </span>
+                  ) : null}
+                </div>
+                <details className="text-[11px]">
+                  <summary className="cursor-pointer text-muted-foreground">
+                    Aperçu SSML généré automatiquement
+                  </summary>
+                  <pre className="mt-1 max-h-28 overflow-auto rounded border border-border/40 bg-background/60 p-2 whitespace-pre-wrap">
+                    {ssmlPreview}
+                  </pre>
+                </details>
+              </>
+            ) : null}
+          </div>
+
           {mode === "podcast" ? (
             <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
               <div className="space-y-2">
@@ -1324,6 +1581,7 @@ export default function SpeakyPage() {
                   className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
                   onChange={(event) => setText(event.target.value)}
                   placeholder="[Lea] Bonjour et bienvenue...\n\n[Mathieu] Merci Lea..."
+                  ref={editorTextAreaRef}
                   value={text}
                 />
                 <div className="flex flex-wrap gap-2">
@@ -1371,6 +1629,7 @@ export default function SpeakyPage() {
                 className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
                 onChange={(event) => setText(event.target.value)}
                 placeholder="Collez ou importez un texte long à transformer en audio..."
+                ref={editorTextAreaRef}
                 value={text}
               />
               <div>
@@ -1436,7 +1695,7 @@ export default function SpeakyPage() {
           ) : null}
 
           <p className="text-[11px] text-muted-foreground">
-            Compteur cloud 500 caractères: {Math.min(cloudTextLength, 500)}/500 · Total texte: {cloudTextLength} · Segments: {activeUnits.length}
+            Compteur cloud 500 caractères: {Math.min(rawTextLength, 500)}/500 · Texte brut: {rawTextLength} · Marqueurs: {markerCount} · Segments: {activeUnits.length}
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
