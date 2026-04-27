@@ -63,7 +63,18 @@ type Runtime =
   | "perl";
 
 type RuntimeFile = { contentBase64: string; name: string };
-type EditorTheme = "monokai" | "dracula" | "one-dark";
+type ThemeColors = {
+  comment: string;
+  cursor: string;
+  editorBg: string;
+  function: string;
+  gutterBg: string;
+  keyword: string;
+  number: string;
+  string: string;
+  text: string;
+};
+type EditorThemeConfig = { colors: ThemeColors; id: string; label: string; mode: "dark" | "light" };
 
 type ExecutionResponse = {
   error?: string;
@@ -164,6 +175,36 @@ const quickPresets: Array<{ label: string; runtime: Runtime }> = [
   { label: "Script CLI", runtime: "bash" },
   { label: "Sandbox JS", runtime: "javascript" },
   { label: "Requête SQL", runtime: "sql" },
+];
+
+const defaultThemeColors: ThemeColors = {
+  comment: "#6272a4",
+  cursor: "#f8f8f2",
+  editorBg: "#282a36",
+  function: "#8be9fd",
+  gutterBg: "#1f2230",
+  keyword: "#ff79c6",
+  number: "#bd93f9",
+  string: "#f1fa8c",
+  text: "#f8f8f2",
+};
+
+const builtInThemes: EditorThemeConfig[] = [
+  { id: "monokai", label: "Monokai", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#272822", gutterBg: "#1f201c", keyword: "#f92672", string: "#e6db74", comment: "#75715e", function: "#66d9ef", number: "#ae81ff", cursor: "#f8f8f0", text: "#f8f8f2" } },
+  { id: "dracula", label: "Dracula", mode: "dark", colors: defaultThemeColors },
+  { id: "one-dark", label: "One Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#282c34", gutterBg: "#1f2329", text: "#abb2bf", keyword: "#c678dd", string: "#98c379", comment: "#5c6370", function: "#61afef", number: "#d19a66" } },
+  { id: "github-dark", label: "GitHub Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0d1117", gutterBg: "#161b22", text: "#c9d1d9", keyword: "#ff7b72", string: "#a5d6ff", comment: "#8b949e", function: "#d2a8ff", number: "#ffa657", cursor: "#c9d1d9" } },
+  { id: "nord", label: "Nord", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#2e3440", gutterBg: "#3b4252", text: "#d8dee9", keyword: "#81a1c1", string: "#a3be8c", comment: "#616e88", function: "#88c0d0", number: "#b48ead", cursor: "#eceff4" } },
+  { id: "tokyo-night", label: "Tokyo Night", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#1a1b26", gutterBg: "#16161e", text: "#c0caf5", keyword: "#bb9af7", string: "#9ece6a", comment: "#565f89", function: "#7aa2f7", number: "#ff9e64", cursor: "#c0caf5" } },
+  { id: "catppuccin-mocha", label: "Catppuccin Mocha", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#1e1e2e", gutterBg: "#181825", text: "#cdd6f4", keyword: "#cba6f7", string: "#a6e3a1", comment: "#6c7086", function: "#89dceb", number: "#fab387", cursor: "#f5e0dc" } },
+  { id: "synthwave-84", label: "Synthwave 84", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#2a2139", gutterBg: "#241b2f", text: "#f92aad", keyword: "#f97e72", string: "#72f1b8", comment: "#848bbd", function: "#36f9f6", number: "#fede5d", cursor: "#36f9f6" } },
+  { id: "gruvbox-dark", label: "Gruvbox Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#282828", gutterBg: "#1d2021", text: "#ebdbb2", keyword: "#fb4934", string: "#b8bb26", comment: "#928374", function: "#83a598", number: "#d3869b", cursor: "#ebdbb2" } },
+  { id: "material-ocean", label: "Material Ocean", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0f111a", gutterBg: "#090b10", text: "#a6accd", keyword: "#c792ea", string: "#c3e88d", comment: "#546e7a", function: "#82aaff", number: "#f78c6c", cursor: "#ffcc00" } },
+  { id: "ayu-dark", label: "Ayu Dark", mode: "dark", colors: { ...defaultThemeColors, editorBg: "#0a0e14", gutterBg: "#11151c", text: "#b3b1ad", keyword: "#ff8f40", string: "#b8cc52", comment: "#5c6773", function: "#59c2ff", number: "#d2a6ff", cursor: "#e6b450" } },
+  { id: "github-light", label: "GitHub Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#ffffff", gutterBg: "#f6f8fa", text: "#24292f", keyword: "#cf222e", string: "#0a3069", comment: "#6e7781", function: "#8250df", number: "#953800", cursor: "#24292f" } },
+  { id: "solarized-light", label: "Solarized Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#fdf6e3", gutterBg: "#eee8d5", text: "#657b83", keyword: "#859900", string: "#2aa198", comment: "#93a1a1", function: "#268bd2", number: "#d33682", cursor: "#586e75" } },
+  { id: "vitesse-light", label: "Vitesse Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f8f8f8", gutterBg: "#f0f0f0", text: "#393a34", keyword: "#1f6feb", string: "#ab5959", comment: "#a0ada0", function: "#2993a3", number: "#b75501", cursor: "#393a34" } },
+  { id: "palenight-light", label: "Palenight Light", mode: "light", colors: { ...defaultThemeColors, editorBg: "#f7f7ff", gutterBg: "#ececff", text: "#403f53", keyword: "#7c4dff", string: "#43a047", comment: "#9ea0b3", function: "#1565c0", number: "#ff7043", cursor: "#403f53" } },
 ];
 
 const runtimeExtensions: Record<Runtime, string> = {
@@ -378,7 +419,16 @@ export default function InterpreterPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
   const [snippetName, setSnippetName] = useState("");
-  const [editorTheme, setEditorTheme] = useState<EditorTheme>("dracula");
+  const [editorTheme, setEditorTheme] = useState<string>("dracula");
+  const [customThemes, setCustomThemes] = useLocalStorage<EditorThemeConfig[]>(
+    "mai.interpreter.custom-themes.v1",
+    []
+  );
+  const [showThemeLibrary, setShowThemeLibrary] = useState(false);
+  const [hoveredThemeId, setHoveredThemeId] = useState<string>("dracula");
+  const [showCustomThemeEditor, setShowCustomThemeEditor] = useState(false);
+  const [customThemeName, setCustomThemeName] = useState("Mon thème");
+  const [customThemeDraft, setCustomThemeDraft] = useState<ThemeColors>(defaultThemeColors);
   const [history, setHistory] = useLocalStorage<ExecutionEntry[]>(
     "mai.interpreter.history.v1",
     []
@@ -460,12 +510,8 @@ export default function InterpreterPage() {
     []
   );
 
-  const editorThemeClass =
-    editorTheme === "monokai"
-      ? "bg-[#272822] text-[#f8f8f2]"
-      : editorTheme === "one-dark"
-        ? "bg-[#282c34] text-[#abb2bf]"
-        : "bg-[#282a36] text-[#f8f8f2]";
+  const allThemes = [...builtInThemes, ...customThemes];
+  const activeTheme = allThemes.find((theme) => theme.id === editorTheme) ?? builtInThemes[1];
 
   const onRun = async () => {
     setIsRunning(true);
@@ -1042,17 +1088,52 @@ export default function InterpreterPage() {
           </label>
           <label className="ml-2">
             Thème
-            <select
-              className="ml-2 rounded-lg border border-border/50 bg-background px-2 py-1"
-              onChange={(event) =>
-                setEditorTheme(event.target.value as EditorTheme)
-              }
-              value={editorTheme}
-            >
-              <option value="monokai">Monokai</option>
-              <option value="dracula">Dracula</option>
-              <option value="one-dark">One Dark</option>
-            </select>
+            <span className="relative ml-2 inline-block">
+              <button className="rounded-lg border border-border/50 bg-background px-2 py-1" onClick={() => setShowThemeLibrary((current) => !current)} type="button">
+                {activeTheme.label}
+              </button>
+              {showThemeLibrary && (
+                <div className="absolute right-0 z-30 mt-1 grid w-[520px] grid-cols-[1fr_220px] gap-2 rounded-lg border border-border/60 bg-background p-2 shadow-xl">
+                  <div className="max-h-72 overflow-auto pr-1">
+                    {allThemes.map((theme) => (
+                      <button
+                        className={`mb-1 flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs ${editorTheme === theme.id ? "bg-primary/15 text-primary" : "hover:bg-muted/40"}`}
+                        key={theme.id}
+                        onClick={() => {
+                          setEditorTheme(theme.id);
+                          setShowThemeLibrary(false);
+                        }}
+                        onMouseEnter={() => setHoveredThemeId(theme.id)}
+                        type="button"
+                      >
+                        <span>{theme.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{theme.mode}</span>
+                      </button>
+                    ))}
+                    <button className="mt-1 w-full rounded border border-dashed px-2 py-1 text-xs" onClick={() => {
+                      setShowCustomThemeEditor(true);
+                      setShowThemeLibrary(false);
+                    }} type="button">
+                      + Créer mon thème
+                    </button>
+                  </div>
+                  {(() => {
+                    const previewTheme = allThemes.find((theme) => theme.id === hoveredThemeId) ?? activeTheme;
+                    return (
+                      <div className="rounded border border-border/50 p-2 text-[10px]" style={{ background: previewTheme.colors.editorBg, color: previewTheme.colors.text }}>
+                        <div className="mb-1 text-[10px] font-semibold">{previewTheme.label}</div>
+                        <pre className="space-y-0.5 font-mono">
+                          <div><span style={{ color: previewTheme.colors.keyword }}>def</span> <span style={{ color: previewTheme.colors.function }}>build_chart</span>():</div>
+                          <div>  <span style={{ color: previewTheme.colors.comment }}># Aperçu thème</span></div>
+                          <div>  data = <span style={{ color: previewTheme.colors.string }}>"sales.csv"</span></div>
+                          <div>  return <span style={{ color: previewTheme.colors.number }}>42</span></div>
+                        </pre>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </span>
           </label>
         </div>
       </div>
@@ -1102,6 +1183,58 @@ export default function InterpreterPage() {
           />
         </label>
       </section>
+      {showCustomThemeEditor && (
+        <section className="rounded-xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Créer mon thème</h3>
+            <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowCustomThemeEditor(false)} type="button">Fermer</button>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            <label className="text-xs">Nom du thème<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setCustomThemeName(event.target.value)} value={customThemeName} /></label>
+            {([
+              ["editorBg", "Fond éditeur"],
+              ["gutterBg", "Fond gouttière"],
+              ["text", "Texte principal"],
+              ["keyword", "Mots-clés"],
+              ["string", "Chaînes"],
+              ["comment", "Commentaires"],
+              ["function", "Fonctions"],
+              ["number", "Nombres"],
+              ["cursor", "Curseur"],
+            ] as const).map(([key, label]) => (
+              <label className="text-xs" key={key}>
+                {label}
+                <input
+                  className="mt-1 h-8 w-full rounded border"
+                  onChange={(event) => setCustomThemeDraft((current) => ({ ...current, [key]: event.target.value }))}
+                  type="color"
+                  value={customThemeDraft[key]}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
+              onClick={() => {
+                const id = `custom-${customThemeName.trim().toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+                const newTheme: EditorThemeConfig = {
+                  id,
+                  label: customThemeName.trim() || "Thème personnalisé",
+                  mode: "dark",
+                  colors: customThemeDraft,
+                };
+                setCustomThemes((current) => [newTheme, ...current].slice(0, 20));
+                setEditorTheme(id);
+                setShowCustomThemeEditor(false);
+              }}
+              type="button"
+            >
+              Sauvegarder le thème
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <section className="liquid-panel rounded-2xl p-4 lg:order-2">
@@ -1237,8 +1370,8 @@ export default function InterpreterPage() {
               </button>
             </div>
             <div className={`grid min-h-[360px] ${showMiniMap ? "grid-cols-[1fr_120px]" : "grid-cols-1"}`}>
-              <div className={`${editorThemeClass} relative grid grid-cols-[52px_1fr]`}>
-                <div className="border-r border-border/30 bg-muted/30 px-1 py-2 text-right text-[11px]">
+              <div className="relative grid grid-cols-[52px_1fr]" style={{ background: activeTheme.colors.editorBg, color: activeTheme.colors.text }}>
+                <div className="border-r border-border/30 px-1 py-2 text-right text-[11px]" style={{ background: activeTheme.colors.gutterBg }}>
                   {visibleLines.map((line) => {
                     const fold = foldRanges.find((item) => item.start === line.lineNumber);
                     const isFolded = foldedSet.has(line.lineNumber);
@@ -1266,6 +1399,7 @@ export default function InterpreterPage() {
                 </div>
                 <textarea
                   className="min-h-[360px] w-full resize-none bg-transparent px-3 py-2 font-mono text-xs outline-none"
+                  style={{ caretColor: activeTheme.colors.cursor, color: activeTheme.colors.text }}
                   ref={editorTextareaRef}
                   onChange={(event) => {
                     setCode(event.target.value);
