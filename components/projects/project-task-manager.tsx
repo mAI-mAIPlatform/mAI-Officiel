@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useUndoStack } from "@/hooks/use-undo-stack";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,7 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formState, setFormState] = useState<FormState>(defaultForm);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const { push } = useUndoStack(20);
 
   const loadTasks = async () => {
     setIsLoading(true);
@@ -133,7 +135,8 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
   const loadMembers = async () => {
     const response = await fetch(`/api/projects/${projectId}/members`);
     if (response.ok) {
-      setMembers((await response.json()) as Member[]);
+      const payload = (await response.json()) as { members: Member[] };
+      setMembers(payload.members ?? []);
     }
   };
 
@@ -180,6 +183,43 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
 
     if (!response.ok) return toast.error("Impossible d'enregistrer la tâche.");
 
+    if (editingTaskId) {
+      const previousTask = tasks.find((task) => task.id === editingTaskId);
+      if (previousTask) {
+        const updatedTask = await response.json();
+        push({
+          undo: async () => {
+            await fetch(`/api/projects/${projectId}/tasks/${editingTaskId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: previousTask.title,
+                description: previousTask.description,
+                dueDate: previousTask.dueDate,
+                status: previousTask.status,
+                priority: previousTask.priority,
+              }),
+            });
+            await loadTasks();
+          },
+          redo: async () => {
+            await fetch(`/api/projects/${projectId}/tasks/${editingTaskId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: updatedTask.title,
+                description: updatedTask.description,
+                dueDate: updatedTask.dueDate,
+                status: updatedTask.status,
+                priority: updatedTask.priority,
+              }),
+            });
+            await loadTasks();
+          },
+        });
+      }
+    }
+
     setIsModalOpen(false);
     setEditingTaskId(null);
     setFormState(defaultForm);
@@ -217,6 +257,16 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
     if (targetIndex < 0 || targetIndex >= sorted.length) return;
 
     const other = sorted[targetIndex];
+    push({
+      undo: async () => {
+        await updateSubtask(task.id, subtask.id, { sortOrder: subtask.sortOrder });
+        await updateSubtask(task.id, other.id, { sortOrder: other.sortOrder });
+      },
+      redo: async () => {
+        await updateSubtask(task.id, subtask.id, { sortOrder: other.sortOrder });
+        await updateSubtask(task.id, other.id, { sortOrder: subtask.sortOrder });
+      },
+    });
     await updateSubtask(task.id, subtask.id, { sortOrder: other.sortOrder });
     await updateSubtask(task.id, other.id, { sortOrder: subtask.sortOrder });
   };
@@ -323,7 +373,34 @@ export function ProjectTaskManager({ projectId }: { projectId: string }) {
                   <DropdownMenuContent align="end" className="bg-white/95">
                     <DropdownMenuItem onClick={() => setTasks((prev) => prev.map((item) => item.id === task.id ? { ...item, isPinned: !item.isPinned } : item))}><PinIcon className="mr-2 size-4" /> Épingler</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setEditingTaskId(task.id); setFormState({ ...defaultForm, title: task.title, description: task.description ?? "" }); setIsModalOpen(true); }}><SquarePenIcon className="mr-2 size-4" /> Modifier</DropdownMenuItem>
-                    <DropdownMenuItem onClick={async()=>{ await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {method:"DELETE"}); await loadTasks(); }}><Trash2Icon className="mr-2 size-4" /> Supprimer</DropdownMenuItem>
+                    <DropdownMenuItem onClick={async()=>{
+                      const snapshot = task;
+                      const deleteResponse = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {method:"DELETE"});
+                      if (!deleteResponse.ok) {
+                        return;
+                      }
+                      push({
+                        undo: async () => {
+                          await fetch(`/api/projects/${projectId}/tasks`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              title: snapshot.title,
+                              description: snapshot.description,
+                              dueDate: snapshot.dueDate,
+                              status: snapshot.status,
+                              priority: snapshot.priority,
+                            }),
+                          });
+                          await loadTasks();
+                        },
+                        redo: async () => {
+                          await fetch(`/api/projects/${projectId}/tasks/${snapshot.id}`, { method: "DELETE" });
+                          await loadTasks();
+                        },
+                      });
+                      await loadTasks();
+                    }}><Trash2Icon className="mr-2 size-4" /> Supprimer</DropdownMenuItem>
                     <DropdownMenuItem><AlertTriangleIcon className="mr-2 size-4" /> Signaler...</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
