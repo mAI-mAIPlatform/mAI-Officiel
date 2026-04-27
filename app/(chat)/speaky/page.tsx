@@ -37,6 +37,33 @@ type BatchUnit = {
   label: string;
 };
 
+type PresetCategory =
+  | "narration"
+  | "education"
+  | "entertainment"
+  | "professional"
+  | "creative";
+
+type AdvancedVoiceProfile = {
+  emphasisWords: string[];
+  pauseSeconds: number;
+  volume: number;
+};
+
+type AudioPreset = {
+  id: string;
+  title: string;
+  language: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  advanced: AdvancedVoiceProfile;
+  category?: PresetCategory;
+  community?: boolean;
+};
+
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
   { code: "en", label: "English" },
@@ -99,6 +126,101 @@ const VOICE_COLORS = [
   "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
   "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+];
+
+const CATEGORY_LABELS: Record<PresetCategory, string> = {
+  narration: "Narration",
+  education: "Éducation",
+  entertainment: "Divertissement",
+  professional: "Professionnel",
+  creative: "Créatif",
+};
+
+const SAMPLE_TEXT_BY_LANGUAGE: Record<string, string> = {
+  fr: "Exemple audio rapide pour ce preset Speaky.",
+  en: "Quick audio preview for this Speaky preset.",
+  es: "Vista previa rápida de audio para este preset.",
+  de: "Kurze Audiovorschau für dieses Preset.",
+  it: "Anteprima audio rapida per questo preset.",
+  pt: "Prévia rápida de áudio para este preset.",
+  nl: "Snelle audiovoorbeeld voor deze preset.",
+  pl: "Szybki podgląd audio dla tego presetu.",
+  tr: "Bu hazır ayar için hızlı ses önizlemesi.",
+  sv: "Snabb ljudförhandsvisning för denna preset.",
+  ru: "Быстрый аудиопример для этого пресета.",
+  ar: "معاينة صوتية سريعة لهذا الإعداد.",
+  hi: "इस प्रीसेट के लिए त्वरित ऑडियो प्रीव्यू।",
+  ja: "このプリセットのクイック音声プレビューです。",
+  ko: "이 프리셋의 빠른 오디오 미리보기입니다.",
+  zh: "这是此预设的快速音频预览。",
+};
+
+const COMMUNITY_PRESETS: AudioPreset[] = [
+  {
+    id: "community-narration-fr",
+    title: "Narration livre audio",
+    language: "fr",
+    voice: "Lea",
+    voiceStyle: "narratif",
+    voiceGender: "femme",
+    rate: 0.95,
+    tone: 0,
+    category: "narration",
+    community: true,
+    advanced: { emphasisWords: [], pauseSeconds: 0.3, volume: 1 },
+  },
+  {
+    id: "community-education-en",
+    title: "Cours clair",
+    language: "en",
+    voice: "Amy",
+    voiceStyle: "conversationnel",
+    voiceGender: "femme",
+    rate: 1,
+    tone: 1,
+    category: "education",
+    community: true,
+    advanced: { emphasisWords: ["important", "remember"], pauseSeconds: 0.2, volume: 1 },
+  },
+  {
+    id: "community-entertainment-fr",
+    title: "Voix énergique pub",
+    language: "fr",
+    voice: "Mathieu",
+    voiceStyle: "énergique",
+    voiceGender: "homme",
+    rate: 1.15,
+    tone: 2,
+    category: "entertainment",
+    community: true,
+    advanced: { emphasisWords: ["offre", "maintenant"], pauseSeconds: 0.1, volume: 1.05 },
+  },
+  {
+    id: "community-pro-fr",
+    title: "Briefing pro calme",
+    language: "fr",
+    voice: "Celine",
+    voiceStyle: "narratif",
+    voiceGender: "femme",
+    rate: 0.9,
+    tone: -1,
+    category: "professional",
+    community: true,
+    advanced: { emphasisWords: [], pauseSeconds: 0.25, volume: 0.95 },
+  },
+  {
+    id: "community-creative-fr",
+    title: "Podcast calme ASMR",
+    language: "fr",
+    voice: "Lea",
+    voiceStyle: "conversationnel",
+    voiceGender: "femme",
+    rate: 0.82,
+    tone: -2,
+    category: "creative",
+    community: true,
+    advanced: { emphasisWords: ["doucement"], pauseSeconds: 0.5, volume: 0.85 },
+  },
 ];
 
 function generateWaveBars(seed = 24) {
@@ -298,6 +420,38 @@ async function decodeAndConcatToWav(chunks: Uint8Array[]) {
   }
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function applyAdvancedProfileToText(text: string, profile: AdvancedVoiceProfile) {
+  let transformed = text;
+
+  if (profile.emphasisWords.length > 0) {
+    for (const word of profile.emphasisWords) {
+      const cleanWord = word.trim();
+      if (!cleanWord) continue;
+      const regex = new RegExp(`\\b${escapeRegex(cleanWord)}\\b`, "gi");
+      transformed = transformed.replace(regex, (match) => match.toUpperCase());
+    }
+  }
+
+  if (profile.pauseSeconds > 0) {
+    const pauseStrength = Math.max(0, Math.min(2, profile.pauseSeconds));
+    const dots = "… ".repeat(Math.max(1, Math.round(pauseStrength / 0.4)));
+    transformed = transformed.replace(/([.!?])\s+/g, `$1 ${dots}`);
+  }
+
+  return transformed;
+}
+
+function buildShareLinkFromPreset(preset: AudioPreset) {
+  const payload = encodeURIComponent(
+    btoa(unescape(encodeURIComponent(JSON.stringify(preset))))
+  );
+  return `${window.location.origin}/speaky?preset=${payload}`;
+}
+
 export default function SpeakyPage() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState("fr");
@@ -320,6 +474,13 @@ export default function SpeakyPage() {
   const [audioUrl, setAudioUrl] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const [presetTitle, setPresetTitle] = useState("");
+  const [previewingPresetId, setPreviewingPresetId] = useState<string | null>(null);
+  const [advancedProfile, setAdvancedProfile] = useState<AdvancedVoiceProfile>({
+    emphasisWords: [],
+    pauseSeconds: 0,
+    volume: 1,
+  });
   const [history, setHistory] = useLocalStorage<
     Array<{
       createdAt: string;
@@ -329,12 +490,13 @@ export default function SpeakyPage() {
       url: string;
     }>
   >("mai.speaky.history.v1", []);
-  const [favoriteVoices, setFavoriteVoices] = useLocalStorage<string[]>(
-    "mai.speaky.favorite-voices.v1",
+  const [personalPresets, setPersonalPresets] = useLocalStorage<AudioPreset[]>(
+    "mai.speaky.presets.v1",
     []
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
   const pauseResolverRef = useRef<(() => void) | null>(null);
   const pausedRef = useRef(false);
@@ -370,6 +532,22 @@ export default function SpeakyPage() {
   }, [podcastUnits]);
 
   const cloudUsagePercent = Math.min((Math.min(cloudTextLength, 500) / 500) * 100, 100);
+  const communityPresetsByCategory = useMemo(() => {
+    return COMMUNITY_PRESETS.reduce<Record<PresetCategory, AudioPreset[]>>(
+      (acc, preset) => {
+        const category = preset.category ?? "creative";
+        acc[category].push(preset);
+        return acc;
+      },
+      {
+        narration: [],
+        education: [],
+        entertainment: [],
+        professional: [],
+        creative: [],
+      }
+    );
+  }, []);
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -384,7 +562,34 @@ export default function SpeakyPage() {
 
     audioRef.current.playbackRate = effectiveRate;
     audioRef.current.preservesPitch = false;
-  }, [effectiveRate]);
+    audioRef.current.volume = Math.max(0, Math.min(1, advancedProfile.volume / 1.2));
+  }, [advancedProfile.volume, effectiveRate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedPreset = params.get("preset");
+    if (!sharedPreset) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(
+        decodeURIComponent(escape(atob(decodeURIComponent(sharedPreset))))
+      ) as AudioPreset;
+      if (!parsed?.title || !parsed?.voice || !parsed?.language) {
+        return;
+      }
+      setPersonalPresets((current) => {
+        if (current.some((preset) => preset.id === parsed.id)) {
+          return current;
+        }
+        return [{ ...parsed, community: false }, ...current].slice(0, 40);
+      });
+      toast.success(`Preset importé: ${parsed.title}`);
+    } catch {
+      toast.error("Lien de preset invalide.");
+    }
+  }, [setPersonalPresets]);
 
   useEffect(() => {
     return () => {
@@ -416,6 +621,92 @@ export default function SpeakyPage() {
     });
   };
 
+  const applyPreset = (preset: AudioPreset) => {
+    setLanguage(preset.language);
+    setVoice(preset.voice);
+    setVoiceStyle(preset.voiceStyle);
+    setVoiceGender(preset.voiceGender);
+    setRate(preset.rate);
+    setTone(preset.tone);
+    setAdvancedProfile(preset.advanced);
+    toast.success(`Preset appliqué: ${preset.title}`);
+  };
+
+  const saveCurrentAsPreset = () => {
+    const title = presetTitle.trim();
+    if (!title) {
+      toast.error("Donnez un nom au preset.");
+      return;
+    }
+    const preset: AudioPreset = {
+      id: crypto.randomUUID(),
+      title,
+      language,
+      voice,
+      voiceStyle,
+      voiceGender,
+      rate,
+      tone,
+      advanced: advancedProfile,
+      community: false,
+    };
+    setPersonalPresets((current) => [preset, ...current].slice(0, 40));
+    setPresetTitle("");
+    toast.success("Preset personnel sauvegardé.");
+  };
+
+  const exportPresetLink = async (preset: AudioPreset) => {
+    try {
+      const link = buildShareLinkFromPreset(preset);
+      await navigator.clipboard.writeText(link);
+      toast.success("Lien du preset copié.");
+    } catch {
+      toast.error("Impossible de copier le lien.");
+    }
+  };
+
+  const quickPreviewPreset = async (preset: AudioPreset) => {
+    try {
+      setPreviewingPresetId(preset.id);
+      const sample = SAMPLE_TEXT_BY_LANGUAGE[preset.language] ?? SAMPLE_TEXT_BY_LANGUAGE.fr;
+      const response = await fetch("/api/speaky", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: applyAdvancedProfileToText(sample, preset.advanced),
+          language: preset.language,
+          voice: preset.voice,
+          voiceStyle: preset.voiceStyle,
+          voiceGender: preset.voiceGender,
+        }),
+      });
+      const payload = (await response.json()) as SpeakyResponse & { error?: string };
+      if (!response.ok || !payload.audioBase64) {
+        throw new Error(payload.error ?? "Pré-écoute indisponible");
+      }
+      const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
+        char.charCodeAt(0)
+      );
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      if (quickPreviewAudioRef.current) {
+        quickPreviewAudioRef.current.pause();
+      }
+      const audio = new Audio(url);
+      audio.volume = Math.max(0, Math.min(1, preset.advanced.volume / 1.2));
+      quickPreviewAudioRef.current = audio;
+      audio.play().catch(() => undefined);
+      setTimeout(() => {
+        audio.pause();
+        URL.revokeObjectURL(url);
+      }, 3000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Pré-écoute impossible");
+    } finally {
+      setPreviewingPresetId(null);
+    }
+  };
+
   const generateBatchAudio = async () => {
     if (!text.trim()) {
       toast.error("Ajoutez un texte avant de générer l'audio.");
@@ -439,12 +730,16 @@ export default function SpeakyPage() {
     try {
       for (const [index, unit] of activeUnits.entries()) {
         await waitIfPaused();
+        const transformedText = applyAdvancedProfileToText(
+          unit.text,
+          advancedProfile
+        );
 
         const response = await fetch("/api/speaky", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: unit.text,
+            text: transformedText,
             language,
             voice: unit.voice,
             voiceStyle,
@@ -835,6 +1130,63 @@ export default function SpeakyPage() {
             Vitesse/ton appliqués au playback (taux effectif: {effectiveRate.toFixed(2)}x).
           </p>
 
+          <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+            <p className="mb-2 text-xs font-semibold text-foreground">Créateur de profil vocal avancé</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-xs">
+                Mots à emphase (séparés par virgule)
+                <input
+                  className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      emphasisWords: event.target.value
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    }))
+                  }
+                  placeholder="important, urgent, now"
+                  value={advancedProfile.emphasisWords.join(", ")}
+                />
+              </label>
+              <label className="text-xs">
+                Pause inter-phrases ({advancedProfile.pauseSeconds.toFixed(1)}s)
+                <input
+                  className="mt-1 w-full"
+                  max={2}
+                  min={0}
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      pauseSeconds: Number(event.target.value),
+                    }))
+                  }
+                  step={0.1}
+                  type="range"
+                  value={advancedProfile.pauseSeconds}
+                />
+              </label>
+              <label className="text-xs md:col-span-2">
+                Volume relatif ({advancedProfile.volume.toFixed(2)}x)
+                <input
+                  className="mt-1 w-full"
+                  max={1.5}
+                  min={0.5}
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      volume: Number(event.target.value),
+                    }))
+                  }
+                  step={0.05}
+                  type="range"
+                  value={advancedProfile.volume}
+                />
+              </label>
+            </div>
+          </div>
+
           {isGenerating ? (
             <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-xs">
               <p>
@@ -884,20 +1236,6 @@ export default function SpeakyPage() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
-              onClick={() =>
-                setFavoriteVoices((current) =>
-                  current.includes(voice)
-                    ? current.filter((item) => item !== voice)
-                    : [voice, ...current]
-                )
-              }
-              type="button"
-            >
-              <Sparkles className="size-3.5" />
-              {favoriteVoices.includes(voice) ? "Voix retirée des favoris" : "Ajouter voix favorite"}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
               onClick={() => {
                 audioRef.current?.pause();
                 if (speechSupport) {
@@ -914,6 +1252,128 @@ export default function SpeakyPage() {
         </section>
 
         <aside className="liquid-panel rounded-2xl p-4 text-xs text-muted-foreground">
+          <div className="mb-4 rounded-xl border border-border/50 bg-background/40 p-2">
+            <p className="mb-2 text-xs font-semibold text-foreground">Bibliothèque de presets</p>
+            <div className="mb-2 flex gap-2">
+              <input
+                className="w-full rounded-lg border border-border/50 bg-background px-2 py-1 text-xs"
+                onChange={(event) => setPresetTitle(event.target.value)}
+                placeholder="Nom du preset (ex: Narration livre audio)"
+                value={presetTitle}
+              />
+              <button
+                className="rounded-lg border px-2 py-1 text-[11px]"
+                onClick={saveCurrentAsPreset}
+                type="button"
+              >
+                Sauver
+              </button>
+            </div>
+
+            <p className="mb-1 text-[11px] font-medium text-foreground">Mes presets</p>
+            <div className="max-h-36 space-y-1 overflow-auto">
+              {personalPresets.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Aucun preset personnel enregistré.</p>
+              ) : (
+                personalPresets.map((preset) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={preset.id}>
+                    <p className="font-medium text-foreground">{preset.title}</p>
+                    <p className="text-[11px]">
+                      {preset.language.toUpperCase()} · {preset.voice}
+                    </p>
+                    <div className="mt-1 flex gap-1">
+                      <div className="h-1.5 w-16 rounded bg-muted">
+                        <div
+                          className="h-full rounded bg-cyan-500"
+                          style={{ width: `${Math.min(100, (preset.rate / 1.6) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="h-1.5 w-16 rounded bg-muted">
+                        <div
+                          className="h-full rounded bg-fuchsia-500"
+                          style={{ width: `${Math.min(100, ((preset.tone + 6) / 12) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex gap-1">
+                      <button className="rounded border px-1" onClick={() => applyPreset(preset)} type="button">
+                        Appliquer
+                      </button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={() => quickPreviewPreset(preset)}
+                        type="button"
+                      >
+                        {previewingPresetId === preset.id ? "..." : "3s"}
+                      </button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={() => exportPresetLink(preset)}
+                        type="button"
+                      >
+                        Export
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <p className="mb-1 mt-3 text-[11px] font-medium text-foreground">
+              Presets communautaires
+            </p>
+            <div className="max-h-48 space-y-2 overflow-auto">
+              {(Object.keys(communityPresetsByCategory) as PresetCategory[]).map((category) => (
+                <div key={category}>
+                  <p className="mb-1 text-[11px] font-medium">{CATEGORY_LABELS[category]}</p>
+                  <div className="space-y-1">
+                    {communityPresetsByCategory[category].map((preset) => (
+                      <div className="rounded-lg border border-border/40 p-2" key={preset.id}>
+                        <p className="font-medium text-foreground">{preset.title}</p>
+                        <p className="text-[11px]">
+                          {preset.language.toUpperCase()} · {preset.voice}
+                        </p>
+                        <div className="mt-1 flex gap-1">
+                          <div className="h-1.5 w-16 rounded bg-muted">
+                            <div
+                              className="h-full rounded bg-cyan-500"
+                              style={{ width: `${Math.min(100, (preset.rate / 1.6) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="h-1.5 w-16 rounded bg-muted">
+                            <div
+                              className="h-full rounded bg-fuchsia-500"
+                              style={{ width: `${Math.min(100, ((preset.tone + 6) / 12) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-2 flex gap-1">
+                          <button className="rounded border px-1" onClick={() => applyPreset(preset)} type="button">
+                            Appliquer
+                          </button>
+                          <button
+                            className="rounded border px-1"
+                            onClick={() => quickPreviewPreset(preset)}
+                            type="button"
+                          >
+                            {previewingPresetId === preset.id ? "..." : "3s"}
+                          </button>
+                          <button
+                            className="rounded border px-1"
+                            onClick={() => exportPresetLink(preset)}
+                            type="button"
+                          >
+                            Export
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <p className="mb-2 inline-flex items-center gap-2 font-medium text-foreground">
             <Waves className="size-4" />
             Animation audio
@@ -940,7 +1400,6 @@ export default function SpeakyPage() {
           <p>{isGenerating ? (isPaused ? "En pause" : "Génération en cours...") : isPlaying ? "Lecture en cours" : "Prêt"}</p>
           {estimatedDuration ? <p className="mt-1 text-[11px]">Durée estimée : ~{estimatedDuration}s</p> : null}
           {provider ? <p className="mt-1 text-[11px]">Provider: {provider}</p> : null}
-          {favoriteVoices.length > 0 ? <p className="mt-1 text-[11px]">Voix favorites: {favoriteVoices.join(", ")}</p> : null}
 
           {audioUrl ? (
             <>
