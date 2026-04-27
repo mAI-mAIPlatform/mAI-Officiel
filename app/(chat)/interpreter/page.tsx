@@ -130,6 +130,20 @@ type EditorPreferences = {
 };
 type DataRow = Record<string, string | number | null>;
 type ColumnFilter = { max?: number; min?: number; mode: "contains" | "exact" | "range"; value?: string };
+type ChartType = "area" | "bar" | "bar-horizontal" | "donut" | "heatmap" | "line" | "pie" | "radar" | "scatter" | "treemap";
+type ChartConfig = {
+  colorColumn: string;
+  palette: string;
+  showGrid: boolean;
+  showLegend: boolean;
+  sizeColumn: string;
+  title: string;
+  type: ChartType;
+  xAxis: string;
+  xLabel: string;
+  yAxis: string;
+  yLabel: string;
+};
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -242,6 +256,27 @@ const defaultEditorPreferences: EditorPreferences = {
   tabMode: "spaces",
   wordWrap: false,
 };
+
+const chartPalettes: Record<string, string[]> = {
+  aurora: ["#5B8FF9", "#61DDAA", "#65789B", "#F6BD16", "#7262FD"],
+  sunset: ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#845EC2"],
+  nord: ["#88C0D0", "#81A1C1", "#5E81AC", "#A3BE8C", "#EBCB8B"],
+  mono: ["#1F2937", "#4B5563", "#6B7280", "#9CA3AF", "#D1D5DB"],
+  candy: ["#FF85B3", "#FFC75F", "#F9F871", "#B0A8F0", "#00C9A7"],
+};
+
+const chartTypeCards: Array<{ description: string; label: string; type: ChartType }> = [
+  { type: "bar", label: "Barres verticales", description: "Comparaison standard" },
+  { type: "bar-horizontal", label: "Barres horizontales", description: "Catégories longues" },
+  { type: "line", label: "Lignes", description: "Évolution temporelle" },
+  { type: "area", label: "Aires", description: "Volume cumulé" },
+  { type: "scatter", label: "Scatter plot", description: "Distribution XY" },
+  { type: "pie", label: "Camembert", description: "Parts de total" },
+  { type: "donut", label: "Donut", description: "Camembert creusé" },
+  { type: "radar", label: "Radar", description: "Comparatif multi-axes" },
+  { type: "heatmap", label: "Heatmap", description: "Intensité matricielle" },
+  { type: "treemap", label: "Treemap", description: "Proportions hiérarchiques" },
+];
 
 const runtimeExtensions: Record<Runtime, string> = {
   python: "py",
@@ -463,6 +498,21 @@ export default function InterpreterPage() {
   const [dataPage, setDataPage] = useState(1);
   const [dataPageSize, setDataPageSize] = useState<25 | 50 | 100>(25);
   const [dataProfile, setDataProfile] = useState<Array<{ column: string; count: number; max: number; mean: number; median: number; min: number; q1: number; q3: number; stddev: number }>>([]);
+  const [showChartBuilder, setShowChartBuilder] = useState(false);
+  const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
+  const [chartConfig, setChartConfig] = useState<ChartConfig>({
+    colorColumn: "",
+    palette: "aurora",
+    showGrid: true,
+    showLegend: true,
+    sizeColumn: "",
+    title: "Nouveau graphique",
+    type: "bar",
+    xAxis: "",
+    xLabel: "Axe X",
+    yAxis: "",
+    yLabel: "Axe Y",
+  });
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -906,6 +956,93 @@ export default function InterpreterPage() {
   const previewRows = quickPreviewMode && sortedDataRows.length > 20
     ? [...sortedDataRows.slice(0, 10), ...sortedDataRows.slice(-10)]
     : pagedDataRows;
+  const chartRows = sortedDataRows.slice(0, 30);
+  const palette = chartPalettes[chartConfig.palette] ?? chartPalettes.aurora;
+  const chartSvgMarkup = (() => {
+    const width = 760;
+    const height = 380;
+    const padding = 40;
+    const xValues = chartRows.map((row) => String(row[chartConfig.xAxis] ?? ""));
+    const yValues = chartRows.map((row) => Number(row[chartConfig.yAxis] ?? 0)).map((value) => (Number.isFinite(value) ? value : 0));
+    const maxY = Math.max(1, ...yValues);
+    const points = yValues.map((value, index) => {
+      const x = padding + (index / Math.max(1, yValues.length - 1)) * (width - padding * 2);
+      const y = height - padding - (value / maxY) * (height - padding * 2);
+      return { x, y };
+    });
+    const bars = yValues.map((value, index) => {
+      const barWidth = (width - padding * 2) / Math.max(1, yValues.length) - 6;
+      const x = padding + index * ((width - padding * 2) / Math.max(1, yValues.length)) + 3;
+      const y = height - padding - (value / maxY) * (height - padding * 2);
+      const h = height - padding - y;
+      return { h, x, y, w: Math.max(4, barWidth) };
+    });
+    const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
+    const areaPath = `${linePath} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+    const pieTotal = Math.max(1, yValues.reduce((acc, current) => acc + current, 0));
+    let pieCursor = 0;
+    const pieSlices = yValues.map((value, index) => {
+      const angle = (value / pieTotal) * Math.PI * 2;
+      const startAngle = pieCursor;
+      pieCursor += angle;
+      return { color: palette[index % palette.length], end: pieCursor, start: startAngle, value };
+    });
+    const pieRadius = 115;
+    const pieCx = width / 2;
+    const pieCy = height / 2;
+    const pieArc = (start: number, end: number) => {
+      const x1 = pieCx + pieRadius * Math.cos(start);
+      const y1 = pieCy + pieRadius * Math.sin(start);
+      const x2 = pieCx + pieRadius * Math.cos(end);
+      const y2 = pieCy + pieRadius * Math.sin(end);
+      const largeArc = end - start > Math.PI ? 1 : 0;
+      return `M ${pieCx} ${pieCy} L ${x1} ${y1} A ${pieRadius} ${pieRadius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+    };
+    return { areaPath, bars, height, linePath, maxY, pieArc, pieSlices, points, width, xValues, yValues };
+  })();
+
+  const exportChartAsset = async (format: "png" | "python" | "svg" | "javascript") => {
+    if (!chartSvgMarkup) return;
+    const svgNode = document.getElementById("interpreter-chart-svg") as SVGSVGElement | null;
+    const svgText = svgNode?.outerHTML ?? "";
+    if (format === "svg") {
+      const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chart-${Date.now()}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    if (format === "png") {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1600;
+      canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const image = new Image();
+      image.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+      await new Promise((resolve) => {
+        image.onload = () => {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(null);
+        };
+      });
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `chart-${Date.now()}.png`;
+      a.click();
+      return;
+    }
+    const chartJsCode = `const config = { type: "${chartConfig.type === "bar-horizontal" ? "bar" : chartConfig.type}", data: { labels: ${JSON.stringify(chartSvgMarkup.xValues)}, datasets:[{ label: "${chartConfig.title}", data: ${JSON.stringify(chartSvgMarkup.yValues)} }] } };`;
+    const matplotlibCode = `import matplotlib.pyplot as plt\nlabels = ${JSON.stringify(chartSvgMarkup.xValues)}\nvalues = ${JSON.stringify(chartSvgMarkup.yValues)}\nplt.figure(figsize=(10,5))\nplt.${chartConfig.type === "line" ? "plot" : "bar"}(labels, values)\nplt.title("${chartConfig.title}")\nplt.xlabel("${chartConfig.xLabel}")\nplt.ylabel("${chartConfig.yLabel}")\nplt.show()`;
+    const insertion = format === "javascript" ? chartJsCode : matplotlibCode;
+    const nextCode = `${code.slice(0, cursorOffset)}\n${insertion}\n${code.slice(cursorOffset)}`;
+    setCode(nextCode);
+  };
 
   const onLineNumberClick = (lineNumber: number) => {
     setActiveLineNumber(lineNumber);
@@ -1895,9 +2032,14 @@ export default function InterpreterPage() {
           </label>
 
           {files.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Fichiers: {files.map((item) => item.name).join(", ")}
-            </p>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>Fichiers: {files.map((item) => item.name).join(", ")}</p>
+              {dataRows.length > 0 && (
+                <button className="rounded border px-2 py-1 text-xs text-foreground" onClick={() => setShowChartBuilder(true)} type="button">
+                  Créer un graphique
+                </button>
+              )}
+            </div>
           ) : null}
 
           <div className="flex flex-wrap gap-2">
@@ -2255,6 +2397,111 @@ export default function InterpreterPage() {
           </div>
         </section>
       </div>
+      {showChartBuilder && (
+        <div className="fixed inset-0 z-40 bg-black/40 p-4">
+          <div className="mx-auto grid h-[90vh] max-w-[1400px] grid-cols-[300px_1fr_260px] gap-3 rounded-2xl border border-border/60 bg-background p-3 shadow-2xl">
+            <aside className="space-y-3 overflow-auto rounded-xl border border-border/50 p-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Créer un graphique</h3>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowChartBuilder(false)} type="button">Fermer</button>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-semibold">Type de graphique</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {chartTypeCards.map((item) => (
+                    <button className={`rounded border p-1 text-left text-[11px] ${chartConfig.type === item.type ? "border-primary bg-primary/10" : ""}`} key={item.type} onClick={() => setChartConfig((current) => ({ ...current, type: item.type }))} type="button">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                {([
+                  ["xAxis", "Axe X"],
+                  ["yAxis", "Axe Y"],
+                  ["colorColumn", "Couleur"],
+                  ["sizeColumn", "Taille"],
+                ] as const).map(([key, label]) => (
+                  <div className="rounded border border-dashed p-2" key={key} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+                    if (!draggingColumn) return;
+                    setChartConfig((current) => ({ ...current, [key]: draggingColumn }));
+                  }}>
+                    <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
+                    <p className="text-xs font-medium">{chartConfig[key] || "Déposer une colonne"}</p>
+                  </div>
+                ))}
+              </div>
+              <label className="text-xs">Titre<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, title: event.target.value }))} value={chartConfig.title} /></label>
+              <label className="text-xs">Label X<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, xLabel: event.target.value }))} value={chartConfig.xLabel} /></label>
+              <label className="text-xs">Label Y<input className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, yLabel: event.target.value }))} value={chartConfig.yLabel} /></label>
+              <label className="text-xs">Palette
+                <select className="mt-1 h-8 w-full rounded border px-2" onChange={(event) => setChartConfig((current) => ({ ...current, palette: event.target.value }))} value={chartConfig.palette}>
+                  {Object.keys(chartPalettes).map((paletteName) => <option key={paletteName} value={paletteName}>{paletteName}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs"><input checked={chartConfig.showLegend} onChange={(event) => setChartConfig((current) => ({ ...current, showLegend: event.target.checked }))} type="checkbox" /> Légende</label>
+              <label className="flex items-center gap-2 text-xs"><input checked={chartConfig.showGrid} onChange={(event) => setChartConfig((current) => ({ ...current, showGrid: event.target.checked }))} type="checkbox" /> Grille</label>
+              <div className="grid grid-cols-2 gap-1">
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("png")} type="button">Exporter PNG</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("svg")} type="button">Exporter SVG</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("python")} type="button">Code Python</button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => void exportChartAsset("javascript")} type="button">Code Chart.js</button>
+              </div>
+            </aside>
+            <section className="overflow-auto rounded-xl border border-border/50 bg-background p-3">
+              <h4 className="mb-2 text-sm font-semibold">{chartConfig.title}</h4>
+              <svg id="interpreter-chart-svg" viewBox={`0 0 ${chartSvgMarkup.width} ${chartSvgMarkup.height}`} xmlns="http://www.w3.org/2000/svg">
+                <rect fill="#fff" height={chartSvgMarkup.height} width={chartSvgMarkup.width} x={0} y={0} />
+                {chartConfig.showGrid && Array.from({ length: 5 }).map((_, index) => (
+                  <line key={`grid-${index}`} stroke="#e5e7eb" strokeWidth={1} x1={40} x2={chartSvgMarkup.width - 40} y1={40 + index * ((chartSvgMarkup.height - 80) / 4)} y2={40 + index * ((chartSvgMarkup.height - 80) / 4)} />
+                ))}
+                {(chartConfig.type === "bar" || chartConfig.type === "bar-horizontal") && chartSvgMarkup.bars.map((bar, index) => (
+                  <rect fill={palette[index % palette.length]} height={chartConfig.type === "bar" ? bar.h : 14} key={`bar-${index}`} width={chartConfig.type === "bar" ? bar.w : Math.max(10, (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * (chartSvgMarkup.width - 120))} x={chartConfig.type === "bar" ? bar.x : 80} y={chartConfig.type === "bar" ? bar.y : 50 + index * 18} />
+                ))}
+                {chartConfig.type === "line" && <path d={chartSvgMarkup.linePath} fill="none" stroke={palette[0]} strokeWidth={3} />}
+                {chartConfig.type === "area" && <path d={chartSvgMarkup.areaPath} fill={palette[0]} opacity={0.35} stroke={palette[0]} strokeWidth={2} />}
+                {(chartConfig.type === "scatter" || chartConfig.type === "radar") && chartSvgMarkup.points.map((point, index) => (
+                  <circle cx={chartConfig.type === "radar" ? chartSvgMarkup.width / 2 + Math.cos((index / Math.max(1, chartSvgMarkup.points.length)) * Math.PI * 2) * (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * 120 : point.x} cy={chartConfig.type === "radar" ? chartSvgMarkup.height / 2 + Math.sin((index / Math.max(1, chartSvgMarkup.points.length)) * Math.PI * 2) * (chartSvgMarkup.yValues[index] / chartSvgMarkup.maxY) * 120 : point.y} fill={palette[index % palette.length]} key={`point-${index}`} r={chartConfig.type === "scatter" ? 4 + (chartConfig.sizeColumn ? Number(chartRows[index]?.[chartConfig.sizeColumn] ?? 0) / 20 : 0) : 4} />
+                ))}
+                {(chartConfig.type === "pie" || chartConfig.type === "donut") && chartSvgMarkup.pieSlices.map((slice, index) => (
+                  <path d={chartSvgMarkup.pieArc(slice.start, slice.end)} fill={slice.color} key={`slice-${index}`} stroke="#fff" strokeWidth={1} />
+                ))}
+                {chartConfig.type === "donut" && <circle cx={chartSvgMarkup.width / 2} cy={chartSvgMarkup.height / 2} fill="#fff" r={55} />}
+                {chartConfig.type === "heatmap" && chartRows.slice(0, 36).map((row, index) => {
+                  const value = Number(row[chartConfig.yAxis] ?? 0);
+                  const ratio = Math.max(0, Math.min(1, value / chartSvgMarkup.maxY));
+                  const x = 70 + (index % 6) * 95;
+                  const y = 60 + Math.floor(index / 6) * 45;
+                  return <rect fill={`rgba(59,130,246,${ratio})`} height={35} key={`heat-${index}`} width={85} x={x} y={y} />;
+                })}
+                {chartConfig.type === "treemap" && chartRows.slice(0, 8).map((row, index) => {
+                  const value = Number(row[chartConfig.yAxis] ?? 0);
+                  const width = Math.max(60, (value / chartSvgMarkup.maxY) * 240);
+                  return <rect fill={palette[index % palette.length]} height={35} key={`tree-${index}`} width={width} x={50 + (index % 2) * 320} y={60 + Math.floor(index / 2) * 40} />;
+                })}
+                <text fill="#374151" fontSize={16} x={20} y={20}>{chartConfig.title}</text>
+              </svg>
+            </section>
+            <aside className="overflow-auto rounded-xl border border-border/50 p-3">
+              <p className="mb-2 text-xs font-semibold">Colonnes disponibles</p>
+              <div className="space-y-1">
+                {dataColumns.map((column) => (
+                  <button
+                    className="block w-full cursor-grab rounded border px-2 py-1 text-left text-xs hover:bg-muted/40"
+                    draggable
+                    key={column}
+                    onDragStart={() => setDraggingColumn(column)}
+                    type="button"
+                  >
+                    {column}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
       {assistantPanelOpen && (
         <aside className="fixed right-4 top-20 z-30 h-[78vh] w-[420px] overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
