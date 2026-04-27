@@ -24,6 +24,7 @@ export default function Page() {
   const { update: updateSession } = useSession();
 
   useEffect(() => {
+    if (!searchParams) return;
     const referral = searchParams.get("ref");
     if (referral) localStorage.setItem("mai.quizzly.referral.code.v1", referral);
   }, [searchParams]);
