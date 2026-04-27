@@ -35,7 +35,8 @@ export function ProjectsBreadcrumb() {
     return null;
   }
 
-  const section = getSectionLabel(searchParams?.get("tab"), pathname);
+  const activeTab = searchParams?.get("tab") ?? null;
+  const section = getSectionLabel(activeTab, pathname);
   const mobileCurrent = project?.name ?? (pathname === "/projects" ? "Projets" : section);
 
   return (
