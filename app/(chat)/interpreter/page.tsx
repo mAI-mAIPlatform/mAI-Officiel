@@ -4,6 +4,9 @@ import {
   BarChart3,
   Brain,
   Bookmark,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Braces,
   ChevronDown,
   ChevronRight,
@@ -12,6 +15,7 @@ import {
   EllipsisVertical,
   FileCode2,
   FunctionSquare,
+  Funnel,
   FileSpreadsheet,
   History,
   Info,
@@ -124,6 +128,8 @@ type EditorPreferences = {
   tabMode: "spaces" | "tabs";
   wordWrap: boolean;
 };
+type DataRow = Record<string, string | number | null>;
+type ColumnFilter = { max?: number; min?: number; mode: "contains" | "exact" | "range"; value?: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -445,6 +451,18 @@ export default function InterpreterPage() {
     start: number;
   } | null>(null);
   const [cursorOffset, setCursorOffset] = useState(0);
+  const [outputTab, setOutputTab] = useState<"data" | "output">("output");
+  const [dataRows, setDataRows] = useState<DataRow[]>([]);
+  const [dataColumns, setDataColumns] = useState<string[]>([]);
+  const [dataTypes, setDataTypes] = useState<Record<string, string>>({});
+  const [globalDataSearch, setGlobalDataSearch] = useState("");
+  const [dataSort, setDataSort] = useState<{ column: string; direction: "asc" | "desc" } | null>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilter>>({});
+  const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
+  const [quickPreviewMode, setQuickPreviewMode] = useState(true);
+  const [dataPage, setDataPage] = useState(1);
+  const [dataPageSize, setDataPageSize] = useState<25 | 50 | 100>(25);
+  const [dataProfile, setDataProfile] = useState<Array<{ column: string; count: number; max: number; mean: number; median: number; min: number; q1: number; q3: number; stddev: number }>>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
@@ -753,6 +771,84 @@ export default function InterpreterPage() {
     }
   };
 
+  const parseDatasetFile = async (file: File) => {
+    if (file.name.endsWith(".csv")) {
+      const text = await file.text();
+      const rows = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (!rows.length) return { columns: [] as string[], records: [] as DataRow[] };
+      const columns = rows[0]?.split(",").map((item) => item.trim()) ?? [];
+      const records = rows.slice(1).map((row) => {
+        const values = row.split(",");
+        return columns.reduce<DataRow>((acc, column, index) => {
+          const raw = values[index]?.trim() ?? "";
+          const asNumber = Number(raw);
+          acc[column] = raw.length === 0 ? null : Number.isFinite(asNumber) && raw !== "" ? asNumber : raw;
+          return acc;
+        }, {});
+      });
+      return { columns, records };
+    }
+    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) return { columns: [] as string[], records: [] as DataRow[] };
+      const records = XLSX.utils.sheet_to_json<DataRow>(workbook.Sheets[firstSheet], { defval: null });
+      const columns = Object.keys(records[0] ?? {});
+      return { columns, records };
+    }
+    return { columns: [] as string[], records: [] as DataRow[] };
+  };
+
+  const computeStats = (values: number[]) => {
+    if (!values.length) return { max: 0, mean: 0, median: 0, min: 0, q1: 0, q3: 0, stddev: 0 };
+    const sorted = [...values].sort((a, b) => a - b);
+    const getQ = (q: number) => {
+      const position = (sorted.length - 1) * q;
+      const base = Math.floor(position);
+      const rest = position - base;
+      const next = sorted[base + 1] ?? sorted[base] ?? 0;
+      return (sorted[base] ?? 0) + rest * (next - (sorted[base] ?? 0));
+    };
+    const mean = sorted.reduce((acc, current) => acc + current, 0) / sorted.length;
+    const variance = sorted.reduce((acc, current) => acc + (current - mean) ** 2, 0) / sorted.length;
+    return {
+      max: sorted[sorted.length - 1] ?? 0,
+      mean,
+      median: getQ(0.5),
+      min: sorted[0] ?? 0,
+      q1: getQ(0.25),
+      q3: getQ(0.75),
+      stddev: Math.sqrt(variance),
+    };
+  };
+
+  useEffect(() => {
+    const loadDataPreview = async () => {
+      const source = files.find((file) => /\.(csv|xlsx|xls)$/i.test(file.name));
+      if (!source) {
+        setDataRows([]);
+        setDataColumns([]);
+        setDataTypes({});
+        return;
+      }
+      const parsed = await parseDatasetFile(source);
+      setDataRows(parsed.records);
+      setDataColumns(parsed.columns);
+      if (parsed.records.length > 0) {
+        setOutputTab("data");
+      }
+      setDataTypes(
+        parsed.columns.reduce<Record<string, string>>((acc, column) => {
+          const sample = parsed.records.find((row) => row[column] !== null && row[column] !== "")?.[column];
+          acc[column] = typeof sample === "number" ? "number" : "string";
+          return acc;
+        }, {})
+      );
+    };
+    void loadDataPreview();
+  }, [files]);
+
   const foldRanges = useMemo(() => computeFoldRanges(code), [code]);
   const foldedForTab = foldedStarts[activeTabId] ?? [];
   const foldedSet = new Set(foldedForTab);
@@ -772,6 +868,44 @@ export default function InterpreterPage() {
         start: code.slice(0, pendingGeneration.start).split("\n").length,
       }
     : null;
+
+  const filteredDataRows = dataRows.filter((row) => {
+    const matchesGlobal = globalDataSearch.trim().length === 0
+      || Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(globalDataSearch.toLowerCase()));
+    if (!matchesGlobal) return false;
+    return dataColumns.every((column) => {
+      const filter = columnFilters[column];
+      if (!filter) return true;
+      const rawValue = row[column];
+      const asString = String(rawValue ?? "").toLowerCase();
+      if (filter.mode === "contains") return asString.includes((filter.value ?? "").toLowerCase());
+      if (filter.mode === "exact") return asString === (filter.value ?? "").toLowerCase();
+      if (filter.mode === "range") {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric)) return false;
+        if (typeof filter.min === "number" && numeric < filter.min) return false;
+        if (typeof filter.max === "number" && numeric > filter.max) return false;
+      }
+      return true;
+    });
+  });
+
+  const sortedDataRows = [...filteredDataRows].sort((a, b) => {
+    if (!dataSort) return 0;
+    const left = a[dataSort.column];
+    const right = b[dataSort.column];
+    const multiplier = dataSort.direction === "asc" ? 1 : -1;
+    if (typeof left === "number" && typeof right === "number") {
+      return (left - right) * multiplier;
+    }
+    return String(left ?? "").localeCompare(String(right ?? "")) * multiplier;
+  });
+
+  const pagedDataRows = sortedDataRows.slice((dataPage - 1) * dataPageSize, dataPage * dataPageSize);
+  const totalPages = Math.max(1, Math.ceil(sortedDataRows.length / dataPageSize));
+  const previewRows = quickPreviewMode && sortedDataRows.length > 20
+    ? [...sortedDataRows.slice(0, 10), ...sortedDataRows.slice(-10)]
+    : pagedDataRows;
 
   const onLineNumberClick = (lineNumber: number) => {
     setActiveLineNumber(lineNumber);
@@ -1802,44 +1936,159 @@ export default function InterpreterPage() {
         </section>
 
         <section className={`liquid-panel rounded-2xl p-4 ${editorPreferences.outputPanelPosition === "right" ? "lg:order-2" : "order-2"}`}>
-          <h2 className="mb-2 text-sm font-medium">Output</h2>
-          <div className="space-y-2 text-xs">
-            {result?.logs?.length ? (
-              <pre className="rounded-xl bg-background/80 p-2">
-                {result.logs.join("\n")}
-              </pre>
-            ) : null}
-            {result?.output ? (
-              <pre className="rounded-xl bg-emerald-500/10 p-2">
-                {result.output}
-              </pre>
-            ) : null}
-            {result?.error ? (
-              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
-                {result.error}
-              </pre>
-            ) : null}
-            {typeof result?.exitCode === "undefined" ? null : (
-              <p>Code retour: {String(result.exitCode)}</p>
-            )}
-            {result ? null : (
-              <p className="text-muted-foreground">
-                Aucun résultat pour le moment.
-              </p>
-            )}
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-medium">Panneau de sortie</h2>
+            <div className="flex gap-1">
+              <button className={`rounded px-2 py-1 text-xs ${outputTab === "output" ? "bg-primary text-primary-foreground" : "border border-border/40"}`} onClick={() => setOutputTab("output")} type="button">Output</button>
+              <button className={`rounded px-2 py-1 text-xs ${outputTab === "data" ? "bg-primary text-primary-foreground" : "border border-border/40"}`} onClick={() => setOutputTab("data")} type="button">Data Explorer</button>
+            </div>
           </div>
-
-          <div className="mt-4 grid gap-2">
-            {features.map((item) => (
-              <div
-                className="flex items-center gap-2 text-xs text-muted-foreground"
-                key={item.label}
-              >
-                <item.icon className="size-3.5" />
-                <span>{item.label}</span>
+          {outputTab === "output" ? (
+            <>
+              <div className="space-y-2 text-xs">
+                {result?.logs?.length ? (
+                  <pre className="rounded-xl bg-background/80 p-2">
+                    {result.logs.join("\n")}
+                  </pre>
+                ) : null}
+                {result?.output ? (
+                  <pre className="rounded-xl bg-emerald-500/10 p-2">
+                    {result.output}
+                  </pre>
+                ) : null}
+                {result?.error ? (
+                  <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
+                    {result.error}
+                  </pre>
+                ) : null}
+                {typeof result?.exitCode === "undefined" ? null : (
+                  <p>Code retour: {String(result.exitCode)}</p>
+                )}
+                {result ? null : (
+                  <p className="text-muted-foreground">
+                    Aucun résultat pour le moment.
+                  </p>
+                )}
               </div>
-            ))}
-          </div>
+              <div className="mt-4 grid gap-2">
+                {features.map((item) => (
+                  <div
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                    key={item.label}
+                  >
+                    <item.icon className="size-3.5" />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 text-xs">
+              <div className="grid gap-2 rounded-lg border border-border/50 bg-background/40 p-2 md:grid-cols-2">
+                <p>Lignes: <strong>{dataRows.length}</strong></p>
+                <p>Colonnes: <strong>{dataColumns.length}</strong></p>
+                <p>Types: {dataColumns.map((column) => `${column}:${dataTypes[column] ?? "?"}`).join(" • ") || "N/A"}</p>
+                <p>Valeurs manquantes: {dataColumns.map((column) => {
+                  const missing = dataRows.filter((row) => row[column] === null || row[column] === "").length;
+                  return <span className={missing > 0 ? "text-amber-600" : "text-emerald-600"} key={column}>{column}={missing} </span>;
+                })}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input className="h-8 flex-1 rounded border border-border/50 px-2 text-xs" onChange={(event) => {
+                  setGlobalDataSearch(event.target.value);
+                  setDataPage(1);
+                }} placeholder="Recherche globale..." value={globalDataSearch} />
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => setQuickPreviewMode((current) => !current)} type="button">
+                  {quickPreviewMode ? "Aperçu rapide ON" : "Aperçu rapide OFF"}
+                </button>
+                <button className="rounded border px-2 py-1 text-xs" onClick={() => {
+                  const profiles = dataColumns
+                    .map((column) => {
+                      const numeric = dataRows.map((row) => Number(row[column])).filter((value) => Number.isFinite(value));
+                      if (!numeric.length) return null;
+                      const stats = computeStats(numeric);
+                      return { column, count: numeric.length, ...stats };
+                    })
+                    .filter(Boolean) as Array<{ column: string; count: number; max: number; mean: number; median: number; min: number; q1: number; q3: number; stddev: number }>;
+                  setDataProfile(profiles);
+                }} type="button">Profiler les données</button>
+              </div>
+              <div className="overflow-auto rounded-lg border border-border/50">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      {dataColumns.map((column) => (
+                        <th className="whitespace-nowrap border-b px-2 py-1" key={column}>
+                          <div className="flex items-center gap-1">
+                            <button className="inline-flex items-center gap-1" onClick={() => setDataSort((current) => current?.column === column ? { column, direction: current.direction === "asc" ? "desc" : "asc" } : { column, direction: "asc" })} type="button">
+                              {column}
+                              {dataSort?.column === column ? dataSort.direction === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : <ArrowUpDown className="size-3" />}
+                            </button>
+                            <button onClick={() => setActiveFilterColumn((current) => current === column ? null : column)} type="button"><Funnel className="size-3" /></button>
+                          </div>
+                          {activeFilterColumn === column && (
+                            <div className="mt-1 space-y-1 rounded border bg-background p-1">
+                              <select className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "contains" }), mode: event.target.value as ColumnFilter["mode"] } }))} value={columnFilters[column]?.mode ?? "contains"}>
+                                <option value="contains">Texte contient</option>
+                                <option value="exact">Valeur exacte</option>
+                                <option value="range">Plage numérique</option>
+                              </select>
+                              {columnFilters[column]?.mode === "range" ? (
+                                <div className="flex gap-1">
+                                  <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "range" }), min: Number(event.target.value) } }))} placeholder="min" type="number" />
+                                  <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "range" }), max: Number(event.target.value) } }))} placeholder="max" type="number" />
+                                </div>
+                              ) : (
+                                <input className="h-6 w-full rounded border px-1" onChange={(event) => setColumnFilters((current) => ({ ...current, [column]: { ...(current[column] ?? { mode: "contains" }), value: event.target.value } }))} placeholder="Filtrer..." />
+                              )}
+                            </div>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, index) => (
+                      <tr className="border-b" key={`row-${index}`}>
+                        {dataColumns.map((column) => (
+                          <td className="px-2 py-1" key={`${index}-${column}`}>{String(row[column] ?? "")}</td>
+                        ))}
+                      </tr>
+                    ))}
+                    {quickPreviewMode && sortedDataRows.length > 20 && (
+                      <tr><td className="px-2 py-1 text-center text-muted-foreground" colSpan={Math.max(1, dataColumns.length)}>... {Math.max(0, sortedDataRows.length - 20)} lignes masquées ...</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px]">Lignes/page
+                  <select className="ml-1 rounded border px-1" onChange={(event) => {
+                    setDataPageSize(Number(event.target.value) as 25 | 50 | 100);
+                    setDataPage(1);
+                  }} value={dataPageSize}>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </label>
+                <button className="rounded border px-2 py-1 text-[11px]" disabled={dataPage <= 1} onClick={() => setDataPage((current) => Math.max(1, current - 1))} type="button">Préc.</button>
+                <span className="text-[11px]">Page {dataPage}/{totalPages}</span>
+                <button className="rounded border px-2 py-1 text-[11px]" disabled={dataPage >= totalPages} onClick={() => setDataPage((current) => Math.min(totalPages, current + 1))} type="button">Suiv.</button>
+              </div>
+              {dataProfile.length > 0 && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {dataProfile.map((item) => (
+                    <div className="rounded border border-border/50 p-2" key={item.column}>
+                      <p className="font-semibold">{item.column}</p>
+                      <p>Moyenne: {item.mean.toFixed(2)} | Médiane: {item.median.toFixed(2)} | Écart-type: {item.stddev.toFixed(2)}</p>
+                      <p>Min: {item.min.toFixed(2)} | Q1: {item.q1.toFixed(2)} | Q3: {item.q3.toFixed(2)} | Max: {item.max.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 space-y-2">
             <p className="flex items-center gap-1 text-xs font-semibold">
