@@ -5,9 +5,9 @@ import type { PlanKey } from "@/lib/subscription";
 const ACTIVATION_HASH_PEPPER = "mAI::subscription::v095::server-only";
 const OFFICIAL_CODES_BY_PLAN: Record<PlanKey, string[]> = {
   free: [],
-  plus: ["MAIPLUS26"],
-  pro: ["MAIPRO26"],
-  max: ["MAIMAX26"],
+  plus: [],
+  pro: [],
+  max: [],
 };
 
 const PLUS_CODE_HASHES = new Set([

@@ -31,6 +31,7 @@ import { DataStreamHandler } from "./data-stream-handler";
 import { submitEditedMessage } from "./message-editor";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
+import { ConversationSummaryPanel } from "./conversation-summary-panel";
 import { ProductAnnouncements } from "./product-announcements";
 import { VoiceTopActions } from "./voice-top-actions";
 
@@ -61,6 +62,7 @@ function incrementOutputTokens(text: string) {
 export function ChatShell() {
   const {
     chatId,
+    activeProjectId,
     messages,
     setMessages,
     sendMessage,
@@ -299,6 +301,12 @@ export function ChatShell() {
         >
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background/70 md:rounded-tl-[16px] md:border-t md:border-l md:border-border/30 md:shadow-[var(--shadow-float)]">
             <VoiceTopActions chatId={chatId} messages={messages} />
+            {activeProjectId ? (
+              <ConversationSummaryPanel
+                chatId={chatId}
+                projectId={activeProjectId}
+              />
+            ) : null}
             <Messages
               addToolApprovalResponse={addToolApprovalResponse}
               chatId={chatId}

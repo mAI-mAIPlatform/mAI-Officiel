@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import {
   getChatsByProjectId,
   getChatsByUserId,
+  getProjectAccess,
   getProjectById,
+  getProjectStatsById,
 } from "@/lib/db/queries";
 
 export default async function ProjectDetailPage({
@@ -20,20 +23,24 @@ export default async function ProjectDetailPage({
   }
 
   const { id } = await params;
-  const project = await getProjectById(id);
+  const [project, access] = await Promise.all([
+    getProjectById(id),
+    getProjectAccess(id, session.user.id),
+  ]);
 
-  if (!project || project.userId !== session.user.id) {
+  if (!project || !access) {
     notFound();
   }
 
-  const [projectChats, allUserChats] = await Promise.all([
-    getChatsByProjectId({ projectId: id, userId: session.user.id }),
+  const [projectChats, allUserChats, projectStats] = await Promise.all([
+    getChatsByProjectId({ projectId: id }),
     getChatsByUserId({
       id: session.user.id,
       limit: 100,
       startingAfter: null,
       endingBefore: null,
     }).then((result) => result.chats),
+    getProjectStatsById(id),
   ]);
 
   const importableChats = allUserChats.filter((chat) => chat.projectId !== id);
@@ -52,6 +59,14 @@ export default async function ProjectDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              aria-label="Paramètres avancés"
+              className="rounded-xl border border-black/20 bg-white p-2 text-black"
+              href={`/projects/${project.id}/edit`}
+              title="Paramètres avancés"
+            >
+              <Settings className="size-4" />
+            </Link>
             <Link
               className="rounded-xl border border-black/20 bg-white px-3 py-2 text-sm font-medium text-black"
               href={`/projects/${project.id}/edit`}
@@ -81,6 +96,21 @@ export default async function ProjectDetailPage({
         projectId={project.id}
         projectInstructions={project.instructions ?? ""}
         projectName={project.name}
+        projectStartDate={project.startDate?.toISOString() ?? null}
+        projectEndDate={project.endDate?.toISOString() ?? null}
+        projectTags={project.tags ?? []}
+        projectColor={project.color ?? null}
+        stats={{
+          totalTasks: projectStats.totalTasks,
+          completedTasks: projectStats.completedTasks,
+          inProgressTasks: projectStats.inProgressTasks,
+          todoTasks: projectStats.todoTasks,
+          progressPercentage: projectStats.progressPercentage,
+          totalChats: projectStats.totalChats,
+          daysRemaining: projectStats.daysRemaining,
+          totalSubtasks: projectStats.totalSubtasks,
+          completedSubtasks: projectStats.completedSubtasks,
+        }}
       />
     </main>
   );

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cookies } from "next/headers";
@@ -33,18 +32,6 @@ export const viewport = {
   maximumScale: 1,
 };
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-app",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-geist-mono",
-});
-
 const LIGHT_THEME_COLOR = "hsl(220 30% 98%)";
 const DARK_THEME_COLOR = "hsl(243 28% 7%)";
 const THEME_COLOR_SCRIPT = `\
@@ -72,7 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      className={`${inter.variable} ${geistMono.variable}`}
+      className="font-sans"
       lang="fr"
       suppressHydrationWarning
     >

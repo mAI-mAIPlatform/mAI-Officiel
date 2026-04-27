@@ -33,7 +33,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     key: "free",
     label: "mAI Free",
     limits: {
-      filesPerDay: 5,
+      filesPerDay: 7,
       maxFileSizeMb: 10,
       quizPerDay: "illimites",
       memoryUnits: 50,
@@ -52,7 +52,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     label: "mAI Plus",
     recommended: true,
     limits: {
-      filesPerDay: 10,
+      filesPerDay: 15,
       maxFileSizeMb: 50,
       quizPerDay: "illimites",
       memoryUnits: 75,
@@ -70,7 +70,7 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     key: "pro",
     label: "mAI Pro",
     limits: {
-      filesPerDay: 20,
+      filesPerDay: 25,
       maxFileSizeMb: 100,
       quizPerDay: "illimites",
       memoryUnits: 100,

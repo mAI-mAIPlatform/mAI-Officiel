@@ -1,3 +1,6 @@
+import { hordeTextModelOptions } from "@/lib/ai/horde-models";
+import { hordeImageModelOptions } from "@/lib/ai/horde-image-models";
+
 export type AffordableModelOption = {
   id: string;
   label: string;
@@ -20,23 +23,7 @@ export const affordableTextModels: AffordableModelOption[] = [
   { id: "anthropic/claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
   { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5" },
   { id: "claude/claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-  { id: "horde/Cydonia-24B-v4.3", label: "Cydonia-24B-v4.3" },
-  { id: "horde/Skyfall-31B-v4.1", label: "Skyfall-31B-v4.1" },
-  { id: "horde/Gemma-4-31B-it", label: "Gemma-4-31B-it" },
-  { id: "horde/Behemoth-R1-123B-v2-w4a16", label: "Behemoth-R1-123B-v2-w4a16" },
-  { id: "horde/Ministral-3-8B-Instruct-2512", label: "Ministral-3-8B-Instruct-2512" },
-  { id: "horde/Rocinante-XL-16B-v1a-Q4_K_M", label: "Rocinante-XL-16B-v1a-Q4_K_M" },
-  { id: "horde/L3-8B-Stheno-v3.2", label: "L3-8B-Stheno-v3.2" },
-  { id: "horde/mini-magnum-12b-v1.1", label: "mini-magnum-12b-v1.1" },
-  { id: "horde/MN-12B-Mag-Mell-R1.Q5_K_M", label: "MN-12B-Mag-Mell-R1.Q5_K_M" },
-  { id: "horde/Artemis-31B-v1b-Q4_K_M", label: "Artemis-31B-v1b-Q4_K_M" },
-  { id: "horde/pygmalion-2-7b.Q4_K_M", label: "pygmalion-2-7b.Q4_K_M" },
-  { id: "horde/L3-Super-Nova-RP-8B", label: "L3-Super-Nova-RP-8B" },
-  { id: "horde/WizzGPTv8", label: "WizzGPTv8" },
-  { id: "horde/Qwen3-30B-A3B-abliterated-erotic", label: "Qwen3-30B-A3B-abliterated-erotic" },
-  { id: "horde/Qwen_Qwen3-0.6B-IQ4_XS", label: "Qwen_Qwen3-0.6B-IQ4_XS" },
-  { id: "horde/LFM2.5-1.2B-Instruct", label: "LFM2.5-1.2B-Instruct" },
-  { id: "horde/HY-MT1.5-1.8B", label: "HY-MT1.5-1.8B" },
+  ...hordeTextModelOptions,
   { id: "ollama/qwen3:14b", label: "Qwen3:14b" },
   { id: "ollama/llama3.1:8b", label: "Llama3.1:8b" },
   { id: "ollama/mixtral:8x7b", label: "Mixtral:8x7b" },
@@ -45,21 +32,5 @@ export const affordableTextModels: AffordableModelOption[] = [
 ];
 
 export const affordableImageModels: AffordableModelOption[] = [
-  { id: "horde/stable_diffusion", label: "Stable Diffusion" },
-  { id: "horde/AbsoluteReality", label: "AbsoluteReality" },
-  { id: "horde/Realistic Vision", label: "Realistic Vision" },
-  { id: "horde/Juggernaut XL", label: "Juggernaut XL" },
-  { id: "horde/SDXL 1.0", label: "SDXL 1.0" },
-  { id: "horde/DreamShaper", label: "DreamShaper" },
-  { id: "horde/Anything v5", label: "Anything v5" },
-  { id: "horde/ChilloutMix", label: "ChilloutMix" },
-  { id: "horde/Deliberate", label: "Deliberate" },
-  { id: "horde/Stable Cascade 1.0", label: "Stable Cascade 1.0" },
-  { id: "horde/AbyssOrangeMix-AfterDark", label: "AbyssOrangeMix-AfterDark" },
-  { id: "horde/WAI-NSFW-illustrious-SDXL", label: "WAI-NSFW-illustrious-SDXL" },
-  { id: "horde/Animagine XL", label: "Animagine XL" },
-  { id: "horde/ZavyChromaXL", label: "ZavyChromaXL" },
-  { id: "horde/Realism Engine", label: "Realism Engine" },
-  { id: "horde/Inkpunk Diffusion", label: "Inkpunk Diffusion" },
-  { id: "horde/MeinaMix", label: "MeinaMix" },
+  ...hordeImageModelOptions,
 ];

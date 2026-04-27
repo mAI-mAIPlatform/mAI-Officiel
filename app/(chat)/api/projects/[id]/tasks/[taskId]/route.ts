@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createTask,
   deleteTask,
-  getProjectById,
   getTaskById,
   updateTask,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 import { computeNextDueDate } from "@/lib/tasks";
 
 const updateTaskSchema = z.object({
@@ -20,12 +21,10 @@ const updateTaskSchema = z.object({
     .enum(["none", "daily", "weekly", "monthly", "custom"])
     .optional(),
   repeatInterval: z.number().int().positive().optional().nullable(),
+  assigneeType: z.enum(["user", "ai"]).optional(),
+  assigneeId: z.string().uuid().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
-
-async function assertOwnership(projectId: string, userId: string) {
-  const project = await getProjectById(projectId);
-  return project && project.userId === userId;
-}
 
 export async function PUT(
   request: Request,
@@ -38,10 +37,9 @@ export async function PUT(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -67,6 +65,9 @@ export async function PUT(
     priority: parsed.data.priority,
     repeatType: parsed.data.repeatType,
     repeatInterval: parsed.data.repeatInterval ?? undefined,
+    assigneeType: parsed.data.assigneeType,
+    assigneeId: parsed.data.assigneeId,
+    sortOrder: parsed.data.sortOrder,
   });
 
   if (!updated) {
@@ -97,6 +98,19 @@ export async function PUT(
     }
   }
 
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: parsed.data.status === "done" ? "task_completed" : "task_updated",
+    targetType: "task",
+    targetId: taskId,
+    metadata: {
+      title: updated.title,
+      previousStatus: task.status,
+      newStatus: updated.status,
+    },
+  });
+
   return NextResponse.json(updated);
 }
 
@@ -111,10 +125,9 @@ export async function DELETE(
   }
 
   const { id, taskId } = await context.params;
-  const isOwner = await assertOwnership(id, session.user.id);
-
-  if (!isOwner) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const task = await getTaskById(taskId);
@@ -123,5 +136,15 @@ export async function DELETE(
   }
 
   await deleteTask(taskId);
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "task_deleted",
+    targetType: "task",
+    targetId: taskId,
+    metadata: {
+      title: task.title,
+    },
+  });
   return NextResponse.json({ success: true });
 }

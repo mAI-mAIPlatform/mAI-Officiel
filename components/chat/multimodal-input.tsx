@@ -23,7 +23,7 @@ import {
   Square,
   StarIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
@@ -80,6 +80,7 @@ import {
   getTierRemaining,
 } from "@/lib/ai/credits";
 import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import { toHordeDisplayName } from "@/lib/ai/horde-models";
 import {
   type ChatModel,
   chatModels,
@@ -121,15 +122,9 @@ import type { VisibilityType } from "./visibility-selector";
 
 type UploadSource = "device" | "mai-library";
 type ReflectionLevel = "none" | "low" | "medium" | "high";
-type ProjectItem = { id: string; name: string };
 type MentionItem =
-  | { id: string; label: string; type: "project" }
-  | {
-      description: string;
-      id: string;
-      label: string;
-      type: "tool";
-    };
+  | { id: string; label: string; type: "task" }
+  | { id: string; label: string; type: "file" };
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const GHOST_CHAT_ID_STORAGE_KEY = "mai.ghost-chat-id";
 const GHOST_MODE_STORAGE_KEY = "mai.ghost-mode";
@@ -141,8 +136,6 @@ const PLUGIN_ENABLED_STORAGE_KEY = "mai.plugins.enabled.v1";
 const IMAGE_CREATION_MODE_STORAGE_KEY = "mai.image-creation-mode.enabled";
 const MUSIC_CREATION_MODE_STORAGE_KEY = "mai.music-creation-mode.enabled";
 const reflectionLevels: ReflectionLevel[] = ["none", "low", "medium", "high"];
-
-const toolMentionItems: MentionItem[] = [];
 
 function getPersistentMemoryFromLocalStorage(): string | undefined {
   if (typeof window === "undefined") {
@@ -318,6 +311,7 @@ function PureMultimodalInput({
   isLoading?: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setTheme, resolvedTheme } = useTheme();
   const { plan, isHydrated } = useSubscriptionPlan();
   const { status: sessionStatus } = useSession();
@@ -490,19 +484,20 @@ function PureMultimodalInput({
 
   const handleMentionSelect = useCallback(
     (item: MentionItem) => {
-      if (item.type === "project") {
-        setInput((current) => replaceLastMention(current));
+      const projectId = searchParams?.get("projectId");
+      if (!projectId) {
         setProjectMentionOpen(false);
-        router.replace(`${window.location.pathname}?projectId=${item.id}`);
-        toast.success(`Projet sélectionné : ${item.label.replace(/^@/, "")}`);
         return;
       }
-
-      setInput((current) => `${replaceLastMention(current)}${item.label} `);
+      const tab = item.type === "task" ? "tasks" : "library";
+      const queryKey = item.type === "task" ? "taskId" : "fileId";
+      const link = `/projects/${projectId}?tab=${tab}&${queryKey}=${item.id}`;
+      const markdownMention = `[${item.label}](${link})`;
+      setInput((current) => `${replaceLastMention(current)}${markdownMention} `);
       setProjectMentionOpen(false);
-      toast.success(`Outil activé : ${item.label}`);
+      toast.success(`Mention ajoutée : ${item.label}`);
     },
-    [replaceLastMention, router, setInput]
+    [replaceLastMention, searchParams, setInput]
   );
 
   const handleSlashSelect = (cmd: SlashCommand) => {
@@ -632,27 +627,18 @@ function PureMultimodalInput({
     "mai.geolocation-enabled",
     false
   );
-  const { data: projectsData } = useSWR<ProjectItem[]>(
-    projectMentionOpen ? "/api/projects" : null,
+  const activeProjectId = searchParams?.get("projectId");
+  const { data: mentionData } = useSWR<MentionItem[]>(
+    projectMentionOpen && activeProjectId
+      ? `/api/projects/${activeProjectId}/mentions?q=${encodeURIComponent(projectMentionQuery)}`
+      : null,
     fetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 5 * 60 * 1000,
     }
   );
-  const filteredProjects = (projectsData ?? []).filter((project) =>
-    project.name.toLowerCase().includes(projectMentionQuery.toLowerCase())
-  );
-  const mentionItems: MentionItem[] = [
-    ...filteredProjects.map((project) => ({
-      id: project.id,
-      label: `@${project.name}`,
-      type: "project" as const,
-    })),
-    ...toolMentionItems,
-  ].filter((item) =>
-    item.label.toLowerCase().includes(`@${projectMentionQuery.toLowerCase()}`)
-  );
+  const mentionItems: MentionItem[] = mentionData ?? [];
   const [geolocationPos, setGeolocationPos] = useState<{
     latitude: number;
     longitude: number;
@@ -1508,7 +1494,7 @@ ${extractedFileContext}`
           <div className="mx-3 mb-2 rounded-xl border border-border/60 bg-background/90 p-2 shadow-lg backdrop-blur-xl">
             {mentionItems.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Aucun projet/plugin/interpréteur trouvé pour cette mention.
+                Aucune tâche ou fichier trouvé pour cette mention.
               </p>
             ) : (
               <div className="space-y-1">
@@ -1525,11 +1511,6 @@ ${extractedFileContext}`
                     type="button"
                   >
                     <span>{item.label}</span>
-                    {"description" in item && (
-                      <span className="ml-2 text-[10px] text-muted-foreground">
-                        {item.description}
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -1930,7 +1911,6 @@ function PureContextualActionsMenu({
             aria-label="Contextual actions"
             className="flex h-7 w-7 items-center justify-center rounded-full border border-border/40 bg-secondary/50 p-1 text-foreground shadow-sm transition-colors hover:bg-secondary"
             data-testid="context-actions-button"
-            disabled={status !== "ready"}
             variant="ghost"
           >
             <PlusIcon size={16} />
@@ -2455,7 +2435,22 @@ function PureModelSelectorCompact({
   );
 
   const dynamicModels: ChatModel[] | undefined = modelsData?.models;
-  const activeModels = dynamicModels ?? chatModels;
+  const normalizeModelDisplayName = (model: ChatModel) => {
+    const isHordeLike =
+      model.provider.toLowerCase() === "horde" ||
+      model.id.startsWith("horde/") ||
+      model.name.includes("/");
+    if (!isHordeLike) return model.name;
+    const raw = model.id.startsWith("horde/")
+      ? model.id.slice("horde/".length)
+      : model.name;
+    return toHordeDisplayName(raw);
+  };
+  const dynamicModelsNormalized = dynamicModels?.map((model) => ({
+    ...model,
+    name: normalizeModelDisplayName(model),
+  }));
+  const activeModels = dynamicModelsNormalized ?? chatModels;
 
   const selectedModel =
     activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
@@ -2482,10 +2477,10 @@ function PureModelSelectorCompact({
         <ModelSelectorList>
           {(() => {
             const curatedIds = new Set(chatModels.map((m) => m.id));
-            const allModels = dynamicModels
+            const allModels = dynamicModelsNormalized
               ? [
                   ...chatModels,
-                  ...dynamicModels.filter((m) => !curatedIds.has(m.id)),
+                  ...dynamicModelsNormalized.filter((m) => !curatedIds.has(m.id)),
                 ]
               : chatModels;
 

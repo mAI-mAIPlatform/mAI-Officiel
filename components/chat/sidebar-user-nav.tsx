@@ -19,6 +19,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
 import { getGuestDisplayName } from "@/lib/guest-display";
 import { LoaderIcon } from "./icons";
@@ -39,13 +40,11 @@ export function SidebarUserNav({ user }: { user: User }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
-  const [customDisplayName, setCustomDisplayName] = useState<string | null>(
-    null
-  );
-  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(
-    null
-  );
+  const { plan } = useSubscriptionPlan();
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(null);
   const [customAvatarId, setCustomAvatarId] = useState<string>("aurora");
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   useEffect(() => {
     const syncProfile = () => {
@@ -93,6 +92,7 @@ export function SidebarUserNav({ user }: { user: User }) {
     user.name?.trim() ||
     user.email?.split("@")[0] ||
     "Utilisateur";
+
   const avatarBackground = useMemo(() => {
     if (customAvatarDataUrl) {
       return `url(${customAvatarDataUrl})`;
@@ -100,6 +100,7 @@ export function SidebarUserNav({ user }: { user: User }) {
 
     return avatarGradientsById[customAvatarId] ?? avatarGradientsById.aurora;
   }, [customAvatarDataUrl, customAvatarId]);
+
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -174,37 +175,63 @@ export function SidebarUserNav({ user }: { user: User }) {
             >
               Statistiques
             </DropdownMenuItem>
+            {plan !== "max" ? (
+              <DropdownMenuItem asChild>
+                <button
+                  className="w-full cursor-pointer rounded-md bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-500"
+                  onClick={() => {
+                    closeMobileSidebar();
+                    router.push("/pricing");
+                  }}
+                  type="button"
+                >
+                  Mettre à niveau
+                </button>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               className="cursor-pointer text-[13px]"
-              onSelect={() => {
-                closeMobileSidebar();
-                router.push("/archives");
+              onSelect={(event) => {
+                event.preventDefault();
+                setIsMoreOpen((current) => !current);
               }}
             >
-              Archives
+              Plus
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <button
-                className="w-full cursor-pointer rounded-md bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-500"
-                onClick={() => {
-                  closeMobileSidebar();
-                  router.push("/pricing");
-                }}
-                type="button"
-              >
-                Mettre à niveau
-              </button>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a
-                className="w-full cursor-pointer text-[13px]"
-                download
-                href="/api/export"
-                onClick={closeMobileSidebar}
-              >
-                Exporter mes données
-              </a>
-            </DropdownMenuItem>
+            {isMoreOpen ? (
+              <>
+                <DropdownMenuItem asChild>
+                  <a
+                    className="w-full cursor-pointer pl-6 text-[13px]"
+                    download
+                    href="/api/export"
+                    onClick={closeMobileSidebar}
+                  >
+                    Exporter mes données
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer pl-6 text-[13px]"
+                  onSelect={() => {
+                    closeMobileSidebar();
+                    router.push("/archives");
+                  }}
+                >
+                  Archives
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    className="w-full cursor-pointer pl-6 text-[13px]"
+                    href="https://mprojects.odoo.com/m-ai"
+                    onClick={closeMobileSidebar}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Notes de version
+                  </a>
+                </DropdownMenuItem>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild data-testid="user-nav-item-auth">
               <button

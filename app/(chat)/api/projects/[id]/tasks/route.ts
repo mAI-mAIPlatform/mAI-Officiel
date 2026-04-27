@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import {
+  createProjectActivity,
   createTask,
-  getProjectById,
   getSubtasksByTaskIds,
   getTasksByProject,
+  db,
 } from "@/lib/db/queries";
+import { inArray } from "drizzle-orm";
+import { user } from "@/lib/db/schema";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const taskSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -18,6 +22,9 @@ const taskSchema = z.object({
     .enum(["none", "daily", "weekly", "monthly", "custom"])
     .optional(),
   repeatInterval: z.number().int().positive().optional().nullable(),
+  assigneeType: z.enum(["user", "ai"]).optional(),
+  assigneeId: z.string().uuid().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
 
 const querySchema = z.object({
@@ -39,10 +46,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const query = Object.fromEntries(new URL(request.url).searchParams.entries());
@@ -56,6 +62,19 @@ export async function GET(
   }
 
   const tasks = await getTasksByProject(id);
+  const assigneeIds = tasks
+    .map((task) => task.assigneeId)
+    .filter((assigneeId): assigneeId is string => Boolean(assigneeId));
+  const assignees =
+    assigneeIds.length > 0
+      ? await db
+          .select({ id: user.id, name: user.name, image: user.image })
+          .from(user)
+          .where(inArray(user.id, assigneeIds))
+      : [];
+  const assigneesById = Object.fromEntries(
+    assignees.map((assignee) => [assignee.id, assignee])
+  );
   const taskIds = tasks.map((task) => task.id);
   const allSubtasks = await getSubtasksByTaskIds(taskIds);
 
@@ -89,6 +108,10 @@ export async function GET(
             ? 1
             : 0,
       subtasks,
+      assignee:
+        task.assigneeType === "user" && task.assigneeId
+          ? assigneesById[task.assigneeId] ?? null
+          : null,
     };
   });
 
@@ -130,10 +153,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = taskSchema.safeParse(await request.json());
@@ -154,6 +176,21 @@ export async function POST(
     priority: parsed.data.priority,
     repeatType: parsed.data.repeatType,
     repeatInterval: parsed.data.repeatInterval,
+    assigneeType: parsed.data.assigneeType,
+    assigneeId: parsed.data.assigneeId,
+    sortOrder: parsed.data.sortOrder,
+  });
+
+  await createProjectActivity({
+    projectId: id,
+    userId: session.user.id,
+    actionType: "task_created",
+    targetType: "task",
+    targetId: created.id,
+    metadata: {
+      title: created.title,
+      status: created.status,
+    },
   });
 
   return NextResponse.json(created, { status: 201 });

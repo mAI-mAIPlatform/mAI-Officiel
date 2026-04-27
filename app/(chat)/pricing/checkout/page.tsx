@@ -12,7 +12,9 @@ import { cn } from "@/lib/utils";
 
 export default function PricingCheckoutPage() {
   const params = useSearchParams();
-  const requestedPlan = (params.get("plan") ?? "plus") as PlanKey;
+
+  // ✅ FIX: optional chaining — useSearchParams() peut retourner null dans Next.js 16
+  const requestedPlan = (params?.get("plan") ?? "plus") as PlanKey;
   const plan = requestedPlan in planDefinitions ? requestedPlan : "plus";
   const { activateByCode, isActivating } = useSubscriptionPlan();
 
@@ -26,7 +28,10 @@ export default function PricingCheckoutPage() {
   const [postalCode, setPostalCode] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [code, setCode] = useState("");
-  const [feedback, setFeedback] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
 
   const includedFeatures = useMemo(
     () => [
@@ -95,7 +100,10 @@ export default function PricingCheckoutPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 md:p-8">
-      <Link className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" href="/pricing">
+      <Link
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        href="/pricing"
+      >
         <ArrowLeft className="size-4" />
         Retour aux forfaits
       </Link>
@@ -104,24 +112,74 @@ export default function PricingCheckoutPage() {
         <div className="space-y-3">
           <h1 className="text-2xl font-semibold">Configurer votre forfait</h1>
           <p className="text-sm text-muted-foreground">
-            Renseignez vos informations de facturation pour finaliser l&apos;activation de votre forfait.
+            Renseignez vos informations de facturation pour finaliser
+            l&apos;activation de votre forfait.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Input placeholder="Prénom" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-            <Input placeholder="Nom" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-            <Input className="sm:col-span-2" placeholder="Adresse e-mail" value={email} onChange={(event) => setEmail(event.target.value)} />
-            <Input className="sm:col-span-2" placeholder="Téléphone (optionnel)" value={phone} onChange={(event) => setPhone(event.target.value)} />
-            <Input className="sm:col-span-2" placeholder="Adresse" value={address} onChange={(event) => setAddress(event.target.value)} />
-            <Input placeholder="Ville" value={city} onChange={(event) => setCity(event.target.value)} />
-            <Input placeholder="Pays" value={country} onChange={(event) => setCountry(event.target.value)} />
-            <Input placeholder="Code postal" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} />
-            <Input className="sm:col-span-2" placeholder={`Code ${planDefinitions[plan].label}`} value={code} onChange={(event) => setCode(event.target.value)} />
+            <Input
+              placeholder="Prénom"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+            />
+            <Input
+              placeholder="Nom"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+            />
+            <Input
+              className="sm:col-span-2"
+              placeholder="Adresse e-mail"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <Input
+              className="sm:col-span-2"
+              placeholder="Téléphone (optionnel)"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+            />
+            <Input
+              className="sm:col-span-2"
+              placeholder="Adresse"
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+            />
+            <Input
+              placeholder="Ville"
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+            />
+            <Input
+              placeholder="Pays"
+              value={country}
+              onChange={(event) => setCountry(event.target.value)}
+            />
+            <Input
+              placeholder="Code postal"
+              value={postalCode}
+              onChange={(event) => setPostalCode(event.target.value)}
+            />
+            <Input
+              className="sm:col-span-2"
+              placeholder={`Code ${planDefinitions[plan].label}`}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
           </div>
           <label className="mt-1 flex items-start gap-2 text-sm">
-            <input checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} type="checkbox" />
-            J&apos;accepte les conditions d&apos;utilisation et la politique de confidentialité.
+            <input
+              checked={termsAccepted}
+              onChange={(event) => setTermsAccepted(event.target.checked)}
+              type="checkbox"
+            />
+            J&apos;accepte les conditions d&apos;utilisation et la politique de
+            confidentialité.
           </label>
-          <Button disabled={isActivating || !isFormValid} onClick={submit} type="button">
+          <Button
+            disabled={isActivating || !isFormValid}
+            onClick={submit}
+            type="button"
+          >
             <CreditCard className="mr-2 size-4" />
             {isActivating ? "Validation..." : "Passer au forfait et activer"}
           </Button>
@@ -129,7 +187,9 @@ export default function PricingCheckoutPage() {
             <p
               className={cn(
                 "text-sm",
-                feedback.type === "success" ? "text-emerald-600" : "text-rose-600"
+                feedback.type === "success"
+                  ? "text-emerald-600"
+                  : "text-rose-600"
               )}
             >
               {feedback.text}
@@ -137,9 +197,15 @@ export default function PricingCheckoutPage() {
           ) : null}
         </div>
         <aside className="rounded-xl border border-border/50 bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Forfait sélectionné</p>
-          <p className="mt-2 text-2xl font-semibold">{planDefinitions[plan].label}</p>
-          <p className="mt-2 text-sm text-muted-foreground">Fonctionnalités incluses</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Forfait sélectionné
+          </p>
+          <p className="mt-2 text-2xl font-semibold">
+            {planDefinitions[plan].label}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Fonctionnalités incluses
+          </p>
           <ul className="mt-3 space-y-2 text-sm">
             {includedFeatures.map((feature) => (
               <li className="flex items-start gap-2" key={feature}>

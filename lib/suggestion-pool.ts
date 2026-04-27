@@ -13,6 +13,48 @@ const suggestionPoolByLanguage: Record<AppLanguage, string[]> = {
     "Aiutami a strutturare una base di conoscenza per il mio team.",
     "Proponi 5 idee di contenuto per presentare il mio prodotto.",
   ],
+  pt: [
+    "Escreva um plano de projeto para lançar um novo recurso de IA.",
+    "Crie um resumo semanal de ações com prioridades.",
+    "Ajude-me a estruturar uma base de conhecimento para minha equipe.",
+    "Sugira 5 ideias de conteúdo para apresentar meu produto.",
+  ],
+  zh: [
+    "为新 AI 功能制定项目启动计划。",
+    "整理本周任务并按优先级排序。",
+    "帮助我搭建团队知识库结构。",
+    "给我 5 个展示产品的内容创意。",
+  ],
+  ar: [
+    "اكتب خطة مشروع لإطلاق ميزة ذكاء اصطناعي جديدة.",
+    "أنشئ ملخصًا أسبوعيًا للمهام مع الأولويات.",
+    "ساعدني في تنظيم قاعدة معرفة لفريقي.",
+    "اقترح 5 أفكار محتوى لعرض منتجي.",
+  ],
+  ko: [
+    "새로운 AI 기능 출시를 위한 프로젝트 계획을 작성해줘.",
+    "우선순위가 포함된 주간 실행 요약을 만들어줘.",
+    "팀 지식 베이스 구조를 설계하는 걸 도와줘.",
+    "제품을 소개할 콘텐츠 아이디어 5가지를 제안해줘.",
+  ],
+  pl: [
+    "Przygotuj plan projektu wdrożenia nowej funkcji AI.",
+    "Stwórz tygodniowe podsumowanie działań z priorytetami.",
+    "Pomóż mi uporządkować bazę wiedzy dla zespołu.",
+    "Zaproponuj 5 pomysłów na treści prezentujące mój produkt.",
+  ],
+  hr: [
+    "Napiši plan projekta za lansiranje nove AI funkcionalnosti.",
+    "Napravi tjedni sažetak aktivnosti s prioritetima.",
+    "Pomozi mi strukturirati bazu znanja za moj tim.",
+    "Predloži 5 ideja sadržaja za predstavljanje proizvoda.",
+  ],
+  sv: [
+    "Skriv en projektplan för att lansera en ny AI-funktion.",
+    "Skapa en veckosammanfattning av åtgärder med prioriteringar.",
+    "Hjälp mig strukturera en kunskapsbas för mitt team.",
+    "Föreslå 5 innehållsidéer för att presentera min produkt.",
+  ],
   fr: [
     "Rédige un plan projet pour lancer une nouvelle fonctionnalité IA.",
     "Crée un résumé des actions à faire cette semaine avec priorités.",

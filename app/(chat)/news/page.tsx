@@ -54,7 +54,12 @@ export default function NewsPage() {
     defaultExtensionAiModel
   );
 
+  // ✅ FIX: null guard ajouté — useSearchParams() peut retourner null dans Next.js 16
   useEffect(() => {
+    if (!searchParams) {
+      return;
+    }
+
     const modelFromRoute = searchParams.get("model");
     if (!modelFromRoute) {
       return;

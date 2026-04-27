@@ -1,5 +1,5 @@
+import { hordeTextModelOptions } from "@/lib/ai/horde-models";
 export const DEFAULT_CHAT_MODEL = "gpt-5.5";
-
 export const titleModel = {
   id: "gpt-5.5",
   name: "GPT-5.5",
@@ -136,125 +136,13 @@ export const chatModels: ChatModel[] = [
   },
 
   // ── AI Horde (Text) ───────────────────────────────────────────────────
-  {
-    id: "horde/Cydonia-24B-v4.3",
-    name: "Cydonia-24B-v4.3",
+  ...hordeTextModelOptions.map((model) => ({
+    id: model.id,
+    name: model.label,
     provider: "horde",
-    description: "Modèle texte AI Horde orienté génération générale.",
+    description: "Modèle texte AI Horde.",
     capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Skyfall-31B-v4.1",
-    name: "Skyfall-31B-v4.1",
-    provider: "horde",
-    description: "Modèle texte AI Horde 31B orienté dialogue.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Gemma-4-31B-it",
-    name: "Gemma-4-31B-it",
-    provider: "horde",
-    description: "Modèle texte AI Horde Gemma instruction-tuned.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Behemoth-R1-123B-v2-w4a16",
-    name: "Behemoth-R1-123B-v2-w4a16",
-    provider: "horde",
-    description: "Modèle texte AI Horde très grande capacité.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Ministral-3-8B-Instruct-2512",
-    name: "Ministral-3-8B-Instruct-2512",
-    provider: "horde",
-    description: "Modèle texte AI Horde compact et rapide.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Rocinante-XL-16B-v1a-Q4_K_M",
-    name: "Rocinante-XL-16B-v1a-Q4_K_M",
-    provider: "horde",
-    description: "Modèle texte AI Horde orienté performances équilibrées.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/L3-8B-Stheno-v3.2",
-    name: "L3-8B-Stheno-v3.2",
-    provider: "horde",
-    description: "Modèle texte AI Horde 8B à faible latence.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/mini-magnum-12b-v1.1",
-    name: "mini-magnum-12b-v1.1",
-    provider: "horde",
-    description: "Modèle texte AI Horde mid-size orienté chat.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/MN-12B-Mag-Mell-R1.Q5_K_M",
-    name: "MN-12B-Mag-Mell-R1.Q5_K_M",
-    provider: "horde",
-    description: "Modèle texte AI Horde spécialisé rôleplay/raisonnement.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Artemis-31B-v1b-Q4_K_M",
-    name: "Artemis-31B-v1b-Q4_K_M",
-    provider: "horde",
-    description: "Modèle texte AI Horde 31B.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/pygmalion-2-7b.Q4_K_M",
-    name: "pygmalion-2-7b.Q4_K_M",
-    provider: "horde",
-    description: "Modèle texte AI Horde 7B conversationnel.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/L3-Super-Nova-RP-8B",
-    name: "L3-Super-Nova-RP-8B",
-    provider: "horde",
-    description: "Modèle texte AI Horde RP 8B.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/WizzGPTv8",
-    name: "WizzGPTv8",
-    provider: "horde",
-    description: "Modèle texte AI Horde polyvalent.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Qwen_Qwen3-0.6B-IQ4_XS",
-    name: "Qwen_Qwen3-0.6B-IQ4_XS",
-    provider: "horde",
-    description: "Modèle texte AI Horde Qwen compact.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/LFM2.5-1.2B-Instruct",
-    name: "LFM2.5-1.2B-Instruct",
-    provider: "horde",
-    description: "Modèle texte AI Horde léger orienté instructions.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/HY-MT1.5-1.8B",
-    name: "HY-MT1.5-1.8B",
-    provider: "horde",
-    description: "Modèle texte AI Horde compact pour requêtes rapides.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
-  {
-    id: "horde/Qwen3-30B-A3B-abliterated-erotic",
-    name: "Qwen3-30B-A3B-abliterated-erotic",
-    provider: "horde",
-    description: "Modèle texte AI Horde Qwen3 30B.",
-    capabilities: { tools: true, vision: false, reasoning: true },
-  },
+  })),
 
   // ── Ollama (Text local) ───────────────────────────────────────────────
   {

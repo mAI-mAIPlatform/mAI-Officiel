@@ -29,6 +29,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,9 @@ import { NotificationsSection } from "./sections/notifications-section";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v018";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const DEFAULT_COOKER_MODEL_KEY = "mai.settings.default.cooker-model.v1";
+const DEFAULT_HEALTH_MODEL_KEY = "mai.settings.default.health-model.v1";
+const DEFAULT_QUIZZLY_MODEL_KEY = "mai.settings.default.quizzly-model.v1";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const ACCESSIBILITY_SETTINGS_STORAGE_KEY = "mai.settings.accessibility.v1";
 const VOICE_SETTINGS_STORAGE_KEY = "mai.voice.settings.v1";
@@ -180,11 +184,102 @@ const settingsLabels = {
     stats: "Statistiche",
     tasks: "Attività",
   },
+  pt: {
+    about: "Sobre",
+    account: "Conta",
+    credits: "Créditos",
+    data: "Dados",
+    navigation: "Navegação das definições",
+    notifications: "Acessibilidade",
+    parental: "Controlo parental",
+    personalization: "Personalização de IA",
+    settings: "Definições",
+    stats: "Estatísticas",
+    tasks: "Tarefas",
+  },
+  zh: {
+    about: "关于",
+    account: "账户",
+    credits: "积分",
+    data: "数据",
+    navigation: "设置导航",
+    notifications: "无障碍",
+    parental: "家长控制",
+    personalization: "AI 个性化",
+    settings: "设置",
+    stats: "统计",
+    tasks: "任务",
+  },
+  ar: {
+    about: "حول",
+    account: "الحساب",
+    credits: "الأرصدة",
+    data: "البيانات",
+    navigation: "تنقّل الإعدادات",
+    notifications: "إمكانية الوصول",
+    parental: "الرقابة الأبوية",
+    personalization: "تخصيص الذكاء الاصطناعي",
+    settings: "الإعدادات",
+    stats: "الإحصاءات",
+    tasks: "المهام",
+  },
+  ko: {
+    about: "정보",
+    account: "계정",
+    credits: "크레딧",
+    data: "데이터",
+    navigation: "설정 탐색",
+    notifications: "접근성",
+    parental: "자녀 보호",
+    personalization: "AI 사용자화",
+    settings: "설정",
+    stats: "통계",
+    tasks: "작업",
+  },
+  pl: {
+    about: "O aplikacji",
+    account: "Konto",
+    credits: "Kredyty",
+    data: "Dane",
+    navigation: "Nawigacja ustawień",
+    notifications: "Ułatwienia dostępu",
+    parental: "Kontrola rodzicielska",
+    personalization: "Personalizacja AI",
+    settings: "Ustawienia",
+    stats: "Statystyki",
+    tasks: "Zadania",
+  },
+  hr: {
+    about: "O aplikaciji",
+    account: "Račun",
+    credits: "Krediti",
+    data: "Podaci",
+    navigation: "Navigacija postavki",
+    notifications: "Pristupačnost",
+    parental: "Roditeljska kontrola",
+    personalization: "Prilagodba AI-ja",
+    settings: "Postavke",
+    stats: "Statistika",
+    tasks: "Zadaci",
+  },
+  sv: {
+    about: "Om",
+    account: "Konto",
+    credits: "Krediter",
+    data: "Data",
+    navigation: "Inställningsnavigering",
+    notifications: "Tillgänglighet",
+    parental: "Föräldrakontroll",
+    personalization: "AI-anpassning",
+    settings: "Inställningar",
+    stats: "Statistik",
+    tasks: "Uppgifter",
+  },
   fr: {
     about: "À propos",
     account: "Compte",
     credits: "Crédits",
-    data: "Données",
+    data: "Compte & Sécurité",
     navigation: "Navigation des paramètres",
     notifications: "Accessibilité",
     parental: "Contrôle parental",
@@ -228,6 +323,7 @@ type ProfileSettingsShape = {
   avatarDataUrl?: string;
   avatarId: string;
   displayName: string;
+  bio?: string;
   personalContext: string;
   profession: string;
   projectDescription: string;
@@ -267,7 +363,7 @@ type ParentalSettings = {
 };
 
 type AccessibilitySettings = {
-  fontFamily: "inter" | "open-dyslexic";
+  fontFamily: "inter" | "open-dyslexic" | "lexend" | "atkinson" | "source-serif";
   fontScale: number;
 };
 
@@ -318,6 +414,7 @@ const defaultProfileSettings: ProfileSettingsShape = {
   avatarDataUrl: undefined,
   avatarId: "aurora",
   displayName: "",
+  bio: "",
   personalContext: "",
   profession: "",
   projectDescription: "",
@@ -552,6 +649,7 @@ export default function SettingsPage() {
   const [showWordCounter, setShowWordCounter] = useState(false);
   const [interfaceLanguage, setInterfaceLanguage] = useState<AppLanguage>("fr");
   const [profileName, setProfileName] = useState("");
+  const [profileBio, setProfileBio] = useState("");
   const [defaultTextModel, setDefaultTextModel] = useState(
     FALLBACK_DEFAULT_TEXT_MODEL
   );
@@ -561,6 +659,9 @@ export default function SettingsPage() {
   const [defaultMusicModel, setDefaultMusicModel] = useState(
     FALLBACK_DEFAULT_MUSIC_MODEL
   );
+  const [defaultCookerModel, setDefaultCookerModel] = useState("gpt-5.5");
+  const [defaultHealthModel, setDefaultHealthModel] = useState("gpt-5.4-mini");
+  const [defaultQuizzlyModel, setDefaultQuizzlyModel] = useState("gpt-5.4-mini");
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
@@ -587,6 +688,7 @@ export default function SettingsPage() {
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
+  const [settingsSearch, setSettingsSearch] = useState("");
   const [positionEnabled, setPositionEnabled] = useState(false);
   const [positionLabel, setPositionLabel] = useState("");
   const [isResolvingPosition, setIsResolvingPosition] = useState(false);
@@ -653,7 +755,9 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
-  const uiLabels = settingsLabels[interfaceLanguage];
+  const uiLabels =
+    settingsLabels[interfaceLanguage as keyof typeof settingsLabels] ??
+    settingsLabels.fr;
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
       return ["none", "low", "medium", "high"];
@@ -698,7 +802,12 @@ export default function SettingsPage() {
         const parsed = JSON.parse(rawAccessibility) as Partial<AccessibilitySettings>;
         setAccessibilitySettings((current) => ({
           fontFamily:
-            parsed.fontFamily === "open-dyslexic" ? "open-dyslexic" : "inter",
+            parsed.fontFamily === "open-dyslexic" ||
+            parsed.fontFamily === "lexend" ||
+            parsed.fontFamily === "atkinson" ||
+            parsed.fontFamily === "source-serif"
+              ? parsed.fontFamily
+              : "inter",
           fontScale:
             typeof parsed.fontScale === "number"
               ? Math.min(1.4, Math.max(0.85, parsed.fontScale))
@@ -816,6 +925,7 @@ export default function SettingsPage() {
     );
     if (!savedProfile) {
       setProfileName(defaultProfileSettings.displayName);
+      setProfileBio(defaultProfileSettings.bio ?? "");
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
       setAiBehavior({ concision: 50, register: 50, tone: 50 });
@@ -842,6 +952,7 @@ export default function SettingsPage() {
       const nextMemoryEntries =
         parsedMemoryEntries.length > 0 ? parsedMemoryEntries : fallbackEntries;
       setProfileName(parsed.displayName?.trim() ?? "");
+      setProfileBio(parsed.bio?.trim() ?? "");
       setProfileLogoDataUrl(parsed.avatarDataUrl);
       setProfession(parsed.profession ?? "");
       setAiBehavior({
@@ -875,6 +986,7 @@ export default function SettingsPage() {
     } catch {
       // Ignore un éventuel JSON invalide pour ne pas bloquer l'écran.
       setProfileName(defaultProfileSettings.displayName);
+      setProfileBio(defaultProfileSettings.bio ?? "");
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
       setAiBehavior({ concision: 50, register: 50, tone: 50 });
@@ -977,6 +1089,7 @@ export default function SettingsPage() {
             ? parsed.avatarId
             : defaultProfileSettings.avatarId,
         displayName: profileName.trim(),
+        bio: profileBio.trim(),
         personalContext,
         profession,
         stylisticDirectives: [aiPersonality.trim(), behaviorDirective]
@@ -1010,6 +1123,7 @@ export default function SettingsPage() {
           aiPersonality,
           avatarDataUrl: profileLogoDataUrl,
           displayName: profileName.trim(),
+          bio: profileBio.trim(),
           personalContext,
           profession,
           stylisticDirectives: aiPersonality.trim(),
@@ -1026,6 +1140,7 @@ export default function SettingsPage() {
     profession,
     profileLogoDataUrl,
     profileName,
+    profileBio,
   ]);
 
   useEffect(() => {
@@ -1077,10 +1192,19 @@ export default function SettingsPage() {
     const storedMusicModel =
       window.localStorage.getItem(DEFAULT_MUSIC_MODEL_KEY) ??
       FALLBACK_DEFAULT_MUSIC_MODEL;
+    const storedCookerModel =
+      window.localStorage.getItem(DEFAULT_COOKER_MODEL_KEY) ?? "gpt-5.5";
+    const storedHealthModel =
+      window.localStorage.getItem(DEFAULT_HEALTH_MODEL_KEY) ?? "gpt-5.4-mini";
+    const storedQuizzlyModel =
+      window.localStorage.getItem(DEFAULT_QUIZZLY_MODEL_KEY) ?? "gpt-5.4-mini";
 
     setDefaultTextModel(storedTextModel);
     setDefaultImageModel(storedImageModel);
     setDefaultMusicModel(storedMusicModel);
+    setDefaultCookerModel(storedCookerModel);
+    setDefaultHealthModel(storedHealthModel);
+    setDefaultQuizzlyModel(storedQuizzlyModel);
   }, []);
 
   useEffect(() => {
@@ -1094,6 +1218,15 @@ export default function SettingsPage() {
   useEffect(() => {
     window.localStorage.setItem(DEFAULT_MUSIC_MODEL_KEY, defaultMusicModel);
   }, [defaultMusicModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_COOKER_MODEL_KEY, defaultCookerModel);
+  }, [defaultCookerModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_HEALTH_MODEL_KEY, defaultHealthModel);
+  }, [defaultHealthModel]);
+  useEffect(() => {
+    window.localStorage.setItem(DEFAULT_QUIZZLY_MODEL_KEY, defaultQuizzlyModel);
+  }, [defaultQuizzlyModel]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1117,14 +1250,7 @@ export default function SettingsPage() {
     );
     const root = document.documentElement;
     root.style.setProperty("--mai-font-scale", `${accessibilitySettings.fontScale}`);
-    if (accessibilitySettings.fontFamily === "open-dyslexic") {
-      root.setAttribute("data-font-family", "open-dyslexic");
-      root.style.fontFamily =
-        "\"OpenDyslexic\", \"Open Dyslexic\", Inter, system-ui, sans-serif";
-    } else {
-      root.removeAttribute("data-font-family");
-      root.style.removeProperty("font-family");
-    }
+    root.setAttribute("data-font-family", accessibilitySettings.fontFamily);
   }, [accessibilitySettings]);
 
   useEffect(() => {
@@ -1948,6 +2074,13 @@ export default function SettingsPage() {
     { href: "#donnees", key: "donnees", label: uiLabels.data },
     { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
+  const filteredSettingsSections = settingsSections.filter((section) => {
+    const haystack = `${section.label} ${section.key}`.toLowerCase();
+    const query = settingsSearch.trim().toLowerCase();
+    if (!query) return true;
+    if (haystack.includes(query)) return true;
+    return query.split("").every((char) => haystack.includes(char));
+  });
   const sectionVisibility = (key: string) =>
     activeSettingsSection === key ? "block" : "hidden";
   const isParentalSessionUnlocked =
@@ -2013,6 +2146,17 @@ export default function SettingsPage() {
       type: "success",
     });
   };
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key !== ",") return;
+      event.preventDefault();
+      setActiveSettingsSection("compte");
+      toast.success("Paramètres ouverts.");
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
 
   const handleUnlockParentalSection = () => {
     if (!parentalSettings.lockCodeHash) {
@@ -2138,8 +2282,14 @@ export default function SettingsPage() {
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           {uiLabels.navigation}
         </p>
+        <Input
+          className="mt-3"
+          onChange={(event) => setSettingsSearch(event.target.value)}
+          placeholder="Rechercher un paramètre (ex: voix, PIN, export...)"
+          value={settingsSearch}
+        />
         <div className="mt-3 flex flex-wrap gap-2">
-          {settingsSections.map((item) => (
+          {filteredSettingsSections.map((item) => (
             <a
               className={cn(
                 "rounded-full border px-3 py-1 text-xs transition-colors",
@@ -2308,7 +2458,49 @@ export default function SettingsPage() {
               >
                 {defaultWaveModelOptions.map((waveModelId) => (
                   <option key={waveModelId} value={waveModelId}>
-                    {waveModelId}
+                    {waveModelId.replaceAll("_", ".")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Cooker
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultCookerModel(event.target.value)}
+                value={defaultCookerModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`cooker-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Health
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultHealthModel(event.target.value)}
+                value={defaultHealthModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`health-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Quizzly
+              <select
+                className="mai-select mt-1 w-full"
+                onChange={(event) => setDefaultQuizzlyModel(event.target.value)}
+                value={defaultQuizzlyModel}
+              >
+                {chatModels.map((modelOption) => (
+                  <option key={`quizzly-${modelOption.id}`} value={modelOption.id}>
+                    {modelOption.name}
                   </option>
                 ))}
               </select>
@@ -2425,6 +2617,35 @@ export default function SettingsPage() {
             />
           </div>
         </div>
+        <div className="mt-4 space-y-2">
+          <label className="text-xs text-muted-foreground" htmlFor="profile-bio">
+            Bio courte
+          </label>
+          <Input
+            id="profile-bio"
+            maxLength={120}
+            onChange={(event) => setProfileBio(event.target.value)}
+            placeholder="Ex: Passionné(e) de sciences et de code."
+            value={profileBio}
+          />
+          {(() => {
+            const fields = [
+              profileName.trim().length > 0,
+              profession.trim().length > 0,
+              profileBio.trim().length > 0,
+              Boolean(profileLogoDataUrl),
+            ];
+            const completion = Math.round((fields.filter(Boolean).length / fields.length) * 100);
+            return (
+              <div>
+                <p className="text-[11px] text-muted-foreground">Complétude du profil: {completion}%</p>
+                <div className="mt-1 h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-violet-500 transition-all" style={{ width: `${completion}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+        </div>
 
         <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="text-sm font-medium">Affichage du compteur de saisie</p>
@@ -2482,8 +2703,11 @@ export default function SettingsPage() {
                   setAccessibilitySettings((current) => ({
                     ...current,
                     fontFamily:
-                      event.target.value === "open-dyslexic"
-                        ? "open-dyslexic"
+                      event.target.value === "open-dyslexic" ||
+                      event.target.value === "lexend" ||
+                      event.target.value === "atkinson" ||
+                      event.target.value === "source-serif"
+                        ? event.target.value
                         : "inter",
                   }))
                 }
@@ -2491,6 +2715,9 @@ export default function SettingsPage() {
               >
                 <option value="inter">Inter (par défaut)</option>
                 <option value="open-dyslexic">Open Dyslexic</option>
+                <option value="lexend">Lexend</option>
+                <option value="atkinson">Atkinson Hyperlegible</option>
+                <option value="source-serif">Source Serif 4</option>
               </select>
             </label>
             <label className="text-xs">
@@ -3791,33 +4018,32 @@ export default function SettingsPage() {
             {creditMetrics.map((metric) => {
               const ratio = metric.limit > 0 ? metric.used / metric.limit : 1;
               const remaining = Math.max(0, metric.limit - metric.used);
+              const availablePercent = Math.max(
+                0,
+                Math.min(100, Math.round((1 - ratio) * 100))
+              );
               return (
                 <article
-                  className="rounded-xl border border-border/60 bg-background/60 p-3"
+                  className="rounded-xl border border-border/60 bg-background/70 p-3 shadow-sm"
                   key={metric.key}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{metric.title}</p>
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        getCreditBadgeColor(1 - ratio)
-                      )}
-                    >
-                      {remaining}/{metric.limit}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted">
+                  <p className="text-sm font-semibold">{metric.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Réinitialisation {formatDateTime(getNextResetDate(metric.period))}
+                  </p>
+                  <div className="mt-3 h-3 rounded-full bg-muted/70 p-0.5">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-400 transition-all duration-500"
                       style={{
-                        width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
+                        width: `${availablePercent}%`,
                       }}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Réinitialisation:{" "}
-                    {formatDateTime(getNextResetDate(metric.period))}
+                  <p className="mt-2 text-lg font-bold">
+                    {availablePercent}%
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Restant: {remaining}/{metric.limit}
                   </p>
                 </article>
               );

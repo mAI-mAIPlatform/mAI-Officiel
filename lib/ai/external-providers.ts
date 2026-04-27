@@ -1,6 +1,7 @@
 import type { ModelMessage } from "ai";
 import OpenAI from "openai";
 import { extractTextFromResponsesPayload } from "@/lib/responses-text-extractor";
+import { hordeModelMapping } from "@/lib/ai/horde-models";
 export { extractTextFromResponsesPayload } from "@/lib/responses-text-extractor";
 
 const FS_API_BASE_URL =
@@ -48,27 +49,6 @@ const ollamaModelMapping: Record<string, string> = {
   "ollama/mixtral:8x7b": "mixtral:8x7b",
   "ollama/deepseek-r1": "deepseek-r1",
   "ollama/gemma2:9b": "gemma2:9b",
-};
-
-const hordeModelMapping: Record<string, string> = {
-  "horde/Cydonia-24B-v4.3": "Cydonia-24B-v4.3",
-  "horde/Skyfall-31B-v4.1": "Skyfall-31B-v4.1",
-  "horde/Gemma-4-31B-it": "Gemma-4-31B-it",
-  "horde/Behemoth-R1-123B-v2-w4a16": "Behemoth-R1-123B-v2-w4a16",
-  "horde/Ministral-3-8B-Instruct-2512": "Ministral-3-8B-Instruct-2512",
-  "horde/Rocinante-XL-16B-v1a-Q4_K_M": "Rocinante-XL-16B-v1a-Q4_K_M",
-  "horde/L3-8B-Stheno-v3.2": "L3-8B-Stheno-v3.2",
-  "horde/mini-magnum-12b-v1.1": "mini-magnum-12b-v1.1",
-  "horde/MN-12B-Mag-Mell-R1.Q5_K_M": "MN-12B-Mag-Mell-R1.Q5_K_M",
-  "horde/Artemis-31B-v1b-Q4_K_M": "Artemis-31B-v1b-Q4_K_M",
-  "horde/pygmalion-2-7b.Q4_K_M": "pygmalion-2-7b.Q4_K_M",
-  "horde/L3-Super-Nova-RP-8B": "L3-Super-Nova-RP-8B",
-  "horde/WizzGPTv8": "WizzGPTv8",
-  "horde/Qwen_Qwen3-0.6B-IQ4_XS": "Qwen_Qwen3-0.6B-IQ4_XS",
-  "horde/LFM2.5-1.2B-Instruct": "LFM2.5-1.2B-Instruct",
-  "horde/HY-MT1.5-1.8B": "HY-MT1.5-1.8B",
-  "horde/Qwen3-30B-A3B-abliterated-erotic":
-    "Qwen3-30B-A3B-abliterated-erotic",
 };
 
 const openRouterModelMapping: Record<string, string> = {

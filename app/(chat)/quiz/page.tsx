@@ -14,10 +14,14 @@ type QuizQuestion = {
 
 export default function QuizPage() {
   const params = useSearchParams();
-  const topic = params.get("topic") ?? "culture générale";
-  const difficulty = params.get("difficulty") ?? "moyen";
-  const questionCount = Math.min(30, Math.max(2, Number(params.get("count") ?? 5)));
-  const timerMinutes = Math.min(120, Math.max(1, Number(params.get("timer") ?? 10)));
+
+  // ✅ FIX: optional chaining sur les 4 appels à params.get()
+  // useSearchParams() peut retourner null dans Next.js 16
+  const topic = params?.get("topic") ?? "culture générale";
+  const difficulty = params?.get("difficulty") ?? "moyen";
+  const questionCount = Math.min(30, Math.max(2, Number(params?.get("count") ?? 5)));
+  const timerMinutes = Math.min(120, Math.max(1, Number(params?.get("timer") ?? 10)));
+
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [isGenerating, setIsGenerating] = useState(true);
   const [generationError, setGenerationError] = useState<string | null>(null);

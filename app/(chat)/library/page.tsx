@@ -3,7 +3,9 @@
 import {
   Copy,
   Download,
+  EllipsisVertical,
   Eye,
+  FileText,
   Heart,
   Pencil,
   Pin,
@@ -27,6 +29,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 
 type LibraryAssetType = "image" | "document";
@@ -83,6 +91,7 @@ export default function LibraryPage() {
   const [previewAsset, setPreviewAsset] = useState<LibraryAsset | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortMode, setSortMode] = useState<SortMode>("date");
+  const [summaryByAssetId, setSummaryByAssetId] = useState<Record<string, string>>({});
 
   const storageLimit = useMemo(() => {
     if (plan === "max") {
@@ -301,6 +310,35 @@ export default function LibraryPage() {
     toast.success("Fichier prêt à être utilisé dans le chat.");
   };
 
+  const summarizeAsset = async (asset: LibraryAsset) => {
+    try {
+      let content = "";
+      if (asset.url.startsWith("data:text")) {
+        const [, encoded = ""] = asset.url.split(",", 2);
+        content = decodeURIComponent(encoded);
+      } else if (asset.url.startsWith("blob:")) {
+        const response = await fetch(asset.url);
+        content = await response.text();
+      } else {
+        content = asset.name;
+      }
+
+      const response = await fetch("/api/library/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: asset.name, content: content.slice(0, 12000) }),
+      });
+      const payload = (await response.json()) as { summary?: string; error?: string };
+      if (!response.ok || !payload.summary) {
+        throw new Error(payload.error ?? "Résumé indisponible");
+      }
+      setSummaryByAssetId((current) => ({ ...current, [asset.id]: payload.summary ?? "" }));
+      toast.success("Résumé IA généré.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Échec du résumé.");
+    }
+  };
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-5 overflow-y-auto p-6 md:p-10">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -398,25 +436,36 @@ export default function LibraryPage() {
             >
               <div className="mb-3 flex items-center justify-between">
                 <div />
-                <button
-                  className="rounded-md p-1 hover:bg-muted"
-                  onClick={() =>
-                    setAssets((current) =>
-                      current.map((currentAsset) =>
-                        currentAsset.id === asset.id
-                          ? { ...currentAsset, pinned: !currentAsset.pinned }
-                          : currentAsset
-                      )
-                    )
-                  }
-                  type="button"
-                >
-                  {asset.pinned ? (
-                    <PinOff className="size-4 text-amber-500" />
-                  ) : (
-                    <Pin className="size-4" />
-                  )}
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="rounded-md p-1 hover:bg-muted" type="button">
+                      <EllipsisVertical className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => handleOpenAsset(asset)}><Eye className="mr-2 size-4" />Ouvrir</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => summarizeAsset(asset)}><FileText className="mr-2 size-4" />Résumer (IA)</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => openRenameEditor(asset)}><Pencil className="mr-2 size-4" />Renommer</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => duplicateAsset(asset)}><Copy className="mr-2 size-4" />Dupliquer</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        setAssets((current) =>
+                          current.map((currentAsset) =>
+                            currentAsset.id === asset.id
+                              ? { ...currentAsset, pinned: !currentAsset.pinned }
+                              : currentAsset
+                          )
+                        )
+                      }
+                    >
+                      {asset.pinned ? <PinOff className="mr-2 size-4" /> : <Pin className="mr-2 size-4" />}
+                      {asset.pinned ? "Désépingler" : "Épingler"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setAssetToDelete(asset.id)} className="text-red-600">
+                      <Trash2 className="mr-2 size-4" />Supprimer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {asset.url ? (
@@ -510,6 +559,12 @@ export default function LibraryPage() {
                   <Trash2 className="mr-1 size-3.5" /> Supprimer
                 </Button>
               </div>
+              {summaryByAssetId[asset.id] ? (
+                <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-2 text-xs text-violet-900">
+                  <p className="font-semibold">Résumé IA</p>
+                  <p className="mt-1 whitespace-pre-wrap">{summaryByAssetId[asset.id]}</p>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

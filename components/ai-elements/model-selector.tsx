@@ -49,6 +49,11 @@ export const ModelSelectorContent = ({
     )}
     side="top"
     sideOffset={8}
+    onOpenAutoFocus={(event) => {
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+        event.preventDefault();
+      }
+    }}
     {...props}
   >
     <Command className="**:data-[slot=command-input-wrapper]:h-auto">
@@ -63,7 +68,17 @@ export const ModelSelectorInput = ({
   className,
   ...props
 }: ModelSelectorInputProps) => (
-  <CommandInput className={cn("h-auto py-2.5 text-[13px]", className)} {...props} />
+  <CommandInput
+    {...props}
+    autoFocus={false}
+    className={cn("h-auto py-2.5 text-[13px]", className)}
+    onFocus={(event) => {
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+        event.currentTarget.blur();
+      }
+      props.onFocus?.(event);
+    }}
+  />
 );
 
 export type ModelSelectorListProps = ComponentProps<typeof CommandList>;

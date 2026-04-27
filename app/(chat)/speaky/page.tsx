@@ -2,18 +2,31 @@
 
 import {
   Download,
+  CircleHelp,
+  FileText,
   Gauge,
   LibraryBig,
   Loader2,
+  Moon,
+  Pause,
   Play,
   Sparkles,
   Square,
+  Upload,
   Volume,
+  Sun,
   Waves,
+  Wand2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
+import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
+import {
+  SPEAKY_PUBLIC_GALLERY_STORAGE_KEY,
+  type PublicSpeakyCreation,
+  type SpeakyGalleryCategory,
+} from "@/lib/speaky-gallery";
 import { addStatsEvent } from "@/lib/user-stats";
 
 type SpeakyResponse = {
@@ -26,6 +39,131 @@ type SpeakyResponse = {
 };
 
 type VoiceStyle = "narratif" | "conversationnel" | "énergique";
+type GenerationMode = "batch" | "podcast";
+type OutputFormat = "mp3" | "wav";
+
+type BatchUnit = {
+  text: string;
+  voice: string;
+  label: string;
+};
+
+type PresetCategory =
+  | "narration"
+  | "education"
+  | "entertainment"
+  | "professional"
+  | "creative";
+
+type AdvancedVoiceProfile = {
+  emphasisWords: string[];
+  pauseSeconds: number;
+  volume: number;
+};
+
+type AudioPreset = {
+  id: string;
+  title: string;
+  language: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  advanced: AdvancedVoiceProfile;
+  category?: PresetCategory;
+  community?: boolean;
+};
+
+type TemplateCategory =
+  | "education"
+  | "professional"
+  | "creative"
+  | "personal";
+
+type TextTemplate = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  level?: string;
+  text: string;
+  usageCount: number;
+  rating: number;
+  recommendedPreset: AudioPreset;
+};
+
+type ScriptEditorMode = "standard" | "advanced";
+
+type MarkerType =
+  | "pause"
+  | "emphasis"
+  | "whisper"
+  | "spell"
+  | "pronounce";
+
+type SpeakyWorkspaceMode = "generator" | "projects";
+
+type CollaborationSection = {
+  id: string;
+  title: string;
+  text: string;
+  assignee: string;
+  color: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  status: "pending" | "in_progress" | "done";
+  audioUrl?: string;
+};
+
+type SectionComment = {
+  id: string;
+  sectionId: string;
+  author: string;
+  content: string;
+  createdAt: string;
+};
+
+type ProjectVersion = {
+  id: string;
+  label: string;
+  createdAt: string;
+  sections: CollaborationSection[];
+};
+
+type CollaborativeProject = {
+  id: string;
+  title: string;
+  description: string;
+  owner: string;
+  inviteCode: string;
+  collaborators: string[];
+  sections: CollaborationSection[];
+  comments: SectionComment[];
+  versions: ProjectVersion[];
+  assembledAudioUrl?: string;
+};
+
+type GenerationMethod = "cloud" | "web-speech";
+
+type HistoryEntry = {
+  id: string;
+  title: string;
+  createdAt: string;
+  pinned?: boolean;
+  text: string;
+  language: string;
+  voice: string;
+  voiceStyle: VoiceStyle;
+  voiceGender: "homme" | "femme";
+  rate: number;
+  tone: number;
+  method: GenerationMethod;
+  durationSec: number;
+  url: string;
+};
 
 const LANGUAGE_OPTIONS = [
   { code: "fr", label: "Français" },
@@ -65,6 +203,362 @@ const VOICES_BY_LANGUAGE: Record<string, string[]> = {
   zh: ["Zhiyu"],
 };
 
+const PODCAST_TEMPLATES = [
+  {
+    label: "Interview à deux voix",
+    value:
+      "[Lea]\nBonjour Mathieu, merci d'être avec nous aujourd'hui.\n\n[Mathieu]\nMerci Lea, je suis ravi de partager cette discussion avec vous.",
+  },
+  {
+    label: "Narration + commentateur",
+    value:
+      "[Lea]\nBienvenue dans notre épisode hebdomadaire consacré à l'innovation.\n\n[Mathieu]\nPoint clé du jour : les assistants IA deviennent multimodaux et collaboratifs.",
+  },
+  {
+    label: "Dialogue éducatif",
+    value:
+      "[Lea]\nAujourd'hui, on apprend comment fonctionne la photosynthèse.\n\n[Mathieu]\nExcellente idée. Les plantes utilisent la lumière pour transformer l'eau et le CO₂ en énergie.",
+  },
+] as const;
+
+const VOICE_COLORS = [
+  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
+  "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+];
+
+const CATEGORY_LABELS: Record<PresetCategory, string> = {
+  narration: "Narration",
+  education: "Éducation",
+  entertainment: "Divertissement",
+  professional: "Professionnel",
+  creative: "Créatif",
+};
+
+const SAMPLE_TEXT_BY_LANGUAGE: Record<string, string> = {
+  fr: "Exemple audio rapide pour ce preset Speaky.",
+  en: "Quick audio preview for this Speaky preset.",
+  es: "Vista previa rápida de audio para este preset.",
+  de: "Kurze Audiovorschau für dieses Preset.",
+  it: "Anteprima audio rapida per questo preset.",
+  pt: "Prévia rápida de áudio para este preset.",
+  nl: "Snelle audiovoorbeeld voor deze preset.",
+  pl: "Szybki podgląd audio dla tego presetu.",
+  tr: "Bu hazır ayar için hızlı ses önizlemesi.",
+  sv: "Snabb ljudförhandsvisning för denna preset.",
+  ru: "Быстрый аудиопример для этого пресета.",
+  ar: "معاينة صوتية سريعة لهذا الإعداد.",
+  hi: "इस प्रीसेट के लिए त्वरित ऑडियो प्रीव्यू।",
+  ja: "このプリセットのクイック音声プレビューです。",
+  ko: "이 프리셋의 빠른 오디오 미리보기입니다.",
+  zh: "这是此预设的快速音频预览。",
+};
+
+const ONBOARDING_TEXT_BY_LANGUAGE: Record<string, string> = {
+  fr: "Bienvenue dans Speaky. Ceci est votre première génération guidée !",
+  en: "Welcome to Speaky. This is your first guided generation!",
+  es: "Bienvenido a Speaky. ¡Esta es tu primera generación guiada!",
+  de: "Willkommen bei Speaky. Dies ist Ihre erste geführte Generierung!",
+  it: "Benvenuto in Speaky. Questa è la tua prima generazione guidata!",
+  pt: "Bem-vindo ao Speaky. Esta é sua primeira geração guiada!",
+  nl: "Welkom bij Speaky. Dit is je eerste begeleide generatie!",
+  pl: "Witamy w Speaky. To Twoja pierwsza generacja krok po kroku!",
+  tr: "Speaky'ye hoş geldiniz. Bu ilk rehberli üretiminiz!",
+  sv: "Välkommen till Speaky. Detta är din första guidade generering!",
+  ru: "Добро пожаловать в Speaky. Это ваша первая пошаговая генерация!",
+  ar: "مرحبًا بك في Speaky. هذا أول توليد إرشادي لك!",
+  hi: "Speaky में आपका स्वागत है। यह आपकी पहली मार्गदर्शित जनरेशन है।",
+  ja: "Speakyへようこそ。これは最初のガイド付き生成です。",
+  ko: "Speaky에 오신 것을 환영합니다. 첫 가이드 생성입니다.",
+  zh: "欢迎使用 Speaky，这是你的首次引导生成。",
+};
+
+const COMMUNITY_PRESETS: AudioPreset[] = [
+  {
+    id: "community-narration-fr",
+    title: "Narration livre audio",
+    language: "fr",
+    voice: "Lea",
+    voiceStyle: "narratif",
+    voiceGender: "femme",
+    rate: 0.95,
+    tone: 0,
+    category: "narration",
+    community: true,
+    advanced: { emphasisWords: [], pauseSeconds: 0.3, volume: 1 },
+  },
+  {
+    id: "community-education-en",
+    title: "Cours clair",
+    language: "en",
+    voice: "Amy",
+    voiceStyle: "conversationnel",
+    voiceGender: "femme",
+    rate: 1,
+    tone: 1,
+    category: "education",
+    community: true,
+    advanced: { emphasisWords: ["important", "remember"], pauseSeconds: 0.2, volume: 1 },
+  },
+  {
+    id: "community-entertainment-fr",
+    title: "Voix énergique pub",
+    language: "fr",
+    voice: "Mathieu",
+    voiceStyle: "énergique",
+    voiceGender: "homme",
+    rate: 1.15,
+    tone: 2,
+    category: "entertainment",
+    community: true,
+    advanced: { emphasisWords: ["offre", "maintenant"], pauseSeconds: 0.1, volume: 1.05 },
+  },
+  {
+    id: "community-pro-fr",
+    title: "Briefing pro calme",
+    language: "fr",
+    voice: "Celine",
+    voiceStyle: "narratif",
+    voiceGender: "femme",
+    rate: 0.9,
+    tone: -1,
+    category: "professional",
+    community: true,
+    advanced: { emphasisWords: [], pauseSeconds: 0.25, volume: 0.95 },
+  },
+  {
+    id: "community-creative-fr",
+    title: "Podcast calme ASMR",
+    language: "fr",
+    voice: "Lea",
+    voiceStyle: "conversationnel",
+    voiceGender: "femme",
+    rate: 0.82,
+    tone: -2,
+    category: "creative",
+    community: true,
+    advanced: { emphasisWords: ["doucement"], pauseSeconds: 0.5, volume: 0.85 },
+  },
+];
+
+const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  education: "Éducation",
+  professional: "Professionnel",
+  creative: "Créatif",
+  personal: "Personnel",
+};
+
+const TEMPLATE_LIBRARY: TextTemplate[] = [
+  {
+    id: "edu-course-primary",
+    title: "Mini cours niveau primaire",
+    category: "education",
+    level: "Primaire",
+    usageCount: 1894,
+    rating: 4.8,
+    text: "Bonjour [prénom], aujourd'hui nous allons découvrir [le sujet]. À la fin de ce cours, tu sauras expliquer [objectif].",
+    recommendedPreset: COMMUNITY_PRESETS[1]!,
+  },
+  {
+    id: "edu-summary-college",
+    title: "Résumé de leçon collège",
+    category: "education",
+    level: "Collège",
+    usageCount: 1421,
+    rating: 4.6,
+    text: "Résumé de la leçon sur [le sujet] : idée clé numéro un [idée 1], idée clé numéro deux [idée 2], et conclusion [conclusion].",
+    recommendedPreset: COMMUNITY_PRESETS[1]!,
+  },
+  {
+    id: "pro-pitch",
+    title: "Présentation commerciale",
+    category: "professional",
+    usageCount: 2210,
+    rating: 4.9,
+    text: "Bonjour [nom du client], je suis [votre nom] de [entreprise]. Aujourd'hui je vous présente [solution] pour répondre à [problème].",
+    recommendedPreset: COMMUNITY_PRESETS[3]!,
+  },
+  {
+    id: "pro-announcement",
+    title: "Annonce d'entreprise",
+    category: "professional",
+    usageCount: 972,
+    rating: 4.4,
+    text: "Message interne : à compter du [date], l'équipe [service] met en place [nouveauté]. Merci de contacter [contact] pour toute question.",
+    recommendedPreset: COMMUNITY_PRESETS[3]!,
+  },
+  {
+    id: "creative-youtube",
+    title: "Script intro YouTube",
+    category: "creative",
+    usageCount: 2554,
+    rating: 4.7,
+    text: "Salut la team, c'est [votre nom] ! Aujourd'hui on va parler de [le sujet] et je vais vous montrer [promesse]. Restez jusqu'à la fin !",
+    recommendedPreset: COMMUNITY_PRESETS[2]!,
+  },
+  {
+    id: "creative-podcast",
+    title: "Introduction podcast",
+    category: "creative",
+    usageCount: 1640,
+    rating: 4.8,
+    text: "Bienvenue dans [nom du podcast], l'émission où l'on explore [thème]. Je suis [votre nom] et aujourd'hui, notre épisode est consacré à [sujet].",
+    recommendedPreset: COMMUNITY_PRESETS[4]!,
+  },
+  {
+    id: "personal-voice-message",
+    title: "Message vocal personnel",
+    category: "personal",
+    usageCount: 884,
+    rating: 4.3,
+    text: "Bonjour [prénom], je voulais juste te dire [message principal]. N'hésite pas à me rappeler quand tu as un moment.",
+    recommendedPreset: COMMUNITY_PRESETS[0]!,
+  },
+  {
+    id: "personal-birthday",
+    title: "Souhait anniversaire",
+    category: "personal",
+    usageCount: 1302,
+    rating: 4.9,
+    text: "Joyeux anniversaire [prénom] ! Je te souhaite [souhait 1], [souhait 2] et une journée remplie de [émotion positive].",
+    recommendedPreset: COMMUNITY_PRESETS[0]!,
+  },
+];
+
+const COLLABORATOR_COLORS = [
+  "#06b6d4",
+  "#8b5cf6",
+  "#22c55e",
+  "#f97316",
+  "#ef4444",
+  "#eab308",
+];
+
+type SpeakyThemeId =
+  | "classic-light"
+  | "classic-dark"
+  | "studio-night"
+  | "ocean-sound"
+  | "forest-asmr"
+  | "neon-radio"
+  | "pastel-soft";
+
+type SpeakyTheme = {
+  id: SpeakyThemeId;
+  name: string;
+  premium?: boolean;
+  palette: {
+    background: string;
+    panel: string;
+    card: string;
+    text: string;
+    muted: string;
+    accent: string;
+    wave: string;
+  };
+};
+
+const SPEAKY_THEMES: SpeakyTheme[] = [
+  {
+    id: "classic-light",
+    name: "Clair classique",
+    palette: {
+      background: "#f8fafc",
+      panel: "#ffffff",
+      card: "#f1f5f9",
+      text: "#0f172a",
+      muted: "#475569",
+      accent: "#7c3aed",
+      wave: "#06b6d4",
+    },
+  },
+  {
+    id: "classic-dark",
+    name: "Sombre",
+    palette: {
+      background: "#0b1220",
+      panel: "#1a2232",
+      card: "#202a3d",
+      text: "#e2e8f0",
+      muted: "#94a3b8",
+      accent: "#a855f7",
+      wave: "#a855f7",
+    },
+  },
+  {
+    id: "studio-night",
+    name: "Studio Nuit",
+    premium: true,
+    palette: {
+      background: "#050505",
+      panel: "#111111",
+      card: "#1f1a14",
+      text: "#f6f3ea",
+      muted: "#d6c7a6",
+      accent: "#d4af37",
+      wave: "#d4af37",
+    },
+  },
+  {
+    id: "ocean-sound",
+    name: "Océan Sonore",
+    premium: true,
+    palette: {
+      background: "#042f4b",
+      panel: "#075985",
+      card: "#0f766e",
+      text: "#e0f2fe",
+      muted: "#bae6fd",
+      accent: "#14b8a6",
+      wave: "#2dd4bf",
+    },
+  },
+  {
+    id: "forest-asmr",
+    name: "Forêt ASMR",
+    premium: true,
+    palette: {
+      background: "#0f2a1d",
+      panel: "#1b4332",
+      card: "#4f6f52",
+      text: "#ecfdf5",
+      muted: "#bbf7d0",
+      accent: "#22c55e",
+      wave: "#34d399",
+    },
+  },
+  {
+    id: "neon-radio",
+    name: "Néon Radio",
+    premium: true,
+    palette: {
+      background: "#09090b",
+      panel: "#18181b",
+      card: "#27272a",
+      text: "#faf5ff",
+      muted: "#e9d5ff",
+      accent: "#f472b6",
+      wave: "#38bdf8",
+    },
+  },
+  {
+    id: "pastel-soft",
+    name: "Pastel Doux",
+    premium: true,
+    palette: {
+      background: "#fdf2f8",
+      panel: "#f5f3ff",
+      card: "#ecfeff",
+      text: "#4c1d95",
+      muted: "#6d28d9",
+      accent: "#ec4899",
+      wave: "#8b5cf6",
+    },
+  },
+];
+
 function generateWaveBars(seed = 24) {
   return Array.from({ length: seed }, (_, index) => index);
 }
@@ -73,51 +567,653 @@ function getEffectiveRate(rate: number, tone: number) {
   return Math.max(0.6, Math.min(2, rate * 2 ** (tone / 12)));
 }
 
+function splitLongSentence(sentence: string, maxChars = 500) {
+  const chunks: string[] = [];
+  let remaining = sentence.trim();
+
+  while (remaining.length > maxChars) {
+    const pivot = remaining.slice(0, maxChars + 1);
+    const breakAt = Math.max(
+      pivot.lastIndexOf(","),
+      pivot.lastIndexOf(";"),
+      pivot.lastIndexOf(":"),
+      pivot.lastIndexOf(" ")
+    );
+    const index = breakAt > 0 ? breakAt : maxChars;
+    chunks.push(remaining.slice(0, index).trim());
+    remaining = remaining.slice(index).trim();
+  }
+
+  if (remaining) {
+    chunks.push(remaining);
+  }
+
+  return chunks.filter(Boolean);
+}
+
+function splitTextIntoSmartSegments(input: string, maxChars = 500) {
+  const text = input.replace(/\r\n/g, "\n").trim();
+  if (!text) return [];
+
+  const sentenceCandidates = text
+    .split(/(?<=[.!?…])\s+|\n{2,}/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const segments: string[] = [];
+  let current = "";
+
+  for (const candidate of sentenceCandidates) {
+    const pieces =
+      candidate.length > maxChars
+        ? splitLongSentence(candidate, maxChars)
+        : [candidate];
+
+    for (const piece of pieces) {
+      if (!current) {
+        current = piece;
+        continue;
+      }
+
+      if (`${current} ${piece}`.length <= maxChars) {
+        current = `${current} ${piece}`;
+      } else {
+        segments.push(current.trim());
+        current = piece;
+      }
+    }
+  }
+
+  if (current.trim()) {
+    segments.push(current.trim());
+  }
+
+  return segments;
+}
+
+function parsePodcastScript(script: string, fallbackVoice: string, maxChars = 500) {
+  const blocks = script
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const units: BatchUnit[] = [];
+  let activeVoice = fallbackVoice;
+
+  for (const block of blocks) {
+    const match = block.match(/^\[([^\]]+)\]\s*/);
+    const voiceMarker = match?.[1]?.trim();
+    const content = block.replace(/^\[[^\]]+\]\s*/, "").trim();
+
+    if (voiceMarker) {
+      activeVoice = voiceMarker;
+    }
+
+    if (!content) continue;
+
+    const segments = splitTextIntoSmartSegments(content, maxChars);
+    for (const [index, segment] of segments.entries()) {
+      units.push({
+        text: segment,
+        voice: activeVoice,
+        label:
+          segments.length > 1
+            ? `${activeVoice} · bloc ${index + 1}/${segments.length}`
+            : activeVoice,
+      });
+    }
+  }
+
+  return units;
+}
+
+function concatUint8Arrays(chunks: Uint8Array[]) {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return merged;
+}
+
+function encodeWavFromAudioBuffer(buffer: AudioBuffer) {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const samples = buffer.length;
+  const bytesPerSample = 2;
+  const dataSize = samples * channels * bytesPerSample;
+  const wavBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(wavBuffer);
+
+  const writeString = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let sample = 0; sample < samples; sample += 1) {
+    for (let channel = 0; channel < channels; channel += 1) {
+      const channelData = buffer.getChannelData(channel);
+      const value = Math.max(-1, Math.min(1, channelData[sample] || 0));
+      view.setInt16(offset, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return wavBuffer;
+}
+
+async function decodeAndConcatToWav(chunks: Uint8Array[]) {
+  const context = new AudioContext();
+  try {
+    const decoded = await Promise.all(
+      chunks.map((chunk) =>
+        context.decodeAudioData(Uint8Array.from(chunk).buffer)
+      )
+    );
+    const sampleRate = decoded[0]?.sampleRate ?? 22050;
+    const numberOfChannels = Math.max(
+      1,
+      ...decoded.map((buffer) => buffer.numberOfChannels)
+    );
+    const totalLength = decoded.reduce((sum, buffer) => sum + buffer.length, 0);
+    const output = context.createBuffer(numberOfChannels, totalLength, sampleRate);
+
+    let writeOffset = 0;
+    for (const buffer of decoded) {
+      for (let channel = 0; channel < numberOfChannels; channel += 1) {
+        const target = output.getChannelData(channel);
+        const source =
+          buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
+        target.set(source, writeOffset);
+      }
+      writeOffset += buffer.length;
+    }
+
+    return encodeWavFromAudioBuffer(output);
+  } finally {
+    await context.close();
+  }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function applyAdvancedProfileToText(text: string, profile: AdvancedVoiceProfile) {
+  let transformed = text;
+
+  if (profile.emphasisWords.length > 0) {
+    for (const word of profile.emphasisWords) {
+      const cleanWord = word.trim();
+      if (!cleanWord) continue;
+      const regex = new RegExp(`\\b${escapeRegex(cleanWord)}\\b`, "gi");
+      transformed = transformed.replace(regex, (match) => match.toUpperCase());
+    }
+  }
+
+  if (profile.pauseSeconds > 0) {
+    const pauseStrength = Math.max(0, Math.min(2, profile.pauseSeconds));
+    const dots = "… ".repeat(Math.max(1, Math.round(pauseStrength / 0.4)));
+    transformed = transformed.replace(/([.!?])\s+/g, `$1 ${dots}`);
+  }
+
+  return transformed;
+}
+
+function buildShareLinkFromPreset(preset: AudioPreset) {
+  const payload = encodeURIComponent(
+    btoa(unescape(encodeURIComponent(JSON.stringify(preset))))
+  );
+  return `${window.location.origin}/speaky?preset=${payload}`;
+}
+
+function cleanExtractedText(raw: string) {
+  return raw
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+type SrtCue = {
+  startMs: number;
+  endMs: number;
+  text: string;
+};
+
+function parseTimestampToMs(value: string) {
+  const match = value.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+  if (!match) return 0;
+  const [, hh, mm, ss, ms] = match;
+  return (
+    Number(hh) * 3_600_000 +
+    Number(mm) * 60_000 +
+    Number(ss) * 1_000 +
+    Number(ms)
+  );
+}
+
+function parseSrtContent(content: string) {
+  const cues: SrtCue[] = [];
+  const blocks = content.replace(/\r\n/g, "\n").split(/\n\n+/);
+  for (const block of blocks) {
+    const lines = block
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) continue;
+    const timeLine = lines[1]?.includes("-->") ? lines[1] : lines[0];
+    if (!timeLine.includes("-->")) continue;
+    const [startRaw, endRaw] = timeLine.split("-->").map((item) => item.trim());
+    const textLines = lines.slice(timeLine === lines[1] ? 2 : 1).join(" ");
+    cues.push({
+      startMs: parseTimestampToMs(startRaw),
+      endMs: parseTimestampToMs(endRaw),
+      text: textLines.replace(/<[^>]+>/g, "").trim(),
+    });
+  }
+  return cues.filter((cue) => cue.text.length > 0);
+}
+
+function extractMarkerCount(source: string) {
+  const regex =
+    /\[(pause:\d{2,4}ms|emphasis:[^\]]+|whisper:[^\]]+|spell:[^\]]+|pronounce:[^|\]]+\|[^\]]+)\]/g;
+  return (source.match(regex) ?? []).length;
+}
+
+function extractPlainTextFromScript(source: string) {
+  return source
+    .replace(/\[pause:(\d{2,4})ms\]/g, " ")
+    .replace(/\[emphasis:([^\]]+)\]/g, "$1")
+    .replace(/\[whisper:([^\]]+)\]/g, "$1")
+    .replace(/\[spell:([^\]]+)\]/g, (_, word) =>
+      String(word)
+        .split("")
+        .join(" ")
+    )
+    .replace(/\[pronounce:([^|\]]+)\|([^\]]+)\]/g, "$1");
+}
+
+function scriptToSsml(source: string) {
+  const escaped = source
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const body = escaped
+    .replace(/\[pause:(\d{2,4})ms\]/g, '<break time="$1ms" />')
+    .replace(
+      /\[emphasis:([^\]]+)\]/g,
+      '<emphasis level="strong">$1</emphasis>'
+    )
+    .replace(
+      /\[whisper:([^\]]+)\]/g,
+      '<prosody volume="x-soft" rate="85%">$1</prosody>'
+    )
+    .replace(
+      /\[spell:([^\]]+)\]/g,
+      '<say-as interpret-as="characters">$1</say-as>'
+    )
+    .replace(
+      /\[pronounce:([^|\]]+)\|([^\]]+)\]/g,
+      '<phoneme alphabet="ipa" ph="$2">$1</phoneme>'
+    );
+
+  return `<speak>${body}</speak>`;
+}
+
+function getMarkerVisuals(script: string) {
+  const markers: Array<{ icon: string; color: string; label: string; detail: string }> = [];
+  const patterns: Array<{
+    type: MarkerType;
+    regex: RegExp;
+    mapper: (...parts: string[]) => { label: string; detail: string };
+  }> = [
+    {
+      type: "pause",
+      regex: /\[pause:(\d{2,4})ms\]/g,
+      mapper: (duration) => ({ label: "Pause", detail: `${duration} ms` }),
+    },
+    {
+      type: "emphasis",
+      regex: /\[emphasis:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Emphase", detail: text }),
+    },
+    {
+      type: "whisper",
+      regex: /\[whisper:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Murmure", detail: text }),
+    },
+    {
+      type: "spell",
+      regex: /\[spell:([^\]]+)\]/g,
+      mapper: (text) => ({ label: "Épeler", detail: text }),
+    },
+    {
+      type: "pronounce",
+      regex: /\[pronounce:([^|\]]+)\|([^\]]+)\]/g,
+      mapper: (word, ipa) => ({ label: "Prononciation", detail: `${word} → ${ipa}` }),
+    },
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of script.matchAll(pattern.regex)) {
+      const mapped = pattern.mapper(...match.slice(1));
+      const visuals: Record<MarkerType, { icon: string; color: string }> = {
+        pause: { icon: "⏸️", color: "bg-blue-500/15 text-blue-700" },
+        emphasis: { icon: "🔥", color: "bg-orange-500/15 text-orange-700" },
+        whisper: { icon: "🤫", color: "bg-violet-500/15 text-violet-700" },
+        spell: { icon: "🔤", color: "bg-emerald-500/15 text-emerald-700" },
+        pronounce: { icon: "🗣️", color: "bg-cyan-500/15 text-cyan-700" },
+      };
+      markers.push({ ...visuals[pattern.type], ...mapped });
+    }
+  }
+
+  return markers;
+}
+
 export default function SpeakyPage() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState("fr");
+  const [workspaceMode, setWorkspaceMode] =
+    useState<SpeakyWorkspaceMode>("generator");
+  const [onboardingDone, setOnboardingDone] = useLocalStorage<boolean>(
+    "mai.speaky.onboarding.done.v1",
+    false
+  );
+  const [onboardingStep, setOnboardingStep] = useState<number>(0);
+  const [onboardingTourIndex, setOnboardingTourIndex] = useState(0);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [scriptEditorMode, setScriptEditorMode] =
+    useState<ScriptEditorMode>("standard");
+  const [pauseDurationMs, setPauseDurationMs] = useState(500);
+  const [pronunciationIpa, setPronunciationIpa] = useState("");
+  const [isDarkMode, setIsDarkMode] = useLocalStorage<boolean>(
+    "mai.speaky.dark-mode.v1",
+    true
+  );
+  const [themeId, setThemeId] = useLocalStorage<SpeakyThemeId>(
+    "mai.speaky.theme-id.v1",
+    "classic-dark"
+  );
   const [voice, setVoice] = useState("Lea");
   const [rate, setRate] = useState(1);
   const [tone, setTone] = useState(0);
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("narratif");
   const [voiceGender, setVoiceGender] = useState<"homme" | "femme">("femme");
+  const [mode, setMode] = useState<GenerationMode>("batch");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>("mp3");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [progress, setProgress] = useState({
+    completed: 0,
+    total: 0,
+    percent: 0,
+    etaSec: 0,
+  });
   const [audioUrl, setAudioUrl] = useState("");
-  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(
+  const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
+  const [presetTitle, setPresetTitle] = useState("");
+  const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
+  const [selectedTemplateCategory, setSelectedTemplateCategory] =
+    useState<TemplateCategory>("education");
+  const [previewingPresetId, setPreviewingPresetId] = useState<string | null>(null);
+  const [previewingTemplateId, setPreviewingTemplateId] = useState<string | null>(
     null
   );
-  const [provider, setProvider] = useState<string | null>(null);
-  const [history, setHistory] = useLocalStorage<
-    Array<{
-      createdAt: string;
-      text: string;
-      voice: string;
-      url: string;
-    }>
-  >("mai.speaky.history.v1", []);
-  const [favoriteVoices, setFavoriteVoices] = useLocalStorage<string[]>(
-    "mai.speaky.favorite-voices.v1",
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [newProjectOwner, setNewProjectOwner] = useState("owner");
+  const [newCollaboratorsInput, setNewCollaboratorsInput] = useState("");
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [sectionCommentDrafts, setSectionCommentDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [transitionMode, setTransitionMode] = useState<"none" | "smooth">("none");
+  const [transitionMs, setTransitionMs] = useState(300);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyLanguageFilter, setHistoryLanguageFilter] = useState("all");
+  const [historyVoiceFilter, setHistoryVoiceFilter] = useState("all");
+  const [historyMethodFilter, setHistoryMethodFilter] = useState<
+    GenerationMethod | "all"
+  >("all");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
+  const [historyViewMode, setHistoryViewMode] = useState<"list" | "grid">("list");
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
+  const [historyProgress, setHistoryProgress] = useState<
+    Record<string, { currentTime: number; duration: number; volume: number }>
+  >({});
+  const [lastImportPreview, setLastImportPreview] = useState("");
+  const [lastImportMeta, setLastImportMeta] = useState<{
+    fileName: string;
+    chars: number;
+    segments: number;
+    isSrt: boolean;
+  } | null>(null);
+  const [applySrtTiming, setApplySrtTiming] = useState(false);
+  const [srtCues, setSrtCues] = useState<SrtCue[]>([]);
+  const [advancedProfile, setAdvancedProfile] = useState<AdvancedVoiceProfile>({
+    emphasisWords: [],
+    pauseSeconds: 0,
+    volume: 1,
+  });
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(
+    "mai.speaky.history.v1",
+    []
+  );
+  const [personalPresets, setPersonalPresets] = useLocalStorage<AudioPreset[]>(
+    "mai.speaky.presets.v1",
+    []
+  );
+  const [recentImports, setRecentImports] = useLocalStorage<
+    Array<{ fileName: string; extractedText: string; importedAt: string }>
+  >("mai.speaky.recent-imports.v1", []);
+  const [collaborativeProjects, setCollaborativeProjects] = useLocalStorage<
+    CollaborativeProject[]
+  >("mai.speaky.collab-projects.v1", []);
+  const [, setPublicGalleryItems] = useLocalStorage<PublicSpeakyCreation[]>(
+    SPEAKY_PUBLIC_GALLERY_STORAGE_KEY,
     []
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const editorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceSelectRef = useRef<HTMLSelectElement | null>(null);
+  const styleSelectRef = useRef<HTMLSelectElement | null>(null);
+  const speedSliderRef = useRef<HTMLInputElement | null>(null);
+  const toneSliderRef = useRef<HTMLInputElement | null>(null);
+  const generateButtonRef = useRef<HTMLButtonElement | null>(null);
+  const historyAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const historyImportInputRef = useRef<HTMLInputElement | null>(null);
+  const quickPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef("");
+  const pauseResolverRef = useRef<(() => void) | null>(null);
+  const pausedRef = useRef(false);
   const bars = useMemo(() => generateWaveBars(), []);
-  const cloudTextLength = text.trim().length;
-  const cloudUsagePercent = Math.min((cloudTextLength / 500) * 100, 100);
   const availableVoices = useMemo(
     () => VOICES_BY_LANGUAGE[language] ?? VOICES_BY_LANGUAGE.fr,
     [language]
   );
-  const effectiveRate = useMemo(
-    () => getEffectiveRate(rate, tone),
-    [rate, tone]
-  );
+  const effectiveRate = useMemo(() => getEffectiveRate(rate, tone), [rate, tone]);
   const speechSupport =
     typeof window !== "undefined" &&
     "speechSynthesis" in window &&
     "SpeechSynthesisUtterance" in window;
+  const markerCount = useMemo(() => extractMarkerCount(text), [text]);
+  const plainTextForGeneration = useMemo(
+    () =>
+      scriptEditorMode === "advanced" ? extractPlainTextFromScript(text) : text,
+    [scriptEditorMode, text]
+  );
+  const ssmlPreview = useMemo(
+    () => scriptToSsml(text),
+    [text]
+  );
+  const markerVisuals = useMemo(() => getMarkerVisuals(text), [text]);
+  const rawTextLength = plainTextForGeneration.trim().length;
+
+  const batchSegments = useMemo(
+    () => splitTextIntoSmartSegments(plainTextForGeneration),
+    [plainTextForGeneration]
+  );
+  const podcastUnits = useMemo(
+    () => parsePodcastScript(plainTextForGeneration, voice),
+    [plainTextForGeneration, voice]
+  );
+  const activeUnits = mode === "podcast" ? podcastUnits : batchSegments.map((segment, index) => ({
+    text: segment,
+    voice,
+    label: `Segment ${index + 1}`,
+  }));
+
+  const voicesInPodcast = useMemo(() => {
+    const seen = new Set<string>();
+    for (const unit of podcastUnits) {
+      seen.add(unit.voice);
+    }
+    return Array.from(seen);
+  }, [podcastUnits]);
+
+  const cloudUsagePercent = Math.min((Math.min(rawTextLength, 500) / 500) * 100, 100);
+  const communityPresetsByCategory = useMemo(() => {
+    return COMMUNITY_PRESETS.reduce<Record<PresetCategory, AudioPreset[]>>(
+      (acc, preset) => {
+        const category = preset.category ?? "creative";
+        acc[category].push(preset);
+        return acc;
+      },
+      {
+        narration: [],
+        education: [],
+        entertainment: [],
+        professional: [],
+        creative: [],
+      }
+    );
+  }, []);
+  const filteredTemplates = useMemo(
+    () =>
+      TEMPLATE_LIBRARY.filter(
+        (template) => template.category === selectedTemplateCategory
+      ),
+    [selectedTemplateCategory]
+  );
+  const featuredTemplates = useMemo(
+    () =>
+      [...TEMPLATE_LIBRARY]
+        .sort((a, b) => b.usageCount * b.rating - a.usageCount * a.rating)
+        .slice(0, 4),
+    []
+  );
+  const activeTheme = useMemo(
+    () => SPEAKY_THEMES.find((theme) => theme.id === themeId) ?? SPEAKY_THEMES[1]!,
+    [themeId]
+  );
+  const effectiveTheme = useMemo(() => {
+    if (themeId === "classic-light" || themeId === "classic-dark") {
+      return isDarkMode ? SPEAKY_THEMES[1]! : SPEAKY_THEMES[0]!;
+    }
+    return activeTheme;
+  }, [activeTheme, isDarkMode, themeId]);
+  const activeProject = useMemo(
+    () =>
+      collaborativeProjects.find((project) => project.id === activeProjectId) ??
+      null,
+    [activeProjectId, collaborativeProjects]
+  );
+  const projectProgress = useMemo(() => {
+    if (!activeProject || activeProject.sections.length === 0) {
+      return { completed: 0, inProgress: 0, pending: 0, percent: 0 };
+    }
+    const completed = activeProject.sections.filter(
+      (section) => section.status === "done"
+    ).length;
+    const inProgress = activeProject.sections.filter(
+      (section) => section.status === "in_progress"
+    ).length;
+    const pending = activeProject.sections.filter(
+      (section) => section.status === "pending"
+    ).length;
+    return {
+      completed,
+      inProgress,
+      pending,
+      percent: Math.round((completed / activeProject.sections.length) * 100),
+    };
+  }, [activeProject]);
+  const historyLanguages = useMemo(
+    () => Array.from(new Set(history.map((entry) => entry.language))),
+    [history]
+  );
+  const historyVoices = useMemo(
+    () => Array.from(new Set(history.map((entry) => entry.voice))),
+    [history]
+  );
+  const filteredHistory = useMemo(() => {
+    return history
+      .filter((entry) =>
+        historyLanguageFilter === "all" ? true : entry.language === historyLanguageFilter
+      )
+      .filter((entry) =>
+        historyVoiceFilter === "all" ? true : entry.voice === historyVoiceFilter
+      )
+      .filter((entry) =>
+        historyMethodFilter === "all" ? true : entry.method === historyMethodFilter
+      )
+      .filter((entry) => {
+        const timestamp = new Date(entry.createdAt).getTime();
+        const from = historyDateFrom ? new Date(historyDateFrom).getTime() : 0;
+        const to = historyDateTo ? new Date(historyDateTo).getTime() : Infinity;
+        return timestamp >= from && timestamp <= to;
+      })
+      .filter((entry) => {
+        const needle = historySearch.trim().toLowerCase();
+        if (!needle) return true;
+        return (
+          entry.title.toLowerCase().includes(needle) ||
+          entry.text.toLowerCase().includes(needle)
+        );
+      })
+      .sort(
+        (left, right) =>
+          Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) ||
+          new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      );
+  }, [
+    history,
+    historyDateFrom,
+    historyDateTo,
+    historyLanguageFilter,
+    historyMethodFilter,
+    historySearch,
+    historyVoiceFilter,
+  ]);
 
   useEffect(() => {
     if (!availableVoices.includes(voice)) {
@@ -132,70 +1228,769 @@ export default function SpeakyPage() {
 
     audioRef.current.playbackRate = effectiveRate;
     audioRef.current.preservesPitch = false;
-  }, [effectiveRate]);
+    audioRef.current.volume = Math.max(0, Math.min(1, advancedProfile.volume / 1.2));
+  }, [advancedProfile.volume, effectiveRate]);
 
-  const generateCloudAudio = async () => {
-    if (!text.trim()) {
-      toast.error("Ajoutez un texte avant de générer l'audio.");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedPreset = params.get("preset");
+    if (!sharedPreset) {
       return;
     }
-
-    if (cloudTextLength > 500) {
-      toast.error("Mode cloud limité à 500 caractères par génération.");
-      return;
-    }
-
-    setIsGenerating(true);
 
     try {
+      const parsed = JSON.parse(
+        decodeURIComponent(escape(atob(decodeURIComponent(sharedPreset))))
+      ) as AudioPreset;
+      if (!parsed?.title || !parsed?.voice || !parsed?.language) {
+        return;
+      }
+      setPersonalPresets((current) => {
+        if (current.some((preset) => preset.id === parsed.id)) {
+          return current;
+        }
+        return [{ ...parsed, community: false }, ...current].slice(0, 40);
+      });
+      toast.success(`Preset importé: ${parsed.title}`);
+    } catch {
+      toast.error("Lien de preset invalide.");
+    }
+  }, [setPersonalPresets]);
+
+  useEffect(() => {
+    const needsMigration = history.some((entry) => !("id" in entry) || !("title" in entry));
+    if (!needsMigration) return;
+    setHistory((current) =>
+      current.map((entry) => {
+        const legacy = entry as HistoryEntry & {
+          createdAt: string;
+          text: string;
+          voice: string;
+          url: string;
+          pinned?: boolean;
+        };
+        return {
+          id: legacy.id ?? crypto.randomUUID(),
+          title: legacy.title ?? `Génération ${new Date(legacy.createdAt).toLocaleString("fr-FR")}`,
+          createdAt: legacy.createdAt,
+          pinned: legacy.pinned,
+          text: legacy.text,
+          language: legacy.language ?? language,
+          voice: legacy.voice,
+          voiceStyle: legacy.voiceStyle ?? voiceStyle,
+          voiceGender: legacy.voiceGender ?? voiceGender,
+          rate: legacy.rate ?? rate,
+          tone: legacy.tone ?? tone,
+          method: legacy.method ?? "cloud",
+          durationSec: legacy.durationSec ?? Math.ceil(legacy.text.length / 12),
+          url: legacy.url,
+        };
+      })
+    );
+  }, [history, language, rate, setHistory, tone, voiceGender, voiceStyle]);
+
+  useEffect(() => {
+    if (!onboardingDone) {
+      setOnboardingStep(1);
+      setOnboardingTourIndex(0);
+    }
+  }, [onboardingDone]);
+
+
+  useEffect(() => {
+    return () => {
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+      }
+    };
+  }, []);
+
+  const waitIfPaused = async () => {
+    if (!pausedRef.current) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      pauseResolverRef.current = resolve;
+    });
+  };
+
+  const togglePause = () => {
+    setIsPaused((current) => {
+      const next = !current;
+      pausedRef.current = next;
+      if (!next && pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+      return next;
+    });
+  };
+
+  const applyPreset = (preset: AudioPreset) => {
+    setLanguage(preset.language);
+    setVoice(preset.voice);
+    setVoiceStyle(preset.voiceStyle);
+    setVoiceGender(preset.voiceGender);
+    setRate(preset.rate);
+    setTone(preset.tone);
+    setAdvancedProfile(preset.advanced);
+    toast.success(`Preset appliqué: ${preset.title}`);
+  };
+
+  const saveCurrentAsPreset = () => {
+    const title = presetTitle.trim();
+    if (!title) {
+      toast.error("Donnez un nom au preset.");
+      return;
+    }
+    const preset: AudioPreset = {
+      id: crypto.randomUUID(),
+      title,
+      language,
+      voice,
+      voiceStyle,
+      voiceGender,
+      rate,
+      tone,
+      advanced: advancedProfile,
+      community: false,
+    };
+    setPersonalPresets((current) => [preset, ...current].slice(0, 40));
+    setPresetTitle("");
+    toast.success("Preset personnel sauvegardé.");
+  };
+
+  const exportPresetLink = async (preset: AudioPreset) => {
+    try {
+      const link = buildShareLinkFromPreset(preset);
+      await navigator.clipboard.writeText(link);
+      toast.success("Lien du preset copié.");
+    } catch {
+      toast.error("Impossible de copier le lien.");
+    }
+  };
+
+  const quickPreviewPreset = async (preset: AudioPreset) => {
+    try {
+      setPreviewingPresetId(preset.id);
+      const sample = SAMPLE_TEXT_BY_LANGUAGE[preset.language] ?? SAMPLE_TEXT_BY_LANGUAGE.fr;
       const response = await fetch("/api/speaky", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text,
-          language,
-          voice,
-          voiceStyle,
-          voiceGender,
+          text: applyAdvancedProfileToText(sample, preset.advanced),
+          language: preset.language,
+          voice: preset.voice,
+          voiceStyle: preset.voiceStyle,
+          voiceGender: preset.voiceGender,
         }),
       });
-
-      const payload = (await response.json()) as SpeakyResponse & {
-        error?: string;
-      };
+      const payload = (await response.json()) as SpeakyResponse & { error?: string };
       if (!response.ok || !payload.audioBase64) {
-        throw new Error(payload.error ?? "Génération audio impossible");
+        throw new Error(payload.error ?? "Pré-écoute indisponible");
       }
-
-      addStatsEvent("api_call", 1);
-
       const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
         char.charCodeAt(0)
       );
-      const blob = new Blob([bytes], {
-        type: payload.contentType || "audio/mpeg",
-      });
-      const nextUrl = URL.createObjectURL(blob);
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      if (quickPreviewAudioRef.current) {
+        quickPreviewAudioRef.current.pause();
+      }
+      const audio = new Audio(url);
+      audio.volume = Math.max(0, Math.min(1, preset.advanced.volume / 1.2));
+      quickPreviewAudioRef.current = audio;
+      audio.play().catch(() => undefined);
+      setTimeout(() => {
+        audio.pause();
+        URL.revokeObjectURL(url);
+      }, 3000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Pré-écoute impossible");
+    } finally {
+      setPreviewingPresetId(null);
+    }
+  };
 
+  const applyTemplate = (template: TextTemplate) => {
+    setText(template.text);
+    applyPreset(template.recommendedPreset);
+    setIsTemplatePanelOpen(false);
+    toast.success(`Template appliqué: ${template.title}`);
+  };
+
+  const insertMarker = (type: MarkerType) => {
+    if (scriptEditorMode !== "advanced") {
+      toast.error("Passez en mode avancé pour insérer des marqueurs.");
+      return;
+    }
+    const textarea = editorTextAreaRef.current;
+    if (!textarea) return;
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const selected = text.slice(selectionStart, selectionEnd).trim();
+    const before = text.slice(0, selectionStart);
+    const after = text.slice(selectionEnd);
+
+    let marker = "";
+    switch (type) {
+      case "pause":
+        marker = `[pause:${pauseDurationMs}ms]`;
+        break;
+      case "emphasis":
+        marker = `[emphasis:${selected || "mot clé"}]`;
+        break;
+      case "whisper":
+        marker = `[whisper:${selected || "texte chuchoté"}]`;
+        break;
+      case "spell":
+        marker = `[spell:${selected || "IA"}]`;
+        break;
+      case "pronounce":
+        marker = `[pronounce:${selected || "mot"}|${pronunciationIpa || "mə"}]`;
+        break;
+      default:
+        marker = "";
+    }
+
+    setText(`${before}${marker}${after}`);
+    setTimeout(() => {
+      const cursor = before.length + marker.length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    }, 0);
+  };
+
+  const resetAllMarkers = () => {
+    setText(extractPlainTextFromScript(text));
+  };
+
+  const previewTemplate = async (template: TextTemplate) => {
+    try {
+      setPreviewingTemplateId(template.id);
+      await quickPreviewPreset(template.recommendedPreset);
+    } finally {
+      setPreviewingTemplateId(null);
+    }
+  };
+
+  const importDocument = async (file: File) => {
+    const error = validateFileBeforeUpload(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    const isSrt = file.name.toLowerCase().endsWith(".srt");
+    let extractedText = "";
+    let cues: SrtCue[] = [];
+
+    if (isSrt) {
+      const content = await file.text();
+      cues = parseSrtContent(content);
+      extractedText = cues.map((cue) => cue.text).join("\n");
+    } else {
+      const parsed = await parseFileForAi(file);
+      extractedText = parsed.extractedText;
+    }
+
+    const cleaned = cleanExtractedText(extractedText);
+    if (!cleaned) {
+      toast.error("Aucun texte exploitable détecté dans ce document.");
+      return;
+    }
+
+    setText(cleaned);
+    setLastImportPreview(cleaned.slice(0, 1200));
+    setLastImportMeta({
+      fileName: file.name,
+      chars: cleaned.length,
+      segments: splitTextIntoSmartSegments(cleaned).length,
+      isSrt,
+    });
+    setApplySrtTiming(isSrt && cues.length > 0);
+    setSrtCues(cues);
+    setRecentImports((current) =>
+      [
+        { fileName: file.name, extractedText: cleaned, importedAt: new Date().toISOString() },
+        ...current,
+      ].slice(0, 8)
+    );
+    toast.success(`Document importé: ${file.name}`);
+  };
+
+  const onDocumentInput = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importDocument(file);
+    event.target.value = "";
+  };
+
+  const createCollaborativeProject = () => {
+    if (!newProjectTitle.trim()) {
+      toast.error("Titre de projet requis.");
+      return;
+    }
+    const collaborators = newCollaboratorsInput
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const project: CollaborativeProject = {
+      id: crypto.randomUUID(),
+      title: newProjectTitle.trim(),
+      description: newProjectDescription.trim(),
+      owner: newProjectOwner.trim() || "owner",
+      inviteCode: crypto.randomUUID().slice(0, 8),
+      collaborators,
+      sections: [],
+      comments: [],
+      versions: [],
+    };
+    setCollaborativeProjects((current) => [project, ...current]);
+    setActiveProjectId(project.id);
+    setNewProjectTitle("");
+    setNewProjectDescription("");
+    setNewCollaboratorsInput("");
+    toast.success("Projet collaboratif créé.");
+  };
+
+  const addSectionToProject = () => {
+    if (!activeProject) return;
+    const index = activeProject.sections.length;
+    const assignee =
+      activeProject.collaborators[index % Math.max(1, activeProject.collaborators.length)] ??
+      activeProject.owner;
+    const section: CollaborationSection = {
+      id: crypto.randomUUID(),
+      title: `Section ${index + 1}`,
+      text: "",
+      assignee,
+      color: COLLABORATOR_COLORS[index % COLLABORATOR_COLORS.length]!,
+      voice,
+      voiceStyle,
+      voiceGender,
+      rate,
+      tone,
+      status: "pending",
+    };
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, sections: [...project.sections, section] }
+          : project
+      )
+    );
+  };
+
+  const updateProjectSection = (
+    sectionId: string,
+    updater: (section: CollaborationSection) => CollaborationSection,
+    versionLabel?: string
+  ) => {
+    if (!activeProject) return;
+    setCollaborativeProjects((current) =>
+      current.map((project) => {
+        if (project.id !== activeProject.id) return project;
+        const updatedSections = project.sections.map((section) =>
+          section.id === sectionId ? updater(section) : section
+        );
+        const versions = versionLabel
+          ? [
+              {
+                id: crypto.randomUUID(),
+                label: versionLabel,
+                createdAt: new Date().toISOString(),
+                sections: updatedSections,
+              },
+              ...project.versions,
+            ].slice(0, 40)
+          : project.versions;
+        return { ...project, sections: updatedSections, versions };
+      })
+    );
+  };
+
+  const addCommentToSection = (sectionId: string) => {
+    const content = sectionCommentDrafts[sectionId]?.trim();
+    if (!activeProject || !content) return;
+    const comment: SectionComment = {
+      id: crypto.randomUUID(),
+      sectionId,
+      author: newProjectOwner || "owner",
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, comments: [comment, ...project.comments] }
+          : project
+      )
+    );
+    setSectionCommentDrafts((current) => ({ ...current, [sectionId]: "" }));
+  };
+
+  const generateSectionAudio = async (section: CollaborationSection) => {
+    const response = await fetch("/api/speaky", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: applyAdvancedProfileToText(section.text, advancedProfile),
+        language,
+        voice: section.voice,
+        voiceStyle: section.voiceStyle,
+        voiceGender: section.voiceGender,
+      }),
+    });
+    const payload = (await response.json()) as SpeakyResponse & { error?: string };
+    if (!response.ok || !payload.audioBase64) {
+      throw new Error(payload.error ?? "Erreur de génération de section");
+    }
+    const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
+      char.charCodeAt(0)
+    );
+    const blob = new Blob([bytes], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    updateProjectSection(
+      section.id,
+      (current) => ({
+        ...current,
+        audioUrl: url,
+        status: "done",
+      }),
+      `Audio régénéré (${section.title})`
+    );
+  };
+
+  const assembleProjectAudio = async () => {
+    if (!activeProject) return;
+    if (activeProject.sections.some((section) => !section.audioUrl)) {
+      toast.error("Toutes les sections doivent avoir un audio généré.");
+      return;
+    }
+    const chunks: Uint8Array[] = [];
+    for (const section of activeProject.sections) {
+      const response = await fetch(section.audioUrl as string);
+      const arrayBuffer = await response.arrayBuffer();
+      chunks.push(new Uint8Array(arrayBuffer));
+    }
+    const blob =
+      outputFormat === "wav"
+        ? new Blob([await decodeAndConcatToWav(chunks)], { type: "audio/wav" })
+        : new Blob([concatUint8Arrays(chunks)], { type: "audio/mpeg" });
+    const assembledAudioUrl = URL.createObjectURL(blob);
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? {
+              ...project,
+              assembledAudioUrl,
+              versions: [
+                {
+                  id: crypto.randomUUID(),
+                  label: `Assemblage (${transitionMode} ${transitionMs}ms)`,
+                  createdAt: new Date().toISOString(),
+                  sections: project.sections,
+                },
+                ...project.versions,
+              ].slice(0, 40),
+            }
+          : project
+      )
+    );
+    toast.success("Projet assemblé avec succès.");
+  };
+
+  const restoreProjectVersion = (version: ProjectVersion) => {
+    if (!activeProject) return;
+    setCollaborativeProjects((current) =>
+      current.map((project) =>
+        project.id === activeProject.id
+          ? { ...project, sections: version.sections }
+          : project
+      )
+    );
+    toast.success(`Version restaurée: ${version.label}`);
+  };
+
+  const publishProjectToGallery = () => {
+    if (!activeProject?.assembledAudioUrl) {
+      toast.error("Assemblez d'abord le projet.");
+      return;
+    }
+    const creation: PublicSpeakyCreation = {
+      id: crypto.randomUUID(),
+      title: activeProject.title,
+      description: `${activeProject.description} · Collaborateurs: ${[
+        activeProject.owner,
+        ...activeProject.collaborators,
+      ].join(", ")}`,
+      category: "professional",
+      language,
+      voice: "multi-voix",
+      creatorName: activeProject.owner,
+      createdAt: new Date().toISOString(),
+      durationSec: Math.max(
+        8,
+        activeProject.sections.reduce((sum, section) => sum + section.text.length, 0) /
+          12
+      ),
+      listens: 0,
+      favorites: 0,
+      audioUrl: activeProject.assembledAudioUrl,
+    };
+    setPublicGalleryItems((current) => [creation, ...current].slice(0, 200));
+    toast.success("Projet publié dans la galerie avec crédits collaborateurs.");
+  };
+
+  const replayHistoryItem = (item: HistoryEntry) => {
+    setText(item.text);
+    setLanguage(item.language);
+    setVoice(item.voice);
+    setVoiceStyle(item.voiceStyle);
+    setVoiceGender(item.voiceGender);
+    setRate(item.rate);
+    setTone(item.tone);
+    setAudioUrl(item.url);
+    toast.success(`Configuration rechargée: ${item.title}`);
+  };
+
+  const renameHistoryItem = (item: HistoryEntry) => {
+    const title = window.prompt("Nouveau titre :", item.title);
+    if (!title) return;
+    setHistory((current) =>
+      current.map((row) => (row.id === item.id ? { ...row, title } : row))
+    );
+  };
+
+  const duplicateHistoryItem = (item: HistoryEntry) => {
+    const copy: HistoryEntry = {
+      ...item,
+      id: crypto.randomUUID(),
+      title: `${item.title} (copie)`,
+      createdAt: new Date().toISOString(),
+    };
+    setHistory((current) => [copy, ...current].slice(0, 80));
+  };
+
+  const deleteHistoryItem = (item: HistoryEntry) => {
+    if (!window.confirm(`Supprimer \"${item.title}\" ?`)) return;
+    setHistory((current) => current.filter((row) => row.id !== item.id));
+  };
+
+  const downloadHistoryAs = async (item: HistoryEntry, format: OutputFormat) => {
+    const response = await fetch(item.url);
+    const arrayBuffer = await response.arrayBuffer();
+    let blob: Blob;
+    if (format === "wav") {
+      blob = new Blob(
+        [await decodeAndConcatToWav([new Uint8Array(arrayBuffer)])],
+        { type: "audio/wav" }
+      );
+    } else {
+      blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${item.title.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportHistoryJson = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `speaky-history-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importHistoryJson = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text()) as HistoryEntry[];
+      if (!Array.isArray(parsed)) {
+        throw new Error("Fichier invalide");
+      }
+      setHistory(parsed.slice(0, 200));
+      toast.success("Historique importé.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Import impossible");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const publishHistoryItem = (item: HistoryEntry) => {
+    const title = window.prompt("Titre public de cette création ?", item.title);
+    if (!title) return;
+    const description =
+      window.prompt("Description courte (optionnelle) :") ?? "";
+    const categoryInput =
+      window.prompt(
+        "Catégorie (narration, education, entertainment, music, professional) :",
+        "narration"
+      ) ?? "narration";
+    const category = ([
+      "narration",
+      "education",
+      "entertainment",
+      "music",
+      "professional",
+    ] as const).includes(categoryInput as SpeakyGalleryCategory)
+      ? (categoryInput as SpeakyGalleryCategory)
+      : "narration";
+    const tag = window.prompt("Tag optionnel :") ?? "";
+    const creatorName = window.prompt("Pseudo créateur :") ?? "anonymous";
+
+    const creation: PublicSpeakyCreation = {
+      id: crypto.randomUUID(),
+      title,
+      description,
+      category,
+      tag,
+      language,
+      voice: item.voice,
+      creatorName,
+      createdAt: new Date().toISOString(),
+      durationSec: Math.max(8, Math.ceil(item.text.length / 12)),
+      listens: 0,
+      favorites: 0,
+      audioUrl: item.url,
+    };
+    setPublicGalleryItems((current) => [creation, ...current].slice(0, 200));
+    toast.success("Création publiée dans la Galerie Speaky.");
+  };
+
+  const generateBatchAudio = async () => {
+    if (!plainTextForGeneration.trim()) {
+      toast.error("Ajoutez un texte avant de générer l'audio.");
+      return;
+    }
+
+    if (!activeUnits.length) {
+      toast.error("Impossible de découper ce texte en segments exploitables.");
+      return;
+    }
+
+    const unitsForGeneration: BatchUnit[] =
+      mode === "batch" && applySrtTiming && srtCues.length > 0
+        ? srtCues.map((cue, index) => {
+            const next = srtCues[index + 1];
+            const gapMs = next ? Math.max(0, next.startMs - cue.endMs) : 0;
+            const extraPause = "… ".repeat(Math.min(5, Math.round(gapMs / 400)));
+            return {
+              text: `${cue.text}${extraPause ? ` ${extraPause}` : ""}`.trim(),
+              voice,
+              label: `SRT ${index + 1}`,
+            };
+          })
+        : activeUnits;
+
+    setIsGenerating(true);
+    setIsPaused(false);
+    pausedRef.current = false;
+    setProgress({ completed: 0, total: unitsForGeneration.length, percent: 0, etaSec: 0 });
+
+    const startedAt = Date.now();
+    const mp3Chunks: Uint8Array[] = [];
+    let totalDuration = 0;
+
+    try {
+      for (const [index, unit] of unitsForGeneration.entries()) {
+        await waitIfPaused();
+        const transformedText = applyAdvancedProfileToText(
+          unit.text,
+          advancedProfile
+        );
+
+        const response = await fetch("/api/speaky", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: transformedText,
+            language,
+            voice: unit.voice,
+            voiceStyle,
+            voiceGender,
+          }),
+        });
+
+        const payload = (await response.json()) as SpeakyResponse & { error?: string };
+        if (!response.ok || !payload.audioBase64) {
+          throw new Error(payload.error ?? `Génération impossible sur ${unit.label}`);
+        }
+
+        addStatsEvent("api_call", 1);
+
+        const bytes = Uint8Array.from(atob(payload.audioBase64), (char) =>
+          char.charCodeAt(0)
+        );
+        mp3Chunks.push(bytes);
+        totalDuration += payload.durationEstimateSec;
+
+        const completed = index + 1;
+        const elapsed = Math.max(1, (Date.now() - startedAt) / 1000);
+        const average = elapsed / completed;
+        const remaining = Math.max(0, unitsForGeneration.length - completed);
+
+        setProgress({
+          completed,
+          total: unitsForGeneration.length,
+          percent: Math.round((completed / unitsForGeneration.length) * 100),
+          etaSec: Math.round(average * remaining),
+        });
+      }
+
+      const outputBlob =
+        outputFormat === "wav"
+          ? new Blob([await decodeAndConcatToWav(mp3Chunks)], { type: "audio/wav" })
+          : new Blob([concatUint8Arrays(mp3Chunks)], { type: "audio/mpeg" });
+
+      const nextUrl = URL.createObjectURL(outputBlob);
       if (currentAudioUrlRef.current) {
         URL.revokeObjectURL(currentAudioUrlRef.current);
       }
       currentAudioUrlRef.current = nextUrl;
 
       setAudioUrl(nextUrl);
-      setEstimatedDuration(payload.durationEstimateSec);
-      setProvider(payload.provider);
-      setHistory(
+      setEstimatedDuration(totalDuration);
+      setProvider("streamelements + batch");
+      setHistory((current) =>
         [
-          { createdAt: new Date().toISOString(), text, voice, url: nextUrl },
-          ...history,
-        ].slice(0, 20)
+          {
+            id: crypto.randomUUID(),
+            title: `${mode === "podcast" ? "Podcast" : "Batch"} ${new Date().toLocaleTimeString("fr-FR")}`,
+            createdAt: new Date().toISOString(),
+            pinned: false,
+            text: plainTextForGeneration,
+            language,
+            voice,
+            voiceStyle,
+            voiceGender,
+            rate,
+            tone,
+            method: "cloud" as GenerationMethod,
+            durationSec: totalDuration,
+            url: nextUrl,
+          },
+          ...current,
+        ].slice(0, 80)
       );
-      if (payload.selectedVoice) {
-        setVoice(payload.selectedVoice);
-      }
 
-      toast.success("Audio cloud généré avec succès.");
+      toast.success(
+        mode === "podcast"
+          ? "Podcast multi-voix généré avec succès."
+          : "Audio par lot généré avec succès."
+      );
 
       setTimeout(() => {
         audioRef.current?.play().catch(() => {
@@ -203,16 +1998,17 @@ export default function SpeakyPage() {
         });
       }, 10);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur de génération audio"
-      );
+      toast.error(error instanceof Error ? error.message : "Erreur de génération audio");
     } finally {
       setIsGenerating(false);
+      setIsPaused(false);
+      pausedRef.current = false;
+      setProgress((current) => ({ ...current, etaSec: 0 }));
     }
   };
 
   const previewWithBrowserSpeech = () => {
-    if (!text.trim()) {
+    if (!plainTextForGeneration.trim()) {
       toast.error("Ajoutez du texte pour la prévisualisation.");
       return;
     }
@@ -223,25 +2019,19 @@ export default function SpeakyPage() {
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(plainTextForGeneration);
     utterance.rate = Math.max(0.5, Math.min(1.8, rate));
     utterance.pitch = Math.max(0, Math.min(2, 1 + tone / 10));
     utterance.lang = `${language}-${language.toUpperCase()}`;
     utterance.volume = 1;
 
     const styleBoost =
-      voiceStyle === "énergique"
-        ? 0.12
-        : voiceStyle === "conversationnel"
-          ? 0.04
-          : 0;
+      voiceStyle === "énergique" ? 0.12 : voiceStyle === "conversationnel" ? 0.04 : 0;
     utterance.rate = Math.max(0.5, Math.min(2, utterance.rate + styleBoost));
 
     const selectedVoice = window.speechSynthesis
       .getVoices()
-      .find((candidate) =>
-        candidate.lang.toLowerCase().startsWith(language.toLowerCase())
-      );
+      .find((candidate) => candidate.lang.toLowerCase().startsWith(language.toLowerCase()));
     if (selectedVoice) {
       utterance.voice = selectedVoice;
     }
@@ -276,7 +2066,7 @@ export default function SpeakyPage() {
 
     const link = document.createElement("a");
     link.href = audioUrl;
-    link.download = `speaky-${Date.now()}.mp3`;
+    link.download = `speaky-${Date.now()}.${outputFormat}`;
     document.body.append(link);
     link.click();
     link.remove();
@@ -290,8 +2080,8 @@ export default function SpeakyPage() {
 
     const response = await fetch(audioUrl);
     const blob = await response.blob();
-    const file = new File([blob], `speaky-${Date.now()}.mp3`, {
-      type: "audio/mpeg",
+    const file = new File([blob], `speaky-${Date.now()}.${outputFormat}`, {
+      type: outputFormat === "wav" ? "audio/wav" : "audio/mpeg",
     });
 
     const formData = new FormData();
@@ -311,28 +2101,732 @@ export default function SpeakyPage() {
     toast.success("Audio ajouté à la bibliothèque.");
   };
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setShowShortcutsModal(true);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        generateBatchAudio();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!presetTitle.trim()) {
+          setPresetTitle("Favori rapide");
+        }
+        saveCurrentAsPreset();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        handleDownload();
+      }
+      if (event.key === "Escape") {
+        audioRef.current?.pause();
+        if (speechSupport) window.speechSynthesis.cancel();
+        setIsPlaying(false);
+      }
+      if (event.key === " " && audioRef.current) {
+        event.preventDefault();
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(() => undefined);
+        } else {
+          audioRef.current.pause();
+        }
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setRate((current) => Math.min(1.6, Number((current + 0.1).toFixed(2))));
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setRate((current) => Math.max(0.7, Number((current - 0.1).toFixed(2))));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [generateBatchAudio, handleDownload, presetTitle, saveCurrentAsPreset, speechSupport]);
+
+  const onboardingTargets = [
+    {
+      ref: editorTextAreaRef,
+      message: "Zone de texte : collez ou écrivez votre script ici.",
+    },
+    {
+      ref: voiceSelectRef,
+      message: "Choisissez votre voix ici.",
+    },
+    {
+      ref: styleSelectRef,
+      message: "Sélecteur de style vocal.",
+    },
+    {
+      ref: speedSliderRef,
+      message: "Ajustez la vitesse de lecture.",
+    },
+    {
+      ref: toneSliderRef,
+      message: "Ajustez le ton de la voix.",
+    },
+    {
+      ref: generateButtonRef,
+      message: "Cliquez pour générer l'audio cloud.",
+    },
+  ] as const;
+
+  const activeTourTarget =
+    onboardingStep === 2 ? onboardingTargets[onboardingTourIndex] : null;
+  const activeTourRect = activeTourTarget?.ref.current?.getBoundingClientRect();
+
   return (
-    <div className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 md:p-8">
+    <div
+      className="liquid-glass flex h-full flex-col gap-4 overflow-auto p-4 transition-colors duration-300 md:p-8"
+      style={{
+        background: effectiveTheme.palette.background,
+        color: effectiveTheme.palette.text,
+      }}
+    >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Speaky</h1>
           <p className="text-sm text-muted-foreground">
-            Faire des sons d'exceptions.
+            Génération par lot et podcast multi-voix.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded-xl border px-3 py-2"
+            onClick={() => setShowShortcutsModal(true)}
+            style={{ borderColor: effectiveTheme.palette.accent }}
+            type="button"
+          >
+            <CircleHelp className="size-4" />
+          </button>
+          <button
+            className="rounded-xl border px-3 py-2"
+            onClick={() => {
+              setIsDarkMode((current) => !current);
+              setThemeId((current) =>
+                current === "classic-light" || current === "classic-dark"
+                  ? isDarkMode
+                    ? "classic-light"
+                    : "classic-dark"
+                  : current
+              );
+            }}
+            style={{ borderColor: effectiveTheme.palette.accent }}
+            type="button"
+          >
+            {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
         </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-        <section className="liquid-panel space-y-3 rounded-2xl p-4">
-          <textarea
-            className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
-            onChange={(event) => setText(event.target.value)}
-            placeholder="Collez le texte à transformer en audio..."
-            value={text}
-          />
+        <section
+          className={`liquid-panel space-y-3 rounded-2xl p-4 ${isDraggingFile ? "ring-2 ring-cyan-500" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+          }}
+          onDrop={async (event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+            const file = event.dataTransfer.files?.[0];
+            if (file) {
+              await importDocument(file);
+            }
+          }}
+        >
+          <div className="mb-2 flex gap-2">
+            <button
+              className={`rounded-lg px-2 py-1 text-[11px] ${workspaceMode === "generator" ? "bg-black text-white" : "border"}`}
+              onClick={() => setWorkspaceMode("generator")}
+              type="button"
+            >
+              Générateur
+            </button>
+            <button
+              className={`rounded-lg px-2 py-1 text-[11px] ${workspaceMode === "projects" ? "bg-black text-white" : "border"}`}
+              onClick={() => setWorkspaceMode("projects")}
+              type="button"
+            >
+              Projets collaboratifs
+            </button>
+          </div>
+
+          <div
+            className="mb-3 rounded-xl border p-3 transition-colors duration-300"
+            style={{
+              background: effectiveTheme.palette.panel,
+              borderColor: `${effectiveTheme.palette.accent}55`,
+            }}
+          >
+            <p className="mb-2 text-xs font-semibold">Apparence</p>
+            <label className="mb-2 inline-flex items-center gap-2 text-[11px]">
+              <input
+                checked={isDarkMode}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setIsDarkMode(checked);
+                  setThemeId(checked ? "classic-dark" : "classic-light");
+                }}
+                type="checkbox"
+              />
+              Mode sombre / clair
+            </label>
+            <p className="mb-1 text-[11px] font-medium">Thèmes</p>
+            <div className="grid gap-2 md:grid-cols-3">
+              {SPEAKY_THEMES.map((theme) => (
+                <button
+                  className={`rounded-lg border p-2 text-left text-[11px] ${
+                    theme.id === themeId ? "ring-1 ring-offset-1" : ""
+                  }`}
+                  key={theme.id}
+                  onClick={() => {
+                    setThemeId(theme.id);
+                    if (theme.id === "classic-dark") setIsDarkMode(true);
+                    if (theme.id === "classic-light") setIsDarkMode(false);
+                  }}
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.palette.background}, ${theme.palette.card})`,
+                    borderColor:
+                      theme.id === themeId
+                        ? effectiveTheme.palette.accent
+                        : `${theme.palette.text}33`,
+                    color: theme.palette.text,
+                  }}
+                  type="button"
+                >
+                  <p className="font-medium">{theme.name}</p>
+                  {theme.premium ? <p>Premium</p> : <p>Gratuit</p>}
+                </button>
+              ))}
+            </div>
+            <button
+              className="mt-2 rounded border px-2 py-1 text-[11px]"
+              onClick={() => {
+                setOnboardingDone(false);
+                setOnboardingStep(1);
+                setOnboardingTourIndex(0);
+              }}
+              type="button"
+            >
+              Relancer tutoriel interactif
+            </button>
+          </div>
+
+          {workspaceMode === "projects" ? (
+            <div className="space-y-3 rounded-xl border border-border/50 bg-background/40 p-3">
+              <p className="text-sm font-semibold text-foreground">
+                Espace projets collaboratifs
+              </p>
+              <div className="grid gap-2 md:grid-cols-2">
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) => setNewProjectTitle(event.target.value)}
+                  placeholder="Titre du projet"
+                  value={newProjectTitle}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) => setNewProjectOwner(event.target.value)}
+                  placeholder="Pseudo propriétaire"
+                  value={newProjectOwner}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs md:col-span-2"
+                  onChange={(event) => setNewProjectDescription(event.target.value)}
+                  placeholder="Description"
+                  value={newProjectDescription}
+                />
+                <input
+                  className="rounded-lg border border-border/50 bg-background px-2 py-2 text-xs md:col-span-2"
+                  onChange={(event) => setNewCollaboratorsInput(event.target.value)}
+                  placeholder="Collaborateurs (pseudo1, pseudo2) ou lien d'invitation"
+                  value={newCollaboratorsInput}
+                />
+              </div>
+              <button className="rounded-lg border px-2 py-1 text-xs" onClick={createCollaborativeProject} type="button">
+                Créer projet
+              </button>
+
+              <div className="grid gap-3 lg:grid-cols-[240px_1fr]">
+                <aside className="space-y-1">
+                  {collaborativeProjects.map((project) => (
+                    <button
+                      className={`block w-full rounded border px-2 py-1 text-left text-xs ${activeProjectId === project.id ? "border-cyan-400 bg-cyan-500/10" : ""}`}
+                      key={project.id}
+                      onClick={() => setActiveProjectId(project.id)}
+                      type="button"
+                    >
+                      {project.title}
+                      <p className="text-[10px] text-muted-foreground">
+                        Invit: {project.inviteCode}
+                      </p>
+                    </button>
+                  ))}
+                </aside>
+                {activeProject ? (
+                  <div className="space-y-2">
+                    <div className="rounded border border-border/40 p-2 text-[11px]">
+                      <p className="font-medium text-foreground">{activeProject.title}</p>
+                      <p>{activeProject.description}</p>
+                      <p>
+                        Progression: {projectProgress.percent}% · {projectProgress.completed} complétées · {projectProgress.inProgress} en cours · {projectProgress.pending} en attente
+                      </p>
+                      <p>
+                        Collaborateurs: {[activeProject.owner, ...activeProject.collaborators].join(", ")}
+                      </p>
+                    </div>
+                    <button className="rounded border px-2 py-1 text-xs" onClick={addSectionToProject} type="button">
+                      Ajouter section
+                    </button>
+                    <div className="space-y-2">
+                      {activeProject.sections.map((section) => (
+                        <div className="rounded border border-border/40 p-2" key={section.id}>
+                          <div className="mb-1 flex items-center justify-between">
+                            <input
+                              className="rounded border border-border/50 bg-background px-2 py-1 text-xs"
+                              onChange={(event) =>
+                                updateProjectSection(section.id, (current) => ({
+                                  ...current,
+                                  title: event.target.value,
+                                }))
+                              }
+                              value={section.title}
+                            />
+                            <span className="rounded px-2 py-1 text-[10px] text-white" style={{ backgroundColor: section.color }}>
+                              {section.assignee}
+                            </span>
+                          </div>
+                          <textarea
+                            className="min-h-[90px] w-full rounded border border-border/50 bg-background p-2 text-xs"
+                            onChange={(event) =>
+                              updateProjectSection(
+                                section.id,
+                                (current) => ({
+                                  ...current,
+                                  text: event.target.value,
+                                  status: "in_progress",
+                                }),
+                                `Script modifié (${section.title})`
+                              )
+                            }
+                            value={section.text}
+                          />
+                          <div className="mt-1 grid gap-1 md:grid-cols-3">
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voice: event.target.value }))} value={section.voice}>
+                              {availableVoices.map((voiceItem) => (
+                                <option key={voiceItem} value={voiceItem}>{voiceItem}</option>
+                              ))}
+                            </select>
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voiceStyle: event.target.value as VoiceStyle }))} value={section.voiceStyle}>
+                              <option value="narratif">Narratif</option>
+                              <option value="conversationnel">Conversationnel</option>
+                              <option value="énergique">Énergique</option>
+                            </select>
+                            <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => updateProjectSection(section.id, (current) => ({ ...current, voiceGender: event.target.value as "homme" | "femme" }))} value={section.voiceGender}>
+                              <option value="femme">Femme</option>
+                              <option value="homme">Homme</option>
+                            </select>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <button
+                              className="rounded border px-2 py-1 text-[11px]"
+                              onClick={async () => {
+                                try {
+                                  await generateSectionAudio(section);
+                                  toast.success(`Section générée: ${section.title}`);
+                                } catch (error) {
+                                  toast.error(error instanceof Error ? error.message : "Erreur");
+                                }
+                              }}
+                              type="button"
+                            >
+                              Générer section
+                            </button>
+                            {section.audioUrl ? <audio className="h-8" controls src={section.audioUrl} /> : null}
+                          </div>
+                          <div className="mt-1 rounded border border-border/30 p-1 text-[11px]">
+                            <p className="font-medium">Commentaires</p>
+                            <div className="max-h-20 space-y-1 overflow-auto">
+                              {activeProject.comments
+                                .filter((comment) => comment.sectionId === section.id)
+                                .map((comment) => (
+                                  <p key={comment.id}>
+                                    <span className="font-medium">{comment.author}:</span> {comment.content}
+                                  </p>
+                                ))}
+                            </div>
+                            <div className="mt-1 flex gap-1">
+                              <input
+                                className="w-full rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                                onChange={(event) =>
+                                  setSectionCommentDrafts((current) => ({
+                                    ...current,
+                                    [section.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ajouter un commentaire"
+                                value={sectionCommentDrafts[section.id] ?? ""}
+                              />
+                              <button className="rounded border px-2" onClick={() => addCommentToSection(section.id)} type="button">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded border border-border/40 p-2 text-xs">
+                      <p className="mb-1 font-medium">Assemblage final</p>
+                      <div className="mb-1 flex gap-1">
+                        <select className="rounded border border-border/50 bg-background px-2 py-1 text-xs" onChange={(event) => setTransitionMode(event.target.value as "none" | "smooth")} value={transitionMode}>
+                          <option value="none">Sans transition</option>
+                          <option value="smooth">Transition douce</option>
+                        </select>
+                        <input className="w-20 rounded border border-border/50 bg-background px-1 py-1 text-xs" max={2000} min={0} onChange={(event) => setTransitionMs(Number(event.target.value))} step={100} type="number" value={transitionMs} />
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <button className="rounded border px-2 py-1" onClick={assembleProjectAudio} type="button">Assembler</button>
+                        <button className="rounded border px-2 py-1" onClick={publishProjectToGallery} type="button">Publier galerie</button>
+                        {activeProject.assembledAudioUrl ? <audio className="h-8" controls src={activeProject.assembledAudioUrl} /> : null}
+                      </div>
+                    </div>
+                    <div className="rounded border border-border/40 p-2 text-[11px]">
+                      <p className="font-medium">Historique versions</p>
+                      <div className="max-h-24 space-y-1 overflow-auto">
+                        {activeProject.versions.map((version) => (
+                          <button className="block w-full rounded border px-2 py-1 text-left" key={version.id} onClick={() => restoreProjectVersion(version)} type="button">
+                            {version.label} · {new Date(version.createdAt).toLocaleTimeString("fr-FR")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Sélectionnez ou créez un projet pour démarrer la collaboration.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`rounded-xl px-3 py-2 text-xs ${mode === "batch" ? "bg-black text-white" : "border"}`}
+              onClick={() => setMode("batch")}
+              type="button"
+            >
+              Batch long texte
+            </button>
+            <button
+              className={`rounded-xl px-3 py-2 text-xs ${mode === "podcast" ? "bg-black text-white" : "border"}`}
+              onClick={() => setMode("podcast")}
+              type="button"
+            >
+              Podcast multi-voix
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
+              onClick={() => setIsTemplatePanelOpen((current) => !current)}
+              type="button"
+            >
+              <Wand2 className="size-3.5" />
+              Templates texte
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs">
+              <FileText className="size-3.5" />
+              Import document
+              <input
+                accept=".pdf,.docx,.txt,.srt,.md,.json,.csv"
+                className="hidden"
+                onChange={onDocumentInput}
+                type="file"
+              />
+            </label>
+          </div>
+
+          {isTemplatePanelOpen ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                Bibliothèque de templates prêts à l'emploi
+              </p>
+              <div className="mb-2 flex flex-wrap gap-1">
+                {(Object.keys(TEMPLATE_CATEGORY_LABELS) as TemplateCategory[]).map(
+                  (category) => (
+                    <button
+                      className={`rounded-lg px-2 py-1 text-[11px] ${
+                        selectedTemplateCategory === category
+                          ? "bg-black text-white"
+                          : "border"
+                      }`}
+                      key={category}
+                      onClick={() => setSelectedTemplateCategory(category)}
+                      type="button"
+                    >
+                      {TEMPLATE_CATEGORY_LABELS[category]}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <p className="mb-1 text-[11px] font-medium text-foreground">
+                Tendances communauté
+              </p>
+              <div className="mb-3 grid gap-2 md:grid-cols-2">
+                {featuredTemplates.map((template) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={template.id}>
+                    <p className="font-medium text-foreground">{template.title}</p>
+                    <p className="text-[11px]">
+                      ⭐ {template.rating.toFixed(1)} · {template.usageCount.toLocaleString("fr-FR")} usages
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="max-h-56 space-y-2 overflow-auto">
+                {filteredTemplates.map((template) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={template.id}>
+                    <p className="font-medium text-foreground">{template.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {template.level ? `${template.level} · ` : ""}
+                      ⭐ {template.rating.toFixed(1)} · {template.usageCount.toLocaleString("fr-FR")} usages
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-[11px]">{template.text}</p>
+                    <div className="mt-2 flex gap-1">
+                      <button
+                        className="rounded border px-2 py-1 text-[11px]"
+                        onClick={() => applyTemplate(template)}
+                        type="button"
+                      >
+                        Utiliser
+                      </button>
+                      <button
+                        className="rounded border px-2 py-1 text-[11px]"
+                        onClick={() => previewTemplate(template)}
+                        type="button"
+                      >
+                        {previewingTemplateId === template.id ? "..." : "Prévisualiser"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-xl border border-border/50 bg-background/40 p-2">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-medium text-foreground">Mode éditeur</span>
+              <button
+                className={`rounded-lg px-2 py-1 text-[11px] ${scriptEditorMode === "standard" ? "bg-black text-white" : "border"}`}
+                onClick={() => setScriptEditorMode("standard")}
+                type="button"
+              >
+                Standard
+              </button>
+              <button
+                className={`rounded-lg px-2 py-1 text-[11px] ${scriptEditorMode === "advanced" ? "bg-black text-white" : "border"}`}
+                onClick={() => setScriptEditorMode("advanced")}
+                type="button"
+              >
+                Avancé
+              </button>
+            </div>
+            {scriptEditorMode === "advanced" ? (
+              <>
+                <div className="mb-2 flex flex-wrap items-center gap-1">
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("pause")} type="button">
+                    Pause
+                  </button>
+                  <input
+                    className="w-20 rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                    max={3000}
+                    min={100}
+                    onChange={(event) => setPauseDurationMs(Number(event.target.value))}
+                    step={100}
+                    type="number"
+                    value={pauseDurationMs}
+                  />
+                  <span className="text-[11px] text-muted-foreground">ms</span>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("emphasis")} type="button">
+                    Emphase
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("whisper")} type="button">
+                    Murmure
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("spell")} type="button">
+                    Épeler
+                  </button>
+                  <button className="rounded border px-2 py-1 text-[11px]" onClick={() => insertMarker("pronounce")} type="button">
+                    Prononciation
+                  </button>
+                  <input
+                    className="w-28 rounded border border-border/50 bg-background px-1 py-1 text-[11px]"
+                    onChange={(event) => setPronunciationIpa(event.target.value)}
+                    placeholder="IPA simplifié"
+                    value={pronunciationIpa}
+                  />
+                  <button className="rounded border border-red-300 px-2 py-1 text-[11px] text-red-600" onClick={resetAllMarkers} type="button">
+                    Réinitialiser marqueurs
+                  </button>
+                </div>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  {markerVisuals.slice(0, 12).map((marker, index) => (
+                    <span
+                      className={`rounded px-2 py-1 text-[10px] ${marker.color}`}
+                      key={`${marker.label}-${index}`}
+                      title={`${marker.label}: ${marker.detail}`}
+                    >
+                      {marker.icon} {marker.label}
+                    </span>
+                  ))}
+                  {markerVisuals.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      Aucun marqueur inséré.
+                    </span>
+                  ) : null}
+                </div>
+                <details className="text-[11px]">
+                  <summary className="cursor-pointer text-muted-foreground">
+                    Aperçu SSML généré automatiquement
+                  </summary>
+                  <pre className="mt-1 max-h-28 overflow-auto rounded border border-border/40 bg-background/60 p-2 whitespace-pre-wrap">
+                    {ssmlPreview}
+                  </pre>
+                </details>
+              </>
+            ) : null}
+          </div>
+
+          {mode === "podcast" ? (
+            <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+              <div className="space-y-2">
+                <textarea
+                  className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="[Lea] Bonjour et bienvenue...\n\n[Mathieu] Merci Lea..."
+                  ref={editorTextAreaRef}
+                  value={text}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {PODCAST_TEMPLATES.map((template) => (
+                    <button
+                      className="rounded-lg border px-2 py-1 text-[11px]"
+                      key={template.label}
+                      onClick={() => setText(template.value)}
+                      type="button"
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <aside className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+                <p className="mb-2 font-semibold text-foreground">Voix utilisées</p>
+                <div className="space-y-1">
+                  {(voicesInPodcast.length ? voicesInPodcast : [voice]).map((voiceName, index) => (
+                    <p
+                      className={`rounded px-2 py-1 ${VOICE_COLORS[index % VOICE_COLORS.length]}`}
+                      key={voiceName}
+                    >
+                      {voiceName}
+                    </p>
+                  ))}
+                </div>
+                <p className="mt-3 mb-1 font-semibold text-foreground">Aperçu alternances</p>
+                <div className="max-h-40 space-y-1 overflow-auto">
+                  {podcastUnits.slice(0, 12).map((unit, index) => (
+                    <p
+                      className={`rounded px-2 py-1 ${VOICE_COLORS[index % VOICE_COLORS.length]}`}
+                      key={`${unit.label}-${index}`}
+                    >
+                      [{unit.voice}] {unit.text.slice(0, 80)}
+                      {unit.text.length > 80 ? "…" : ""}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <>
+              <textarea
+                className="min-h-[280px] w-full rounded-xl border border-border/40 bg-background/70 p-3 text-sm"
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Collez ou importez un texte long à transformer en audio..."
+                ref={editorTextAreaRef}
+                value={text}
+              />
+              <div>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs">
+                  <Upload className="size-3.5" />
+                  Importer un fichier texte
+                  <input accept=".txt,.md,.csv,.json,.docx,.pdf,.srt" className="hidden" onChange={onDocumentInput} type="file" />
+                </label>
+              </div>
+            </>
+          )}
+
+          {lastImportMeta ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+              <p className="font-medium text-foreground">
+                Aperçu import: {lastImportMeta.fileName}
+              </p>
+              <p>
+                {lastImportMeta.chars} caractères · {lastImportMeta.segments} segments
+              </p>
+              {lastImportMeta.isSrt ? (
+                <label className="mt-1 inline-flex items-center gap-2">
+                  <input
+                    checked={applySrtTiming}
+                    onChange={(event) => setApplySrtTiming(event.target.checked)}
+                    type="checkbox"
+                  />
+                  Utiliser les timecodes SRT pour synchroniser les pauses
+                </label>
+              ) : null}
+              <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-muted-foreground">
+                {lastImportPreview}
+              </p>
+            </div>
+          ) : null}
+
+          {recentImports.length > 0 ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-[11px]">
+              <p className="mb-1 font-medium text-foreground">Imports récents</p>
+              <div className="max-h-24 space-y-1 overflow-auto">
+                {recentImports.map((entry) => (
+                  <button
+                    className="block w-full rounded border border-border/40 px-2 py-1 text-left"
+                    key={`${entry.fileName}-${entry.importedAt}`}
+                    onClick={() => {
+                      setText(entry.extractedText);
+                      setLastImportPreview(entry.extractedText.slice(0, 1200));
+                      setLastImportMeta({
+                        fileName: entry.fileName,
+                        chars: entry.extractedText.length,
+                        segments: splitTextIntoSmartSegments(entry.extractedText).length,
+                        isSrt: entry.fileName.toLowerCase().endsWith(".srt"),
+                      });
+                    }}
+                    type="button"
+                  >
+                    {entry.fileName} ·{" "}
+                    {new Date(entry.importedAt).toLocaleTimeString("fr-FR")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <p className="text-[11px] text-muted-foreground">
-            Limite cloud: 500 caractères ({cloudTextLength}/500).
+            Compteur cloud 500 caractères: {Math.min(rawTextLength, 500)}/500 · Texte brut: {rawTextLength} · Marqueurs: {markerCount} · Segments: {activeUnits.length}
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
@@ -358,10 +2852,11 @@ export default function SpeakyPage() {
             </label>
 
             <label className="text-xs">
-              Voix
+              Voix par défaut
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
                 onChange={(event) => setVoice(event.target.value)}
+                ref={voiceSelectRef}
                 value={voice}
               >
                 {availableVoices.map((item) => (
@@ -378,9 +2873,8 @@ export default function SpeakyPage() {
               Style
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
-                onChange={(event) =>
-                  setVoiceStyle(event.target.value as VoiceStyle)
-                }
+                onChange={(event) => setVoiceStyle(event.target.value as VoiceStyle)}
+                ref={styleSelectRef}
                 value={voiceStyle}
               >
                 <option value="narratif">Narratif</option>
@@ -392,9 +2886,7 @@ export default function SpeakyPage() {
               Variante
               <select
                 className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
-                onChange={(event) =>
-                  setVoiceGender(event.target.value as "homme" | "femme")
-                }
+                onChange={(event) => setVoiceGender(event.target.value as "homme" | "femme")}
                 value={voiceGender}
               >
                 <option value="femme">Femme</option>
@@ -403,27 +2895,40 @@ export default function SpeakyPage() {
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs">
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="text-xs md:col-span-1">
+              Format final
+              <select
+                className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                onChange={(event) => setOutputFormat(event.target.value as OutputFormat)}
+                value={outputFormat}
+              >
+                <option value="mp3">MP3</option>
+                <option value="wav">WAV</option>
+              </select>
+            </label>
+            <label className="text-xs md:col-span-1">
               Vitesse ({rate.toFixed(2)}x)
               <input
                 className="mt-1 w-full"
                 max={1.6}
                 min={0.7}
                 onChange={(event) => setRate(Number(event.target.value))}
+                ref={speedSliderRef}
                 step={0.05}
                 type="range"
                 value={rate}
               />
             </label>
 
-            <label className="text-xs">
+            <label className="text-xs md:col-span-1">
               Ton ({tone > 0 ? `+${tone}` : tone})
               <input
                 className="mt-1 w-full"
                 max={6}
                 min={-6}
                 onChange={(event) => setTone(Number(event.target.value))}
+                ref={toneSliderRef}
                 step={1}
                 type="range"
                 value={tone}
@@ -432,23 +2937,103 @@ export default function SpeakyPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Vitesse/ton appliqués au playback (taux effectif:{" "}
-            {effectiveRate.toFixed(2)}x).
+            Vitesse/ton appliqués au playback (taux effectif: {effectiveRate.toFixed(2)}x).
           </p>
+
+          <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+            <p className="mb-2 text-xs font-semibold text-foreground">Créateur de profil vocal avancé</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-xs">
+                Mots à emphase (séparés par virgule)
+                <input
+                  className="mt-1 w-full rounded-lg border border-border/50 bg-background px-2 py-2 text-xs"
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      emphasisWords: event.target.value
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    }))
+                  }
+                  placeholder="important, urgent, now"
+                  value={advancedProfile.emphasisWords.join(", ")}
+                />
+              </label>
+              <label className="text-xs">
+                Pause inter-phrases ({advancedProfile.pauseSeconds.toFixed(1)}s)
+                <input
+                  className="mt-1 w-full"
+                  max={2}
+                  min={0}
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      pauseSeconds: Number(event.target.value),
+                    }))
+                  }
+                  step={0.1}
+                  type="range"
+                  value={advancedProfile.pauseSeconds}
+                />
+              </label>
+              <label className="text-xs md:col-span-2">
+                Volume relatif ({advancedProfile.volume.toFixed(2)}x)
+                <input
+                  className="mt-1 w-full"
+                  max={1.5}
+                  min={0.5}
+                  onChange={(event) =>
+                    setAdvancedProfile((current) => ({
+                      ...current,
+                      volume: Number(event.target.value),
+                    }))
+                  }
+                  step={0.05}
+                  type="range"
+                  value={advancedProfile.volume}
+                />
+              </label>
+            </div>
+          </div>
+
+          {isGenerating ? (
+            <div className="rounded-xl border border-border/50 bg-background/40 p-2 text-xs">
+              <p>
+                Segment {progress.completed}/{progress.total} · {progress.percent}%
+              </p>
+              <p className="text-[11px] text-muted-foreground">Temps restant estimé: ~{progress.etaSec}s</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full transition-all"
+                  style={{
+                    width: `${progress.percent}%`,
+                    backgroundColor: effectiveTheme.palette.accent,
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs text-white disabled:opacity-60"
               disabled={isGenerating}
-              onClick={generateCloudAudio}
+              onClick={generateBatchAudio}
+              ref={generateButtonRef}
               type="button"
             >
-              {isGenerating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Play className="size-3.5" />
-              )}
-              Générer audio cloud
+              {isGenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+              {mode === "podcast" ? "Générer podcast" : "Générer par lot"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs disabled:opacity-50"
+              disabled={!isGenerating}
+              onClick={togglePause}
+              type="button"
+            >
+              {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+              {isPaused ? "Reprendre" : "Pause"}
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
@@ -468,22 +3053,6 @@ export default function SpeakyPage() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
-              onClick={() =>
-                setFavoriteVoices((current) =>
-                  current.includes(voice)
-                    ? current.filter((item) => item !== voice)
-                    : [voice, ...current]
-                )
-              }
-              type="button"
-            >
-              <Sparkles className="size-3.5" />
-              {favoriteVoices.includes(voice)
-                ? "Voix retirée des favoris"
-                : "Ajouter voix favorite"}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
               onClick={() => {
                 audioRef.current?.pause();
                 if (speechSupport) {
@@ -500,6 +3069,128 @@ export default function SpeakyPage() {
         </section>
 
         <aside className="liquid-panel rounded-2xl p-4 text-xs text-muted-foreground">
+          <div className="mb-4 rounded-xl border border-border/50 bg-background/40 p-2">
+            <p className="mb-2 text-xs font-semibold text-foreground">Bibliothèque de presets</p>
+            <div className="mb-2 flex gap-2">
+              <input
+                className="w-full rounded-lg border border-border/50 bg-background px-2 py-1 text-xs"
+                onChange={(event) => setPresetTitle(event.target.value)}
+                placeholder="Nom du preset (ex: Narration livre audio)"
+                value={presetTitle}
+              />
+              <button
+                className="rounded-lg border px-2 py-1 text-[11px]"
+                onClick={saveCurrentAsPreset}
+                type="button"
+              >
+                Sauver
+              </button>
+            </div>
+
+            <p className="mb-1 text-[11px] font-medium text-foreground">Mes presets</p>
+            <div className="max-h-36 space-y-1 overflow-auto">
+              {personalPresets.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Aucun preset personnel enregistré.</p>
+              ) : (
+                personalPresets.map((preset) => (
+                  <div className="rounded-lg border border-border/40 p-2" key={preset.id}>
+                    <p className="font-medium text-foreground">{preset.title}</p>
+                    <p className="text-[11px]">
+                      {preset.language.toUpperCase()} · {preset.voice}
+                    </p>
+                    <div className="mt-1 flex gap-1">
+                      <div className="h-1.5 w-16 rounded bg-muted">
+                        <div
+                          className="h-full rounded bg-cyan-500"
+                          style={{ width: `${Math.min(100, (preset.rate / 1.6) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="h-1.5 w-16 rounded bg-muted">
+                        <div
+                          className="h-full rounded bg-fuchsia-500"
+                          style={{ width: `${Math.min(100, ((preset.tone + 6) / 12) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex gap-1">
+                      <button className="rounded border px-1" onClick={() => applyPreset(preset)} type="button">
+                        Appliquer
+                      </button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={() => quickPreviewPreset(preset)}
+                        type="button"
+                      >
+                        {previewingPresetId === preset.id ? "..." : "3s"}
+                      </button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={() => exportPresetLink(preset)}
+                        type="button"
+                      >
+                        Export
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <p className="mb-1 mt-3 text-[11px] font-medium text-foreground">
+              Presets communautaires
+            </p>
+            <div className="max-h-48 space-y-2 overflow-auto">
+              {(Object.keys(communityPresetsByCategory) as PresetCategory[]).map((category) => (
+                <div key={category}>
+                  <p className="mb-1 text-[11px] font-medium">{CATEGORY_LABELS[category]}</p>
+                  <div className="space-y-1">
+                    {communityPresetsByCategory[category].map((preset) => (
+                      <div className="rounded-lg border border-border/40 p-2" key={preset.id}>
+                        <p className="font-medium text-foreground">{preset.title}</p>
+                        <p className="text-[11px]">
+                          {preset.language.toUpperCase()} · {preset.voice}
+                        </p>
+                        <div className="mt-1 flex gap-1">
+                          <div className="h-1.5 w-16 rounded bg-muted">
+                            <div
+                              className="h-full rounded bg-cyan-500"
+                              style={{ width: `${Math.min(100, (preset.rate / 1.6) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="h-1.5 w-16 rounded bg-muted">
+                            <div
+                              className="h-full rounded bg-fuchsia-500"
+                              style={{ width: `${Math.min(100, ((preset.tone + 6) / 12) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-2 flex gap-1">
+                          <button className="rounded border px-1" onClick={() => applyPreset(preset)} type="button">
+                            Appliquer
+                          </button>
+                          <button
+                            className="rounded border px-1"
+                            onClick={() => quickPreviewPreset(preset)}
+                            type="button"
+                          >
+                            {previewingPresetId === preset.id ? "..." : "3s"}
+                          </button>
+                          <button
+                            className="rounded border px-1"
+                            onClick={() => exportPresetLink(preset)}
+                            type="button"
+                          >
+                            Export
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <p className="mb-2 inline-flex items-center gap-2 font-medium text-foreground">
             <Waves className="size-4" />
             Animation audio
@@ -516,36 +3207,20 @@ export default function SpeakyPage() {
           <div className="mb-4 flex h-16 items-end gap-1 rounded-xl border border-border/40 bg-background/60 p-2">
             {bars.map((bar) => (
               <span
-                className={`w-1.5 rounded-full bg-cyan-500/70 ${isPlaying || isGenerating ? "animate-pulse" : "opacity-40"}`}
+                className={`w-1.5 rounded-full ${isPlaying || isGenerating ? "animate-pulse" : "opacity-40"}`}
                 key={bar}
                 style={{
                   height: `${25 + ((bar * 17) % 65)}%`,
                   animationDelay: `${bar * 45}ms`,
+                  backgroundColor: effectiveTheme.palette.wave,
                 }}
               />
             ))}
           </div>
 
-          <p>
-            {isGenerating
-              ? "Génération en cours..."
-              : isPlaying
-                ? "Lecture en cours"
-                : "Prêt"}
-          </p>
-          {estimatedDuration ? (
-            <p className="mt-1 text-[11px]">
-              Durée estimée : ~{estimatedDuration}s
-            </p>
-          ) : null}
-          {provider ? (
-            <p className="mt-1 text-[11px]">Provider: {provider}</p>
-          ) : null}
-          {favoriteVoices.length > 0 ? (
-            <p className="mt-1 text-[11px]">
-              Voix favorites: {favoriteVoices.join(", ")}
-            </p>
-          ) : null}
+          <p>{isGenerating ? (isPaused ? "En pause" : "Génération en cours...") : isPlaying ? "Lecture en cours" : "Prêt"}</p>
+          {estimatedDuration ? <p className="mt-1 text-[11px]">Durée estimée : ~{estimatedDuration}s</p> : null}
+          {provider ? <p className="mt-1 text-[11px]">Provider: {provider}</p> : null}
 
           {audioUrl ? (
             <>
@@ -575,7 +3250,7 @@ export default function SpeakyPage() {
                   type="button"
                 >
                   <Download className="size-3.5" />
-                  Télécharger MP3
+                  Télécharger {outputFormat.toUpperCase()}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2"
@@ -594,29 +3269,259 @@ export default function SpeakyPage() {
           )}
 
           <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-2">
-            <p className="mb-2 text-xs font-semibold text-foreground">
-              Historique des générations
-            </p>
-            <div className="max-h-28 space-y-1 overflow-auto">
-              {history.slice(0, 8).map((item) => (
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground">
+                Gestionnaire audio (Historique)
+              </p>
+              <div className="flex gap-1">
+                <button className="rounded border px-2 py-1 text-[11px]" onClick={exportHistoryJson} type="button">
+                  Export JSON
+                </button>
                 <button
-                  className="block w-full rounded-md border border-border/40 px-2 py-1 text-left text-[11px]"
-                  key={`${item.createdAt}-${item.voice}`}
-                  onClick={() => {
-                    setText(item.text);
-                    setVoice(item.voice);
-                    setAudioUrl(item.url);
-                  }}
+                  className="rounded border px-2 py-1 text-[11px]"
+                  onClick={() => historyImportInputRef.current?.click()}
                   type="button"
                 >
-                  {item.voice} ·{" "}
-                  {new Date(item.createdAt).toLocaleTimeString("fr-FR")}
+                  Import JSON
                 </button>
-              ))}
+                <input accept=".json" className="hidden" onChange={importHistoryJson} ref={historyImportInputRef} type="file" />
+              </div>
+            </div>
+            <div className="mb-2 grid gap-1 md:grid-cols-2">
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistorySearch(event.target.value)} placeholder="Recherche texte/titre..." value={historySearch} />
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryLanguageFilter(event.target.value)} value={historyLanguageFilter}>
+                <option value="all">Toutes langues</option>
+                {historyLanguages.map((lang) => <option key={lang} value={lang}>{lang.toUpperCase()}</option>)}
+              </select>
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryVoiceFilter(event.target.value)} value={historyVoiceFilter}>
+                <option value="all">Toutes voix</option>
+                {historyVoices.map((voiceName) => <option key={voiceName} value={voiceName}>{voiceName}</option>)}
+              </select>
+              <select className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryMethodFilter(event.target.value as GenerationMethod | "all")} value={historyMethodFilter}>
+                <option value="all">Toutes méthodes</option>
+                <option value="cloud">Cloud</option>
+                <option value="web-speech">Web Speech</option>
+              </select>
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryDateFrom(event.target.value)} type="date" value={historyDateFrom} />
+              <input className="rounded border border-border/50 bg-background px-2 py-1 text-[11px]" onChange={(event) => setHistoryDateTo(event.target.value)} type="date" value={historyDateTo} />
+            </div>
+            <div className="mb-2 flex gap-1 text-[11px]">
+              <button className={`rounded border px-2 py-1 ${historyViewMode === "list" ? "bg-black text-white" : ""}`} onClick={() => setHistoryViewMode("list")} type="button">Vue liste</button>
+              <button className={`rounded border px-2 py-1 ${historyViewMode === "grid" ? "bg-black text-white" : ""}`} onClick={() => setHistoryViewMode("grid")} type="button">Vue grille</button>
+            </div>
+            <div className={`max-h-96 overflow-auto ${historyViewMode === "grid" ? "grid grid-cols-1 gap-2 md:grid-cols-2" : "space-y-2"}`}>
+              {filteredHistory.map((item) => {
+                const isExpanded = expandedHistoryIds.includes(item.id);
+                const textPreview = isExpanded ? item.text : `${item.text.slice(0, 160)}${item.text.length > 160 ? "…" : ""}`;
+                const audioProgress = historyProgress[item.id] ?? { currentTime: 0, duration: item.durationSec, volume: 1 };
+                return (
+                  <div className="rounded-md border border-border/40 px-2 py-2 text-[11px]" key={item.id}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-foreground">{item.title}</p>
+                      <button className="rounded border px-1" onClick={() => renameHistoryItem(item)} type="button">Renommer</button>
+                    </div>
+                    <p className="text-muted-foreground">{textPreview}</p>
+                    <button className="text-[10px] underline" onClick={() => setExpandedHistoryIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [item.id, ...current])} type="button">
+                      {isExpanded ? "Réduire" : "Voir plus"}
+                    </button>
+                    <p className="mt-1 text-[10px]">
+                      {item.language.toUpperCase()} · {item.voice} · {item.voiceStyle} · {item.voiceGender} · {item.rate.toFixed(2)}x · ton {item.tone}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString("fr-FR")} · {item.durationSec}s · {item.method}
+                    </p>
+                    <audio
+                      className="mt-1 w-full"
+                      controls
+                      onTimeUpdate={(event) => {
+                        const node = event.currentTarget;
+                        setHistoryProgress((current) => ({
+                          ...current,
+                          [item.id]: {
+                            currentTime: node.currentTime,
+                            duration: node.duration || item.durationSec,
+                            volume: node.volume,
+                          },
+                        }));
+                      }}
+                      ref={(node) => {
+                        historyAudioRefs.current[item.id] = node;
+                      }}
+                      src={item.url}
+                    />
+                    <input
+                      className="w-full"
+                      max={audioProgress.duration || item.durationSec}
+                      min={0}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        const node = historyAudioRefs.current[item.id];
+                        if (node) node.currentTime = nextValue;
+                      }}
+                      step={0.01}
+                      type="range"
+                      value={audioProgress.currentTime}
+                    />
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <button className="rounded border px-1" onClick={() => replayHistoryItem(item)} type="button">Rejouer</button>
+                      <button className="rounded border px-1" onClick={() => downloadHistoryAs(item, "mp3")} type="button">MP3</button>
+                      <button className="rounded border px-1" onClick={() => downloadHistoryAs(item, "wav")} type="button">WAV</button>
+                      <button className="rounded border px-1" onClick={() => publishHistoryItem(item)} type="button">Galerie</button>
+                      <button className="rounded border px-1" onClick={() => duplicateHistoryItem(item)} type="button">Dupliquer</button>
+                      <button
+                        className="rounded border px-1"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(item.url);
+                          toast.success("Lien copié.");
+                        }}
+                        type="button"
+                      >
+                        Partager
+                      </button>
+                      <button className="rounded border border-red-300 px-1 text-red-500" onClick={() => deleteHistoryItem(item)} type="button">Supprimer</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredHistory.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Aucune entrée correspondante.</p>
+              ) : null}
             </div>
           </div>
         </aside>
       </div>
+
+      {showShortcutsModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-background p-4 shadow-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-semibold">Raccourcis clavier Speaky</p>
+              <button className="rounded border px-2 py-1 text-xs" onClick={() => setShowShortcutsModal(false)} type="button">Fermer</button>
+            </div>
+            <ul className="space-y-1 text-sm">
+              <li><kbd>Ctrl+K</kbd> : ouvrir cette aide.</li>
+              <li><kbd>Ctrl+Entrée</kbd> : générer l'audio.</li>
+              <li><kbd>Espace</kbd> : play/pause.</li>
+              <li><kbd>Ctrl+S</kbd> : sauvegarder en favori rapide.</li>
+              <li><kbd>Échap</kbd> : stop.</li>
+              <li><kbd>↑ / ↓</kbd> : vitesse ±0,1.</li>
+              <li><kbd>Ctrl+D</kbd> : télécharger le dernier audio.</li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
+      {onboardingStep > 0 ? (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]">
+          <button
+            className="absolute right-4 top-4 rounded border bg-background px-3 py-1 text-xs"
+            onClick={() => {
+              setOnboardingDone(true);
+              setOnboardingStep(0);
+            }}
+            type="button"
+          >
+            Passer
+          </button>
+
+          {onboardingStep === 1 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Bienvenue dans Speaky</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choisissez votre langue principale pour démarrer.
+              </p>
+              <select
+                className="mt-3 w-full rounded border border-border/50 bg-background px-2 py-2"
+                onChange={(event) => setLanguage(event.target.value)}
+                value={language}
+              >
+                {LANGUAGE_OPTIONS.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <button className="mt-3 rounded border px-3 py-2" onClick={() => setOnboardingStep(2)} type="button">
+                Suivant
+              </button>
+            </div>
+          ) : null}
+
+          {onboardingStep === 2 && activeTourRect ? (
+            <div
+              className="absolute rounded-xl border bg-background/95 p-3 text-xs shadow-lg"
+              style={{
+                left: Math.max(12, activeTourRect.left),
+                top: Math.max(12, activeTourRect.top - 92),
+                width: 300,
+              }}
+            >
+              <p>{activeTourTarget?.message}</p>
+              <div className="mt-2 flex gap-1">
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => {
+                    if (onboardingTourIndex >= onboardingTargets.length - 1) {
+                      setOnboardingStep(3);
+                    } else {
+                      setOnboardingTourIndex((current) => current + 1);
+                    }
+                  }}
+                  type="button"
+                >
+                  {onboardingTourIndex >= onboardingTargets.length - 1 ? "Terminer visite" : "Suivant"}
+                </button>
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => setOnboardingStep(3)}
+                  type="button"
+                >
+                  Ignorer visite
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {onboardingStep === 3 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Première génération guidée</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pré-remplissez un texte exemple, générez, puis testez vitesse et ton.
+              </p>
+              <button
+                className="mt-3 rounded border px-3 py-2"
+                onClick={() => {
+                  setText(ONBOARDING_TEXT_BY_LANGUAGE[language] ?? ONBOARDING_TEXT_BY_LANGUAGE.fr);
+                  setMode("batch");
+                  setOnboardingStep(4);
+                }}
+                type="button"
+              >
+                Remplir texte exemple
+              </button>
+            </div>
+          ) : null}
+
+          {onboardingStep === 4 ? (
+            <div className="mx-auto mt-20 w-full max-w-xl rounded-2xl bg-background p-4 shadow-xl">
+              <h2 className="text-lg font-semibold">Vous êtes prêt 🚀</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Explorez les favoris, l'historique, le mode batch et les fonctions avancées.
+              </p>
+              <button
+                className="mt-3 rounded border px-3 py-2"
+                onClick={() => {
+                  setOnboardingDone(true);
+                  setOnboardingStep(0);
+                }}
+                type="button"
+              >
+                Terminer
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

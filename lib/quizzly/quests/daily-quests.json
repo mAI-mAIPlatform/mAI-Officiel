@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "daily-1",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Histoire.",
+    "target": 17,
+    "rewardDiamonds": 29,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-2",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 19 quiz dans la matière : Géographie.",
+    "target": 19,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-3",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Français.",
+    "target": 5,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-4",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 13 quiz dans la matière : Histoire.",
+    "target": 13,
+    "rewardDiamonds": 11,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-5",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 27,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-6",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 10 quiz dans la matière : Mathématiques.",
+    "target": 10,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-7",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 7 quiz dans la matière : Technologie.",
+    "target": 7,
+    "rewardDiamonds": 29,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-8",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Sciences.",
+    "target": 7,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-9",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 13 quiz dans la matière : Français.",
+    "target": 13,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-10",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 14,
+    "rewardDiamonds": 25,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-11",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 11,
+    "rewardDiamonds": 24,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-12",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 10,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-13",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Technologie.",
+    "target": 13,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-14",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 14 bonnes réponses dans la matière : Histoire.",
+    "target": 14,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-15",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Français.",
+    "target": 13,
+    "rewardDiamonds": 22,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-16",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Anglais.",
+    "target": 5,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-17",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 18 quiz dans la matière : Technologie.",
+    "target": 18,
+    "rewardDiamonds": 18,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-18",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 17 quiz dans la matière : Histoire.",
+    "target": 17,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-19",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Géographie.",
+    "target": 7,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-20",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 26,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-21",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 19 quiz dans la matière : Technologie.",
+    "target": 19,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-22",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Français.",
+    "target": 9,
+    "rewardDiamonds": 20,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-23",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 21,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-24",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 16 bonnes réponses dans la matière : Culture Générale.",
+    "target": 16,
+    "rewardDiamonds": 19,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-25",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 6 bonnes réponses dans la matière : Histoire.",
+    "target": 6,
+    "rewardDiamonds": 28,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-26",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 26,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-27",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-28",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 17 quiz dans la matière : Sciences.",
+    "target": 17,
+    "rewardDiamonds": 27,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-29",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Culture Générale.",
+    "target": 10,
+    "rewardDiamonds": 28,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-30",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 6 quiz dans la matière : Géographie.",
+    "target": 6,
+    "rewardDiamonds": 20,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-31",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 6,
+    "rewardDiamonds": 20,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-32",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 25,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-33",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 8 bonnes réponses dans la matière : Français.",
+    "target": 8,
+    "rewardDiamonds": 23,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-34",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 18 bonnes réponses dans la matière : Anglais.",
+    "target": 18,
+    "rewardDiamonds": 26,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-35",
+    "title": "Jouer des quiz de Anglais",
+    "description": "Termine 9 quiz dans la matière : Anglais.",
+    "target": 9,
+    "rewardDiamonds": 29,
+    "type": "play",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-36",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Mathématiques.",
+    "target": 5,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-37",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Sciences.",
+    "target": 13,
+    "rewardDiamonds": 11,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-38",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 12 bonnes réponses dans la matière : Culture Générale.",
+    "target": 12,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-39",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 5,
+    "rewardDiamonds": 26,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-40",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 18,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-41",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 19 bonnes réponses dans la matière : Culture Générale.",
+    "target": 19,
+    "rewardDiamonds": 25,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-42",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 15 bonnes réponses dans la matière : Géographie.",
+    "target": 15,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-43",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Histoire.",
+    "target": 5,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-44",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Culture Générale.",
+    "target": 10,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-45",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 29,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-46",
+    "title": "Jouer des quiz de Anglais",
+    "description": "Termine 16 quiz dans la matière : Anglais.",
+    "target": 16,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-47",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Français.",
+    "target": 13,
+    "rewardDiamonds": 22,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-48",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-49",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 15 quiz dans la matière : Mathématiques.",
+    "target": 15,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-50",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 12,
+    "rewardDiamonds": 19,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-51",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 8 bonnes réponses dans la matière : Anglais.",
+    "target": 8,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-52",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Culture Générale.",
+    "target": 9,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-53",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 12,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-54",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 18 quiz dans la matière : Français.",
+    "target": 18,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-55",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-56",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 6 bonnes réponses dans la matière : Sciences.",
+    "target": 6,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-57",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 10,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-58",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 17 quiz dans la matière : Sciences.",
+    "target": 17,
+    "rewardDiamonds": 21,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-59",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Mathématiques.",
+    "target": 7,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-60",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 15 quiz dans la matière : Histoire.",
+    "target": 15,
+    "rewardDiamonds": 26,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-61",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 14 quiz dans la matière : Mathématiques.",
+    "target": 14,
+    "rewardDiamonds": 24,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-62",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 12 quiz dans la matière : Mathématiques.",
+    "target": 12,
+    "rewardDiamonds": 25,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-63",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Mathématiques.",
+    "target": 9,
+    "rewardDiamonds": 16,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-64",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 16 bonnes réponses dans la matière : Histoire.",
+    "target": 16,
+    "rewardDiamonds": 22,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-65",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 18 quiz dans la matière : Mathématiques.",
+    "target": 18,
+    "rewardDiamonds": 22,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-66",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 21,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-67",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 18 quiz dans la matière : Technologie.",
+    "target": 18,
+    "rewardDiamonds": 22,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-68",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 10 quiz dans la matière : Culture Générale.",
+    "target": 10,
+    "rewardDiamonds": 20,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-69",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-70",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 17 quiz dans la matière : Culture Générale.",
+    "target": 17,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-71",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 11 quiz dans la matière : Sciences.",
+    "target": 11,
+    "rewardDiamonds": 20,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-72",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Histoire.",
+    "target": 5,
+    "rewardDiamonds": 19,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-73",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 10 quiz dans la matière : Français.",
+    "target": 10,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-74",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 19 bonnes réponses dans la matière : Technologie.",
+    "target": 19,
+    "rewardDiamonds": 16,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-75",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 14 bonnes réponses dans la matière : Géographie.",
+    "target": 14,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-76",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 16 quiz dans la matière : Sciences.",
+    "target": 16,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-77",
+    "title": "Jouer des quiz de Anglais",
+    "description": "Termine 15 quiz dans la matière : Anglais.",
+    "target": 15,
+    "rewardDiamonds": 11,
+    "type": "play",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-78",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Anglais.",
+    "target": 11,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-79",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 10 quiz dans la matière : Français.",
+    "target": 10,
+    "rewardDiamonds": 12,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-80",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 12 bonnes réponses dans la matière : Français.",
+    "target": 12,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-81",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 5 quiz dans la matière : Culture Générale.",
+    "target": 5,
+    "rewardDiamonds": 20,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-82",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Culture Générale.",
+    "target": 5,
+    "rewardDiamonds": 29,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-83",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Sciences.",
+    "target": 17,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-84",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 5,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-85",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Sciences.",
+    "target": 11,
+    "rewardDiamonds": 25,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-86",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 6,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-87",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 11,
+    "rewardDiamonds": 25,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-88",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Sciences.",
+    "target": 7,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-89",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Anglais.",
+    "target": 9,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-90",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Histoire.",
+    "target": 10,
+    "rewardDiamonds": 21,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-91",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 21,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-92",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 18 bonnes réponses dans la matière : Culture Générale.",
+    "target": 18,
+    "rewardDiamonds": 23,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-93",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 10 quiz dans la matière : Géographie.",
+    "target": 10,
+    "rewardDiamonds": 26,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-94",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 14,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-95",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 6 bonnes réponses dans la matière : Histoire.",
+    "target": 6,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-96",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Mathématiques.",
+    "target": 9,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-97",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Géographie.",
+    "target": 10,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-98",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 15 quiz dans la matière : Culture Générale.",
+    "target": 15,
+    "rewardDiamonds": 28,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-99",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 14 quiz dans la matière : Mathématiques.",
+    "target": 14,
+    "rewardDiamonds": 25,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-100",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 12 quiz dans la matière : Géographie.",
+    "target": 12,
+    "rewardDiamonds": 16,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-101",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 15 bonnes réponses dans la matière : Technologie.",
+    "target": 15,
+    "rewardDiamonds": 15,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-102",
+    "title": "Jouer des quiz de Anglais",
+    "description": "Termine 17 quiz dans la matière : Anglais.",
+    "target": 17,
+    "rewardDiamonds": 18,
+    "type": "play",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-103",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 18 quiz dans la matière : Technologie.",
+    "target": 18,
+    "rewardDiamonds": 11,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-104",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 8 quiz dans la matière : Mathématiques.",
+    "target": 8,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-105",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 16,
+    "rewardDiamonds": 25,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-106",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Technologie.",
+    "target": 7,
+    "rewardDiamonds": 19,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-107",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Histoire.",
+    "target": 11,
+    "rewardDiamonds": 20,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-108",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 16 quiz dans la matière : Géographie.",
+    "target": 16,
+    "rewardDiamonds": 25,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-109",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 9 quiz dans la matière : Français.",
+    "target": 9,
+    "rewardDiamonds": 18,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-110",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 18 bonnes réponses dans la matière : Sciences.",
+    "target": 18,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-111",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 6 bonnes réponses dans la matière : Anglais.",
+    "target": 6,
+    "rewardDiamonds": 22,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-112",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 8 quiz dans la matière : Sciences.",
+    "target": 8,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-113",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Mathématiques.",
+    "target": 11,
+    "rewardDiamonds": 27,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-114",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 8 quiz dans la matière : Histoire.",
+    "target": 8,
+    "rewardDiamonds": 22,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-115",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 8 bonnes réponses dans la matière : Histoire.",
+    "target": 8,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-116",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 19 quiz dans la matière : Histoire.",
+    "target": 19,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-117",
+    "title": "Jouer des quiz de Anglais",
+    "description": "Termine 5 quiz dans la matière : Anglais.",
+    "target": 5,
+    "rewardDiamonds": 10,
+    "type": "play",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-118",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Français.",
+    "target": 9,
+    "rewardDiamonds": 27,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-119",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 13 quiz dans la matière : Histoire.",
+    "target": 13,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-120",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-121",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 11,
+    "rewardDiamonds": 16,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-122",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 6 bonnes réponses dans la matière : Géographie.",
+    "target": 6,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-123",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Histoire.",
+    "target": 17,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-124",
+    "title": "Jouer des quiz de Français",
+    "description": "Termine 18 quiz dans la matière : Français.",
+    "target": 18,
+    "rewardDiamonds": 22,
+    "type": "play",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-125",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 17 quiz dans la matière : Sciences.",
+    "target": 17,
+    "rewardDiamonds": 25,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-126",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 10 quiz dans la matière : Technologie.",
+    "target": 10,
+    "rewardDiamonds": 24,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-127",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 16,
+    "rewardDiamonds": 19,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-128",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 17,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-129",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Français.",
+    "target": 10,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-130",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Géographie.",
+    "target": 17,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-131",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 5,
+    "rewardDiamonds": 12,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-132",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Culture Générale.",
+    "target": 17,
+    "rewardDiamonds": 27,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-133",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 27,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-134",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 17,
+    "rewardDiamonds": 26,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-135",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 10,
+    "rewardDiamonds": 11,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-136",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 16,
+    "rewardDiamonds": 28,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-137",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 14,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-138",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 6,
+    "rewardDiamonds": 28,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-139",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Anglais.",
+    "target": 7,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-140",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Sciences.",
+    "target": 7,
+    "rewardDiamonds": 27,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-141",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 5,
+    "rewardDiamonds": 24,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-142",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 6,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-143",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 19 bonnes réponses dans la matière : Histoire.",
+    "target": 19,
+    "rewardDiamonds": 23,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-144",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 12 bonnes réponses dans la matière : Histoire.",
+    "target": 12,
+    "rewardDiamonds": 14,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-145",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 16,
+    "rewardDiamonds": 12,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-146",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 21,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-147",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 29,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-148",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 8 quiz dans la matière : Mathématiques.",
+    "target": 8,
+    "rewardDiamonds": 29,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-149",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Histoire.",
+    "target": 13,
+    "rewardDiamonds": 15,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-150",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 16,
+    "rewardDiamonds": 16,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-151",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Sciences.",
+    "target": 13,
+    "rewardDiamonds": 28,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-152",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 18 quiz dans la matière : Histoire.",
+    "target": 18,
+    "rewardDiamonds": 15,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-153",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Anglais.",
+    "target": 5,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-154",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-155",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 10 quiz dans la matière : Culture Générale.",
+    "target": 10,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-156",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 17 quiz dans la matière : Mathématiques.",
+    "target": 17,
+    "rewardDiamonds": 28,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-157",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 5,
+    "rewardDiamonds": 22,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-158",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 13,
+    "rewardDiamonds": 16,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-159",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 22,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-160",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 10 bonnes réponses dans la matière : Technologie.",
+    "target": 10,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-161",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 19,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-162",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 17,
+    "rewardDiamonds": 14,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-163",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 12 bonnes réponses dans la matière : Géographie.",
+    "target": 12,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-164",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 17 quiz dans la matière : Mathématiques.",
+    "target": 17,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-165",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 13 bonnes réponses dans la matière : Histoire.",
+    "target": 13,
+    "rewardDiamonds": 11,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-166",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 19,
+    "rewardDiamonds": 13,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-167",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 10 quiz dans la matière : Sciences.",
+    "target": 10,
+    "rewardDiamonds": 22,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-168",
+    "title": "Jouer des quiz de Géographie",
+    "description": "Termine 11 quiz dans la matière : Géographie.",
+    "target": 11,
+    "rewardDiamonds": 14,
+    "type": "play",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-169",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 18,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-170",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Géographie.",
+    "target": 11,
+    "rewardDiamonds": 17,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-171",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 19 bonnes réponses dans la matière : Géographie.",
+    "target": 19,
+    "rewardDiamonds": 11,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-172",
+    "title": "Bonnes réponses en Histoire",
+    "description": "Obtiens 18 bonnes réponses dans la matière : Histoire.",
+    "target": 18,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-173",
+    "title": "Bonnes réponses en Culture Générale",
+    "description": "Obtiens 9 bonnes réponses dans la matière : Culture Générale.",
+    "target": 9,
+    "rewardDiamonds": 13,
+    "type": "correct",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-174",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 6,
+    "rewardDiamonds": 20,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-175",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 15,
+    "rewardDiamonds": 28,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-176",
+    "title": "Jouer des quiz de Histoire",
+    "description": "Termine 7 quiz dans la matière : Histoire.",
+    "target": 7,
+    "rewardDiamonds": 12,
+    "type": "play",
+    "subject": "Histoire"
+  },
+  {
+    "id": "daily-177",
+    "title": "Jouer des quiz de Culture Générale",
+    "description": "Termine 11 quiz dans la matière : Culture Générale.",
+    "target": 11,
+    "rewardDiamonds": 24,
+    "type": "play",
+    "subject": "Culture Générale"
+  },
+  {
+    "id": "daily-178",
+    "title": "Bonnes réponses en Géographie",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Géographie.",
+    "target": 17,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Géographie"
+  },
+  {
+    "id": "daily-179",
+    "title": "Jouer des quiz de Mathématiques",
+    "description": "Termine 10 quiz dans la matière : Mathématiques.",
+    "target": 10,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-180",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Sciences.",
+    "target": 7,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-181",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 7 bonnes réponses dans la matière : Anglais.",
+    "target": 7,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-182",
+    "title": "Bonnes réponses en Sciences",
+    "description": "Obtiens 17 bonnes réponses dans la matière : Sciences.",
+    "target": 17,
+    "rewardDiamonds": 18,
+    "type": "correct",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-183",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 9,
+    "rewardDiamonds": 27,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-184",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 11,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-185",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 8 bonnes réponses dans la matière : Technologie.",
+    "target": 8,
+    "rewardDiamonds": 29,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-186",
+    "title": "Bonnes réponses en Français",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Français.",
+    "target": 11,
+    "rewardDiamonds": 12,
+    "type": "correct",
+    "subject": "Français"
+  },
+  {
+    "id": "daily-187",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 16 bonnes réponses dans la matière : Anglais.",
+    "target": 16,
+    "rewardDiamonds": 29,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-188",
+    "title": "Bonnes réponses en Mathématiques",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Mathématiques.",
+    "target": 5,
+    "rewardDiamonds": 10,
+    "type": "correct",
+    "subject": "Mathématiques"
+  },
+  {
+    "id": "daily-189",
+    "title": "Bonnes réponses en Anglais",
+    "description": "Obtiens 11 bonnes réponses dans la matière : Anglais.",
+    "target": 11,
+    "rewardDiamonds": 13,
+    "type": "correct",
+    "subject": "Anglais"
+  },
+  {
+    "id": "daily-190",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 8,
+    "rewardDiamonds": 28,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-191",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 12 quiz dans la matière : Technologie.",
+    "target": 12,
+    "rewardDiamonds": 27,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-192",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 18 quiz dans la matière : Technologie.",
+    "target": 18,
+    "rewardDiamonds": 12,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-193",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Technologie.",
+    "target": 5,
+    "rewardDiamonds": 15,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-194",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 14,
+    "rewardDiamonds": 18,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-195",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 6 quiz dans la matière : Technologie.",
+    "target": 6,
+    "rewardDiamonds": 13,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-196",
+    "title": "Jouer des quiz de Technologie",
+    "description": "Termine 19 quiz dans la matière : Technologie.",
+    "target": 19,
+    "rewardDiamonds": 17,
+    "type": "play",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-197",
+    "title": "Quiz parfaits",
+    "description": "Termine 1 quiz sans faire d'erreur.",
+    "target": 15,
+    "rewardDiamonds": 25,
+    "type": "perfect",
+    "subject": "any"
+  },
+  {
+    "id": "daily-198",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 5 bonnes réponses dans la matière : Technologie.",
+    "target": 5,
+    "rewardDiamonds": 24,
+    "type": "correct",
+    "subject": "Technologie"
+  },
+  {
+    "id": "daily-199",
+    "title": "Jouer des quiz de Sciences",
+    "description": "Termine 18 quiz dans la matière : Sciences.",
+    "target": 18,
+    "rewardDiamonds": 11,
+    "type": "play",
+    "subject": "Sciences"
+  },
+  {
+    "id": "daily-200",
+    "title": "Bonnes réponses en Technologie",
+    "description": "Obtiens 14 bonnes réponses dans la matière : Technologie.",
+    "target": 14,
+    "rewardDiamonds": 19,
+    "type": "correct",
+    "subject": "Technologie"
+  }
+]

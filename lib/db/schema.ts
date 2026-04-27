@@ -159,6 +159,16 @@ export const agent = pgTable("Agent", {
 
 export type Agent = InferSelectModel<typeof agent>;
 
+export type ProjectNotificationSettings = {
+  deadlineReminders: boolean;
+  taskAssignment: boolean;
+  commentAdded: boolean;
+  taskCompleted: boolean;
+};
+
+export type ProjectMemberRole = "owner" | "editor" | "viewer";
+export type ProjectInvitationRole = "editor" | "viewer";
+
 export const project = pgTable("Project", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")
@@ -168,6 +178,25 @@ export const project = pgTable("Project", {
   description: text("description"),
   image: text("image"),
   instructions: text("instructions"),
+  aiModel: text("aiModel"),
+  systemInstructions: text("systemInstructions"),
+  notificationSettings: json("notificationSettings")
+    .$type<ProjectNotificationSettings>()
+    .notNull()
+    .default({
+      deadlineReminders: true,
+      taskAssignment: true,
+      commentAdded: true,
+      taskCompleted: true,
+    }),
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  color: varchar("color", { length: 7 }),
+  icon: varchar("icon", { length: 50 }),
+  templateId: uuid("templateId"),
+  pinned: boolean("pinned").notNull().default(false),
+  archivedAt: timestamp("archivedAt"),
   memory: text("memory"), // plain text knowledge/sources
   files: json("files").default([]), // uploaded files metadata
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -175,6 +204,70 @@ export const project = pgTable("Project", {
 });
 
 export type Project = InferSelectModel<typeof project>;
+
+export const projectMember = pgTable("ProjectMember", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: varchar("role", {
+    enum: ["owner", "editor", "viewer"],
+  })
+    .notNull()
+    .default("viewer"),
+  invitedByUserId: uuid("invitedByUserId").references(() => user.id),
+  invitedAt: timestamp("invitedAt").notNull().defaultNow(),
+  acceptedAt: timestamp("acceptedAt"),
+});
+
+export type ProjectMember = InferSelectModel<typeof projectMember>;
+
+export const projectInvitation = pgTable("ProjectInvitation", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 320 }).notNull(),
+  role: varchar("role", { enum: ["editor", "viewer"] })
+    .notNull()
+    .default("viewer"),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectInvitation = InferSelectModel<typeof projectInvitation>;
+
+export type ProjectTemplateTaskModel = {
+  title: string;
+  description?: string | null;
+  priority?: "low" | "medium" | "high";
+  subtasks: string[];
+};
+
+export const projectTemplate = pgTable("ProjectTemplate", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  defaultInstructions: text("defaultInstructions"),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  taskModels: json("taskModels")
+    .$type<ProjectTemplateTaskModel[]>()
+    .notNull()
+    .default([]),
+  icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 7 }),
+  isPublic: boolean("isPublic").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectTemplate = InferSelectModel<typeof projectTemplate>;
 
 export const task = pgTable("Task", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -196,6 +289,11 @@ export const task = pgTable("Task", {
     .notNull()
     .default("none"),
   repeatInterval: integer("repeatInterval"),
+  assigneeType: varchar("assigneeType", { enum: ["user", "ai"] })
+    .notNull()
+    .default("user"),
+  assigneeId: uuid("assigneeId").references(() => user.id),
+  sortOrder: integer("sortOrder").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -208,13 +306,154 @@ export const subtask = pgTable("Subtask", {
     .notNull()
     .references(() => task.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  description: text("description"),
   status: varchar("status", { enum: ["todo", "done"] })
     .notNull()
     .default("todo"),
+  sortOrder: integer("sortOrder").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
 export type Subtask = InferSelectModel<typeof subtask>;
+
+export const taskComment = pgTable("TaskComment", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  taskId: uuid("taskId")
+    .notNull()
+    .references(() => task.id, { onDelete: "cascade" }),
+  authorId: uuid("authorId")
+    .notNull()
+    .references(() => user.id),
+  content: text("content").notNull(),
+  isAiGenerated: boolean("isAiGenerated").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type TaskComment = InferSelectModel<typeof taskComment>;
+
+export const notification = pgTable("Notification", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  projectId: uuid("projectId").references(() => project.id),
+  taskId: uuid("taskId").references(() => task.id),
+  type: varchar("type", {
+    enum: [
+      "task_due",
+      "task_assigned",
+      "comment_added",
+      "project_deadline",
+      "task_completed",
+      "mention",
+    ],
+  }).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("isRead").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type Notification = InferSelectModel<typeof notification>;
+
+export const projectNotificationPreference = pgTable(
+  "ProjectNotificationPreference",
+  {
+    projectId: uuid("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: uuid("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    deadlineReminders: boolean("deadlineReminders").notNull().default(true),
+    taskAssignment: boolean("taskAssignment").notNull().default(true),
+    commentAdded: boolean("commentAdded").notNull().default(true),
+    taskCompleted: boolean("taskCompleted").notNull().default(true),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.projectId, table.userId] }),
+  })
+);
+
+export type ProjectNotificationPreference = InferSelectModel<
+  typeof projectNotificationPreference
+>;
+
+export const projectFile = pgTable("ProjectFile", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  taskId: uuid("taskId").references(() => task.id),
+  name: text("name").notNull(),
+  blobUrl: text("blobUrl"),
+  mimeType: text("mimeType"),
+  size: integer("size"),
+  parentId: uuid("parentId"),
+  version: integer("version").notNull().default(1),
+  previousVersionId: uuid("previousVersionId"),
+  sharedWith: json("sharedWith").$type<string[]>().notNull().default([]),
+  isFolder: boolean("isFolder").notNull().default(false),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectFile = InferSelectModel<typeof projectFile>;
+
+export const projectWebSource = pgTable("ProjectWebSource", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  faviconUrl: text("faviconUrl"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectWebSource = InferSelectModel<typeof projectWebSource>;
+
+export const projectActivity = pgTable("ProjectActivity", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  projectId: uuid("projectId")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  actionType: varchar("actionType", {
+    enum: [
+      "task_created",
+      "task_updated",
+      "task_completed",
+      "task_deleted",
+      "comment_added",
+      "file_uploaded",
+      "file_deleted",
+      "member_invited",
+      "member_removed",
+      "project_updated",
+      "source_added",
+    ],
+  }).notNull(),
+  targetType: varchar("targetType", {
+    enum: ["task", "file", "comment", "member", "project", "source"],
+  }).notNull(),
+  targetId: uuid("targetId"),
+  metadata: json("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectActivity = InferSelectModel<typeof projectActivity>;
 
 export const memoryEntry = pgTable("Memory", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -223,7 +462,7 @@ export const memoryEntry = pgTable("Memory", {
     .references(() => user.id),
   projectId: uuid("projectId").references(() => project.id),
   content: text("content").notNull(),
-  type: varchar("type", { enum: ["auto", "manual"] })
+  type: varchar("type", { enum: ["auto", "manual", "summary"] })
     .notNull()
     .default("manual"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -239,3 +478,80 @@ export const subscription = pgTable("Subscription", {
 });
 
 export type Subscription = InferSelectModel<typeof subscription>;
+
+// --- QUIZZLY TABLES ---
+
+export const quizzlyProfile = pgTable("QuizzlyProfile", {
+  userId: uuid("userId")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  pseudo: varchar("pseudo", { length: 64 }).notNull().default("Player"),
+  bio: text("bio").notNull().default("Prêt(e) à apprendre en m'amusant 🎯"),
+  avatarDataUrl: text("avatarDataUrl"),
+  emoji: varchar("emoji", { length: 8 }).notNull().default("🧠"),
+  level: integer("level").notNull().default(1),
+  xp: integer("xp").notNull().default(0),
+  diamonds: integer("diamonds").notNull().default(150),
+  stars: integer("stars").notNull().default(3),
+  streak: integer("streak").notNull().default(0),
+  lastClaimDay: varchar("lastClaimDay", { length: 32 }).notNull().default(""),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type QuizzlyProfile = InferSelectModel<typeof quizzlyProfile>;
+
+export const quizzlyInventory = pgTable("QuizzlyInventory", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  itemKey: varchar("itemKey", { length: 64 }).notNull(), // e.g. "booster_x1.5", "booster_x2"
+  quantity: integer("quantity").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type QuizzlyInventory = InferSelectModel<typeof quizzlyInventory>;
+
+export const quizzlyUserQuest = pgTable("QuizzlyUserQuest", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  questId: varchar("questId", { length: 64 }).notNull(), // ref to daily/weekly JSON quest id
+  type: varchar("type", { enum: ["daily", "weekly"] }).notNull(),
+  progress: integer("progress").notNull().default(0),
+  isCompleted: boolean("isCompleted").notNull().default(false),
+  assignedAt: timestamp("assignedAt").notNull().defaultNow(),
+  expiresAt: timestamp("expiresAt").notNull(),
+});
+
+export type QuizzlyUserQuest = InferSelectModel<typeof quizzlyUserQuest>;
+
+export const quizzlyFriendship = pgTable("QuizzlyFriendship", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  friendId: uuid("friendId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: varchar("status", { enum: ["pending", "accepted"] }).notNull().default("pending"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type QuizzlyFriendship = InferSelectModel<typeof quizzlyFriendship>;
+
+export const quizzlyMessage = pgTable("QuizzlyMessage", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  senderId: uuid("senderId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  receiverId: uuid("receiverId") // null for global/tribe chat, or specific user for DM
+    .references(() => user.id, { onDelete: "cascade" }),
+  text: text("text").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type QuizzlyMessage = InferSelectModel<typeof quizzlyMessage>;

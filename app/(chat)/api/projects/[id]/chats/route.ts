@@ -5,8 +5,8 @@ import {
   assignChatToProject,
   getChatById,
   getChatsByProjectId,
-  getProjectById,
 } from "@/lib/db/queries";
+import { requireProjectRole } from "@/lib/projects/permissions";
 
 const importChatSchema = z.object({
   chatId: z.string().uuid(),
@@ -22,15 +22,13 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "viewer");
+  if (permission.response) {
+    return permission.response;
   }
 
   const chats = await getChatsByProjectId({
     projectId: id,
-    userId: session.user.id,
   });
 
   return NextResponse.json(chats);
@@ -46,10 +44,9 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const project = await getProjectById(id);
-
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const permission = await requireProjectRole(id, session.user.id, "editor");
+  if (permission.response) {
+    return permission.response;
   }
 
   const parsed = importChatSchema.safeParse(await request.json());
